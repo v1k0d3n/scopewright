@@ -101,11 +101,20 @@ headers could be forged.
 
 ## Development
 
+[![CI](https://github.com/v1k0d3n/scopewright/actions/workflows/ci.yml/badge.svg)](https://github.com/v1k0d3n/scopewright/actions/workflows/ci.yml)
+
+CI runs on every push and pull request and weekly: lint, type-check, and
+unit tests; a production build with a smoke test of the server in open and
+proxy modes; a container build from the `Containerfile`; `npm audit`
+(runtime dependencies gate at moderate, the whole tree at high); and CodeQL
+security and quality analysis. Dependabot proposes npm, GitHub Actions, and
+base-image updates weekly.
+
 ```bash
 npm install
 npm run dev      # http://localhost:3000, open mode, no login
 npm test         # estimate engine, theme pack, and identity tests
-npm run check    # lint + tests + production build
+npm run check    # lint + type-check + tests + production build
 npm run build && npm start   # the production server, as the container runs it
 ```
 

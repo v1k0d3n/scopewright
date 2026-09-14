@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so new advisories against unchanged code still surface.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, type-check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  build-and-run:
+    name: Build and smoke-test the server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start the production server and exercise it
+        run: |
+          PORT=3000 DATA_DIR="$RUNNER_TEMP/data" npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/ && break; sleep 1; done
+          set -x
+          curl -sf http://localhost:3000/ | grep -q '<title>'
+          curl -sf http://localhost:3000/api/workspace/me | grep -q '"mode":"open"'
+          curl -sf -X PUT -H 'content-type: application/json' -d '{"orgName":"CI"}' http://localhost:3000/api/workspace/branding | grep -q savedAt
+          curl -sf http://localhost:3000/api/workspace/branding | grep -q '"orgName":"CI"'
+          # In proxy mode an anonymous write must be refused.
+          kill %1; sleep 1
+          AUTH_MODE=proxy PORT=3001 DATA_DIR="$RUNNER_TEMP/data" npm start > server2.log 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:3001/ && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'content-type: application/json' -d '{}' http://localhost:3001/api/workspace/branding)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'content-type: application/json' -H 'x-forwarded-user: ci' -d '{}' http://localhost:3001/api/workspace/branding)" = "200"
+      - name: Server logs
+        if: failure()
+        run: cat server.log server2.log 2>/dev/null || true
+
+  container:
+    name: Container image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with the project Containerfile
+        run: docker build -f Containerfile -t scopewright:ci .
+      - name: Image starts and serves
+        run: |
+          docker run -d --rm --name sw -p 3000:3000 scopewright:ci
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/ && break; sleep 1; done
+          curl -sf http://localhost:3000/api/workspace/me | grep -q '"mode":"open"'
+          docker stop sw
+
+  dependency-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Runtime dependencies gate the build at moderate and above; the full
+      # tree (build tooling included) is reported but only fails on high.
+      - run: npm audit --omit=dev --audit-level=moderate
+      - run: npm audit --audit-level=high
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v3
