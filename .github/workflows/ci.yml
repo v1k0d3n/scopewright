@@ -87,6 +87,9 @@ jobs:
 
   codeql:
     name: CodeQL
+    # Code scanning is available on public repositories, and on private ones
+    # only with GitHub Advanced Security; skip rather than fail elsewhere.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

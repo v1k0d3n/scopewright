@@ -107,7 +107,8 @@ CI runs on every push and pull request and weekly: lint, type-check, and
 unit tests; a production build with a smoke test of the server in open and
 proxy modes; a container build from the `Containerfile`; `npm audit`
 (runtime dependencies gate at moderate, the whole tree at high); and CodeQL
-security and quality analysis. Dependabot proposes npm, GitHub Actions, and
+security and quality analysis (on public repositories, where GitHub provides
+code scanning). Dependabot proposes npm, GitHub Actions, and
 base-image updates weekly.
 
 ```bash
