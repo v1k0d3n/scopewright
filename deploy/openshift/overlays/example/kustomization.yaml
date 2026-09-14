@@ -1,0 +1,25 @@
+# Copy this directory to deploy/openshift/overlays/local (git-ignored) and
+# fill in your own values. deploy/openshift/build.sh uses overlays/local when
+# it exists, otherwise the base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  # Public hostname of the app. Must be under your cluster's apps domain.
+  - target:
+      kind: Route
+      name: scopewright
+    patch: |
+      - op: replace
+        path: /spec/host
+        value: scopewright.apps.example.com
+  # Who may change the shared catalog and theme (usernames as your identity
+  # provider reports them, or emails). Empty means every admitted user.
+  - target:
+      kind: ConfigMap
+      name: scopewright-config
+    patch: |
+      - op: replace
+        path: /data/AUTH_EDITORS
+        value: "alice, bob@example.com"

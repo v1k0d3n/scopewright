@@ -1,0 +1,24 @@
+# scopewright-access exists only as the RBAC target the proxy checks (see rbac.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scopewright-access
+  labels:
+    app: scopewright
+data:
+  purpose: "Users who can 'get' this ConfigMap may open Scopewright."
+---
+# App configuration. AUTH_EDITORS lists the usernames (as the identity
+# provider reports them) or emails allowed to change the shared catalog and
+# theme; everyone else the proxy admits is a viewer. Leave it empty to make
+# every admitted user an editor.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scopewright-config
+  labels:
+    app: scopewright
+data:
+  AUTH_MODE: "proxy"
+  AUTH_EDITORS: ""
+  AUTH_LOGOUT_URL: "/oauth/sign_out"

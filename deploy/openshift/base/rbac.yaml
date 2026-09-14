@@ -1,0 +1,54 @@
+# 1. The proxy needs to ask the cluster "who is this token?" and "may they
+#    access Scopewright?". Both are cluster-scoped review APIs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scopewright-oauth-proxy
+rules:
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["subjectaccessreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: scopewright-oauth-proxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: scopewright-oauth-proxy
+subjects:
+  - kind: ServiceAccount
+    name: scopewright
+    namespace: scopewright
+---
+# 2. Who may open Scopewright. The proxy admits a user only if they can "get"
+#    the scopewright-access ConfigMap, so membership is ordinary RBAC:
+#      oc adm groups new scopewright-users <gitlab-username>
+#      oc adm groups add-users scopewright-users <another-user>
+#    Cluster admins pass automatically.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scopewright-user
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["scopewright-access"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scopewright-users
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: scopewright-user
+subjects:
+  - kind: Group
+    apiGroup: rbac.authorization.k8s.io
+    name: scopewright-users

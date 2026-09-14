@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.vinext
+.git
+docs
+deploy
+packs/*.zip
+*.log
+.env*

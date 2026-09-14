@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: scopewright
+  labels:
+    app: scopewright
+spec:
+  # Set the public hostname in your overlay (see deploy/openshift/overlays/example).
+  host: scopewright.apps.example.com
+  to:
+    kind: Service
+    name: scopewright
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect

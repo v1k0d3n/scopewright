@@ -1,0 +1,189 @@
+{
+  "format": "scopewright-estimate",
+  "version": 1,
+  "exportedAt": "2026-09-13T02:37:29.990480+00:00",
+  "summary": {
+    "customer": "Harbor & Vale Logistics",
+    "title": "Connected Warehouse Vision Proof of Concept"
+  },
+  "estimate": {
+    "customer": "Harbor & Vale Logistics",
+    "title": "Connected Warehouse Vision Proof of Concept",
+    "goal": "Prove that Solstice can detect blocked dock doors and forklift near-misses across three distribution centers within two seconds of the event, route alerts to the operations team automatically, and give the analytics team a queryable history of every event, all managed as a single fleet from one console.",
+    "products": [
+      "core",
+      "edge",
+      "fleet",
+      "insight",
+      "vision",
+      "conductor"
+    ],
+    "environments": {},
+    "selections": {
+      "core:footprint": "ha",
+      "core:platform": "vmware",
+      "core:connectivity": "proxy",
+      "core:storage": "csi",
+      "core:identity": "oidc",
+      "streams:brokers": "three",
+      "streams:retention": "tiered",
+      "streams:connectors": "mqtt",
+      "lakehouse:objectstore": "byo",
+      "lakehouse:compute": "dedicated",
+      "lakehouse:catalog": "builtin",
+      "edge:sites": "three",
+      "edge:hardware": "certified",
+      "edge:provisioning": "ztp",
+      "edge:links": "intermittent",
+      "fleet:scope": "ota",
+      "fleet:integration": "cmdb",
+      "insight:workload": "serving",
+      "insight:accelerators": "gpu",
+      "vision:cameras": "ten",
+      "vision:models": "custom",
+      "vision:inference": "gpu",
+      "conductor:deployment": "shared",
+      "conductor:integrations": "itsm"
+    },
+    "details": {
+      "core": [
+        {
+          "id": "d1",
+          "description": "Integrate with Harbor & Vale's Okta tenant for platform sign-in",
+          "hours": 2
+        }
+      ],
+      "vision": [
+        {
+          "id": "d2",
+          "description": "Mask the customer-facing lobby camera region for privacy",
+          "hours": 1
+        }
+      ]
+    },
+    "prerequisites": {
+      "core:api-vip": {
+        "value": "10.42.0.10",
+        "status": "provided"
+      },
+      "core:app-vip": {
+        "value": "10.42.0.11",
+        "status": "provided"
+      },
+      "core:node-network": {
+        "value": "10.42.0.0/24",
+        "status": "provided"
+      },
+      "core:dns": {
+        "value": "core.poc.harborvale.example, *.apps.poc.harborvale.example",
+        "status": "provided"
+      },
+      "core:ntp": {
+        "value": "ntp.harborvale.example",
+        "status": "provided"
+      },
+      "core:ssh": {
+        "value": "Provided by platform team",
+        "status": "provided"
+      },
+      "core:license": {
+        "value": "",
+        "status": "pending"
+      },
+      "core:bmc": {
+        "value": "",
+        "status": "not-applicable"
+      },
+      "edge:site-list": {
+        "value": "Newark DC, Savannah DC, Tacoma cross-dock",
+        "status": "provided"
+      },
+      "edge:gateway-specs": {
+        "value": "Outpost G2 gateway, 16 GB, 1 TB NVMe, T4 GPU",
+        "status": "provided"
+      },
+      "edge:site-network": {
+        "value": "VLAN 220, DHCP reservations, outbound 443 only",
+        "status": "provided"
+      },
+      "vision:cameras": {
+        "value": "10 Axis P3265 dome cameras, RTSP, dock doors 1\u201310",
+        "status": "provided"
+      },
+      "vision:labels": {
+        "value": "",
+        "status": "pending"
+      },
+      "vision:privacy": {
+        "value": "Approved by Legal 2026-09-08",
+        "status": "provided"
+      },
+      "streams:topics": {
+        "value": "dock.events, forklift.telemetry, camera.alerts",
+        "status": "provided"
+      },
+      "lakehouse:bucket": {
+        "value": "s3://harborvale-poc (MinIO)",
+        "status": "provided"
+      },
+      "lakehouse:sample": {
+        "value": "",
+        "status": "pending"
+      },
+      "fleet:update-window": {
+        "value": "Sundays 02:00\u201304:00 local",
+        "status": "provided"
+      },
+      "insight:gpu": {
+        "value": "2 \u00d7 NVIDIA L4 on Core workers",
+        "status": "provided"
+      },
+      "insight:data-owner": {
+        "value": "",
+        "status": "pending"
+      },
+      "conductor:workflows": {
+        "value": "Dock-door blocked alert, forklift near-miss report, nightly site health summary",
+        "status": "provided"
+      }
+    },
+    "customPrerequisites": {
+      "edge": [
+        {
+          "id": "cp1",
+          "label": "Site escort for gateway installation",
+          "value": "Facilities to confirm per site",
+          "status": "pending"
+        }
+      ]
+    },
+    "selectedTasks": [
+      "eng-kickoff",
+      "eng-arch",
+      "eng-readout",
+      "core-monitor",
+      "core-backup",
+      "str-topics",
+      "str-connect",
+      "lake-ingest",
+      "lake-dash",
+      "edge-image",
+      "edge-first",
+      "edge-offline",
+      "fleet-groups",
+      "fleet-ota",
+      "ins-workbench",
+      "ins-train",
+      "ins-serve",
+      "vis-ingest",
+      "vis-detect",
+      "vis-alert",
+      "vis-accept",
+      "con-build",
+      "con-run"
+    ],
+    "assumptions": "Harbor & Vale provides VMware capacity, network access, and camera credentials before kickoff.\nThe three pilot sites have a technician available for gateway installation.\nSample footage for custom training is delivered by the end of week one.\nEstimate covers Solstice delivery effort only; calendar duration depends on site access and change windows.",
+    "successCriteria": "Blocked dock-door events are detected at all three sites within two seconds, with fewer than one false alert per site per day.\nForklift near-miss alerts reach the operations channel through Conductor with the camera clip attached.\nEvery event is queryable in Lakehouse dashboards within one minute of occurring.\nA configuration change and an over-the-air update roll to all three sites from Fleet Manager with staged canary and rollback.",
+    "updatedAt": 0
+  }
+}

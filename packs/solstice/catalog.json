@@ -1,0 +1,1239 @@
+{
+  "format": "scopewright-catalog",
+  "version": 1,
+  "exportedAt": "2026-09-13T02:37:29.990480+00:00",
+  "catalog": {
+    "products": [
+      {
+        "id": "core",
+        "name": "Solstice Core Platform",
+        "short": "Core",
+        "portfolio": "Platform",
+        "mark": "SC",
+        "hours": 0,
+        "description": "The control plane every Solstice product runs on. Effort comes from the installation decisions.",
+        "requires": []
+      },
+      {
+        "id": "sentinel",
+        "name": "Sentinel Access",
+        "short": "Sentinel",
+        "portfolio": "Security",
+        "mark": "SA",
+        "hours": 8,
+        "description": "Zero-trust access gateway with identity federation and device posture.",
+        "requires": [
+          "core"
+        ]
+      },
+      {
+        "id": "conductor",
+        "name": "Conductor Workflows",
+        "short": "Conductor",
+        "portfolio": "Automation",
+        "mark": "CW",
+        "hours": 6,
+        "description": "Event-driven workflow engine that automates operations across Solstice products.",
+        "requires": [
+          "core"
+        ]
+      },
+      {
+        "id": "streams",
+        "name": "Solstice Streams",
+        "short": "Streams",
+        "portfolio": "Data",
+        "mark": "SS",
+        "hours": 6,
+        "description": "Managed event streaming with connectors and tiered retention.",
+        "requires": [
+          "core"
+        ]
+      },
+      {
+        "id": "lakehouse",
+        "name": "Solstice Lakehouse",
+        "short": "Lakehouse",
+        "portfolio": "Data",
+        "mark": "SL",
+        "hours": 10,
+        "description": "Open-table analytics store fed by Streams, queried with SQL.",
+        "requires": [
+          "streams"
+        ]
+      },
+      {
+        "id": "edge",
+        "name": "Outpost Edge Runtime",
+        "short": "Outpost Edge",
+        "portfolio": "Edge",
+        "mark": "OE",
+        "hours": 6,
+        "description": "Lightweight runtime for gateways and site servers, managed from Core.",
+        "requires": [
+          "core"
+        ]
+      },
+      {
+        "id": "fleet",
+        "name": "Outpost Fleet Manager",
+        "short": "Fleet Manager",
+        "portfolio": "Edge",
+        "mark": "OF",
+        "hours": 8,
+        "description": "Configuration, over-the-air updates, and health for every Outpost site.",
+        "requires": [
+          "edge"
+        ]
+      },
+      {
+        "id": "insight",
+        "name": "Nova Insight",
+        "short": "Nova Insight",
+        "portfolio": "Intelligence",
+        "mark": "NI",
+        "hours": 10,
+        "description": "Notebooks, training, and model serving on Lakehouse data.",
+        "requires": [
+          "lakehouse"
+        ]
+      },
+      {
+        "id": "vision",
+        "name": "Nova Vision",
+        "short": "Nova Vision",
+        "portfolio": "Intelligence",
+        "mark": "NV",
+        "hours": 12,
+        "description": "Computer vision at the edge: camera ingest, inference, and alerting, trained in Nova Insight.",
+        "requires": [
+          "edge",
+          "insight"
+        ]
+      }
+    ],
+    "installation": {
+      "core": [
+        {
+          "id": "footprint",
+          "label": "Control plane footprint",
+          "help": "Production-shaped POCs should use the HA footprint.",
+          "choices": [
+            {
+              "id": "lab",
+              "label": "Single-node lab",
+              "hours": 2
+            },
+            {
+              "id": "ha",
+              "label": "Highly available (3 nodes)",
+              "hours": 6
+            },
+            {
+              "id": "zones",
+              "label": "Multi-zone (3 + 3 nodes)",
+              "hours": 10
+            }
+          ]
+        },
+        {
+          "id": "platform",
+          "label": "Target platform",
+          "choices": [
+            {
+              "id": "baremetal",
+              "label": "Bare metal",
+              "hours": 5
+            },
+            {
+              "id": "vmware",
+              "label": "VMware vSphere",
+              "hours": 4
+            },
+            {
+              "id": "aws",
+              "label": "AWS",
+              "hours": 3
+            },
+            {
+              "id": "azure",
+              "label": "Microsoft Azure",
+              "hours": 3
+            },
+            {
+              "id": "k8s",
+              "label": "Existing Kubernetes cluster",
+              "hours": 4
+            }
+          ]
+        },
+        {
+          "id": "connectivity",
+          "label": "Network connectivity",
+          "choices": [
+            {
+              "id": "connected",
+              "label": "Connected",
+              "hours": 1
+            },
+            {
+              "id": "proxy",
+              "label": "Through a corporate proxy",
+              "hours": 2
+            },
+            {
+              "id": "airgap",
+              "label": "Air-gapped with mirrored registry",
+              "hours": 4
+            }
+          ]
+        },
+        {
+          "id": "storage",
+          "label": "Persistent storage",
+          "choices": [
+            {
+              "id": "local",
+              "label": "Local disks",
+              "hours": 2
+            },
+            {
+              "id": "csi",
+              "label": "SAN / NAS via CSI driver",
+              "hours": 3
+            },
+            {
+              "id": "cloud",
+              "label": "Cloud block storage",
+              "hours": 2
+            }
+          ]
+        },
+        {
+          "id": "identity",
+          "label": "Platform identity",
+          "choices": [
+            {
+              "id": "local",
+              "label": "Local accounts",
+              "hours": 1
+            },
+            {
+              "id": "ldap",
+              "label": "LDAP / Active Directory",
+              "hours": 3
+            },
+            {
+              "id": "oidc",
+              "label": "OIDC single sign-on",
+              "hours": 3
+            }
+          ]
+        }
+      ],
+      "sentinel": [
+        {
+          "id": "idp",
+          "label": "Identity provider",
+          "choices": [
+            {
+              "id": "oidc",
+              "label": "OIDC",
+              "hours": 2
+            },
+            {
+              "id": "saml",
+              "label": "SAML",
+              "hours": 3
+            },
+            {
+              "id": "ad",
+              "label": "Active Directory",
+              "hours": 3
+            }
+          ]
+        },
+        {
+          "id": "policy",
+          "label": "Policy scope",
+          "choices": [
+            {
+              "id": "apps",
+              "label": "Application access only",
+              "hours": 2
+            },
+            {
+              "id": "posture",
+              "label": "Application access + device posture",
+              "hours": 4
+            },
+            {
+              "id": "micro",
+              "label": "Microsegmentation between workloads",
+              "hours": 6
+            }
+          ]
+        },
+        {
+          "id": "deployment",
+          "label": "Gateway deployment",
+          "choices": [
+            {
+              "id": "hosted",
+              "label": "Solstice-hosted gateway",
+              "hours": 2
+            },
+            {
+              "id": "selfhosted",
+              "label": "Self-hosted gateway on Core",
+              "hours": 4
+            }
+          ]
+        }
+      ],
+      "conductor": [
+        {
+          "id": "deployment",
+          "label": "Engine deployment",
+          "choices": [
+            {
+              "id": "shared",
+              "label": "Shared engine on Core",
+              "hours": 1
+            },
+            {
+              "id": "dedicated",
+              "label": "Dedicated engine with isolated workers",
+              "hours": 3
+            }
+          ]
+        },
+        {
+          "id": "integrations",
+          "label": "Integrations",
+          "choices": [
+            {
+              "id": "none",
+              "label": "None",
+              "hours": 0
+            },
+            {
+              "id": "itsm",
+              "label": "ITSM ticketing",
+              "hours": 3
+            },
+            {
+              "id": "git",
+              "label": "Git and CI pipelines",
+              "hours": 3
+            },
+            {
+              "id": "both",
+              "label": "ITSM + Git and CI",
+              "hours": 5
+            }
+          ]
+        }
+      ],
+      "streams": [
+        {
+          "id": "brokers",
+          "label": "Broker topology",
+          "choices": [
+            {
+              "id": "single",
+              "label": "Single broker",
+              "hours": 1
+            },
+            {
+              "id": "three",
+              "label": "3 brokers",
+              "hours": 3
+            },
+            {
+              "id": "five",
+              "label": "5 brokers with rack awareness",
+              "hours": 4
+            }
+          ]
+        },
+        {
+          "id": "retention",
+          "label": "Retention",
+          "choices": [
+            {
+              "id": "ephemeral",
+              "label": "Ephemeral (7 days on disk)",
+              "hours": 0
+            },
+            {
+              "id": "tiered",
+              "label": "Tiered to object storage",
+              "hours": 3
+            }
+          ]
+        },
+        {
+          "id": "connectors",
+          "label": "Source connectors",
+          "choices": [
+            {
+              "id": "none",
+              "label": "None (producers write directly)",
+              "hours": 0
+            },
+            {
+              "id": "cdc",
+              "label": "Database change data capture",
+              "hours": 4
+            },
+            {
+              "id": "mqtt",
+              "label": "Files and MQTT",
+              "hours": 3
+            },
+            {
+              "id": "all",
+              "label": "CDC + files + MQTT",
+              "hours": 6
+            }
+          ]
+        }
+      ],
+      "lakehouse": [
+        {
+          "id": "objectstore",
+          "label": "Object storage",
+          "choices": [
+            {
+              "id": "byo",
+              "label": "Bring your own S3-compatible store",
+              "hours": 2
+            },
+            {
+              "id": "deploy",
+              "label": "Deploy Solstice Object Store",
+              "hours": 4
+            }
+          ]
+        },
+        {
+          "id": "compute",
+          "label": "Query compute",
+          "choices": [
+            {
+              "id": "shared",
+              "label": "Shared compute pool",
+              "hours": 2
+            },
+            {
+              "id": "dedicated",
+              "label": "Dedicated query cluster",
+              "hours": 4
+            }
+          ]
+        },
+        {
+          "id": "catalog",
+          "label": "Table catalog",
+          "choices": [
+            {
+              "id": "builtin",
+              "label": "Built-in catalog",
+              "hours": 1
+            },
+            {
+              "id": "federate",
+              "label": "Federate an existing Hive or Glue catalog",
+              "hours": 3
+            }
+          ]
+        }
+      ],
+      "edge": [
+        {
+          "id": "sites",
+          "label": "Edge sites in scope",
+          "choices": [
+            {
+              "id": "pilot",
+              "label": "1 pilot site",
+              "hours": 2
+            },
+            {
+              "id": "three",
+              "label": "3 sites",
+              "hours": 4
+            },
+            {
+              "id": "ten",
+              "label": "10 sites",
+              "hours": 8
+            }
+          ]
+        },
+        {
+          "id": "hardware",
+          "label": "Site hardware",
+          "choices": [
+            {
+              "id": "certified",
+              "label": "Vendor-certified gateways",
+              "hours": 2
+            },
+            {
+              "id": "customer",
+              "label": "Customer-supplied hardware",
+              "hours": 4
+            },
+            {
+              "id": "virtual",
+              "label": "Virtual edge on existing hypervisor",
+              "hours": 2
+            }
+          ]
+        },
+        {
+          "id": "provisioning",
+          "label": "Provisioning",
+          "choices": [
+            {
+              "id": "manual",
+              "label": "USB / manual",
+              "hours": 2
+            },
+            {
+              "id": "ztp",
+              "label": "Zero-touch provisioning",
+              "hours": 5
+            }
+          ]
+        },
+        {
+          "id": "links",
+          "label": "Site connectivity",
+          "choices": [
+            {
+              "id": "always",
+              "label": "Always connected",
+              "hours": 1
+            },
+            {
+              "id": "intermittent",
+              "label": "Intermittent with store-and-forward",
+              "hours": 3
+            }
+          ]
+        }
+      ],
+      "fleet": [
+        {
+          "id": "scope",
+          "label": "Management scope",
+          "choices": [
+            {
+              "id": "config",
+              "label": "Configuration management only",
+              "hours": 2
+            },
+            {
+              "id": "ota",
+              "label": "Configuration + over-the-air updates",
+              "hours": 5
+            }
+          ]
+        },
+        {
+          "id": "integration",
+          "label": "Inventory integration",
+          "choices": [
+            {
+              "id": "standalone",
+              "label": "Standalone",
+              "hours": 0
+            },
+            {
+              "id": "cmdb",
+              "label": "Sync with existing CMDB / ITSM",
+              "hours": 4
+            }
+          ]
+        }
+      ],
+      "insight": [
+        {
+          "id": "workload",
+          "label": "Workload",
+          "choices": [
+            {
+              "id": "sql",
+              "label": "Dashboards and SQL analytics",
+              "hours": 3
+            },
+            {
+              "id": "notebooks",
+              "label": "Notebooks and model training",
+              "hours": 6
+            },
+            {
+              "id": "serving",
+              "label": "Training + model serving",
+              "hours": 8
+            }
+          ]
+        },
+        {
+          "id": "accelerators",
+          "label": "Accelerators",
+          "choices": [
+            {
+              "id": "cpu",
+              "label": "CPU only",
+              "hours": 0
+            },
+            {
+              "id": "gpu",
+              "label": "GPU pool on Core workers",
+              "hours": 4
+            }
+          ]
+        }
+      ],
+      "vision": [
+        {
+          "id": "cameras",
+          "label": "Camera count",
+          "choices": [
+            {
+              "id": "two",
+              "label": "2 pilot cameras",
+              "hours": 2
+            },
+            {
+              "id": "ten",
+              "label": "10 cameras",
+              "hours": 4
+            },
+            {
+              "id": "fifty",
+              "label": "50+ cameras",
+              "hours": 8
+            }
+          ]
+        },
+        {
+          "id": "models",
+          "label": "Detection models",
+          "choices": [
+            {
+              "id": "pretrained",
+              "label": "Pretrained models",
+              "hours": 2
+            },
+            {
+              "id": "custom",
+              "label": "Custom model training in Nova Insight",
+              "hours": 8
+            }
+          ]
+        },
+        {
+          "id": "inference",
+          "label": "Inference target",
+          "choices": [
+            {
+              "id": "gpu",
+              "label": "Edge GPU",
+              "hours": 4
+            },
+            {
+              "id": "cpu",
+              "label": "Edge CPU (reduced frame rate)",
+              "hours": 2
+            }
+          ]
+        }
+      ]
+    },
+    "prerequisites": {
+      "core": [
+        {
+          "id": "api-vip",
+          "label": "Control plane VIP",
+          "placeholder": "10.20.0.10",
+          "required": true,
+          "help": "Virtual IP for the Core API on the node network."
+        },
+        {
+          "id": "app-vip",
+          "label": "Application ingress VIP",
+          "placeholder": "10.20.0.11",
+          "required": true
+        },
+        {
+          "id": "node-network",
+          "label": "Node network",
+          "placeholder": "10.20.0.0/24",
+          "required": true
+        },
+        {
+          "id": "dns",
+          "label": "DNS records",
+          "placeholder": "core, *.apps",
+          "required": true,
+          "help": "Forward and reverse records for both VIPs."
+        },
+        {
+          "id": "ntp",
+          "label": "NTP source",
+          "placeholder": "time.example.com",
+          "required": true
+        },
+        {
+          "id": "ssh",
+          "label": "SSH public key",
+          "placeholder": "For break-glass node access",
+          "required": true
+        },
+        {
+          "id": "license",
+          "label": "Solstice license key",
+          "placeholder": "From the Solstice customer portal",
+          "required": true
+        },
+        {
+          "id": "bmc",
+          "label": "Out-of-band management",
+          "placeholder": "Redfish or IPMI credentials",
+          "required": false,
+          "help": "Bare metal only."
+        }
+      ],
+      "sentinel": [
+        {
+          "id": "idp-metadata",
+          "label": "Identity provider metadata",
+          "placeholder": "OIDC discovery URL or SAML metadata",
+          "required": true
+        },
+        {
+          "id": "test-users",
+          "label": "Test users and groups",
+          "placeholder": "Two users in two groups",
+          "required": true
+        },
+        {
+          "id": "cert",
+          "label": "TLS certificate for the gateway",
+          "placeholder": "Wildcard or SAN certificate",
+          "required": false
+        }
+      ],
+      "conductor": [
+        {
+          "id": "service-account",
+          "label": "Integration service account",
+          "placeholder": "ITSM or Git credentials with API scope",
+          "required": false
+        },
+        {
+          "id": "workflows",
+          "label": "First three workflows to automate",
+          "placeholder": "Described in plain language",
+          "required": true
+        }
+      ],
+      "streams": [
+        {
+          "id": "topics",
+          "label": "Initial topic list",
+          "placeholder": "Names, partitions, retention",
+          "required": true
+        },
+        {
+          "id": "sources",
+          "label": "Source system access",
+          "placeholder": "Database or MQTT broker credentials",
+          "required": false
+        }
+      ],
+      "lakehouse": [
+        {
+          "id": "bucket",
+          "label": "Object storage bucket",
+          "placeholder": "Endpoint, bucket, access keys",
+          "required": true
+        },
+        {
+          "id": "sample",
+          "label": "Sample data set",
+          "placeholder": "At least 30 days of representative data",
+          "required": true
+        }
+      ],
+      "edge": [
+        {
+          "id": "site-list",
+          "label": "Site list",
+          "placeholder": "Address, contact, bandwidth per site",
+          "required": true
+        },
+        {
+          "id": "gateway-specs",
+          "label": "Gateway hardware specs",
+          "placeholder": "CPU, memory, storage, GPU",
+          "required": true
+        },
+        {
+          "id": "site-network",
+          "label": "Site network details",
+          "placeholder": "VLAN, DHCP or static, outbound rules",
+          "required": true
+        }
+      ],
+      "fleet": [
+        {
+          "id": "cmdb-access",
+          "label": "CMDB / ITSM API access",
+          "placeholder": "Read-write service account",
+          "required": false
+        },
+        {
+          "id": "update-window",
+          "label": "Maintenance window per site",
+          "placeholder": "e.g. Sundays 02:00\u201304:00 local",
+          "required": true
+        }
+      ],
+      "insight": [
+        {
+          "id": "gpu",
+          "label": "GPU nodes",
+          "placeholder": "Count and model",
+          "required": false
+        },
+        {
+          "id": "data-owner",
+          "label": "Data owner sign-off",
+          "placeholder": "Approval to use the sample data set",
+          "required": true
+        }
+      ],
+      "vision": [
+        {
+          "id": "cameras",
+          "label": "Camera inventory",
+          "placeholder": "Model, RTSP URL, location",
+          "required": true
+        },
+        {
+          "id": "labels",
+          "label": "Labeled sample footage",
+          "placeholder": "For custom models: 200+ labeled frames",
+          "required": false
+        },
+        {
+          "id": "privacy",
+          "label": "Privacy review",
+          "placeholder": "Sign-off for recording in the pilot area",
+          "required": true
+        }
+      ]
+    },
+    "groups": [
+      {
+        "id": "engagement",
+        "name": "Engagement Planning",
+        "category": "Engagement",
+        "productId": "",
+        "scopeNumber": "1",
+        "tasks": [
+          {
+            "id": "eng-kickoff",
+            "name": "Kickoff, access validation, and success criteria",
+            "phase": "Planning",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "1.1"
+          },
+          {
+            "id": "eng-arch",
+            "name": "Target architecture and site plan",
+            "phase": "Planning",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "1.2"
+          },
+          {
+            "id": "eng-readout",
+            "name": "Executive readout and handover",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "1.3"
+          }
+        ]
+      },
+      {
+        "id": "core-ops",
+        "name": "Core Platform Operations",
+        "category": "Platform",
+        "productId": "core",
+        "scopeNumber": "2",
+        "tasks": [
+          {
+            "id": "core-monitor",
+            "name": "Enable monitoring, alerting, and log forwarding",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "2.1"
+          },
+          {
+            "id": "core-backup",
+            "name": "Configure control plane backup and restore drill",
+            "phase": "Configuration",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "2.2"
+          },
+          {
+            "id": "core-upgrade",
+            "name": "Perform a minor version upgrade",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "2.3"
+          },
+          {
+            "id": "core-dr",
+            "name": "Simulate node loss and validate recovery",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "2.4"
+          }
+        ]
+      },
+      {
+        "id": "sentinel-rollout",
+        "name": "Zero-Trust Rollout",
+        "category": "Security",
+        "productId": "sentinel",
+        "scopeNumber": "3",
+        "tasks": [
+          {
+            "id": "sen-policies",
+            "name": "Author access policies for three applications",
+            "phase": "Configuration",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "3.1"
+          },
+          {
+            "id": "sen-posture",
+            "name": "Enroll test devices and validate posture checks",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "3.2"
+          },
+          {
+            "id": "sen-audit",
+            "name": "Review access audit trail with security team",
+            "phase": "Testing and Validation",
+            "hours": 2,
+            "enabled": true,
+            "scopeNumber": "3.3"
+          }
+        ]
+      },
+      {
+        "id": "conductor-flows",
+        "name": "Automation Workflows",
+        "category": "Automation",
+        "productId": "conductor",
+        "scopeNumber": "4",
+        "tasks": [
+          {
+            "id": "con-build",
+            "name": "Build the first three workflows",
+            "phase": "Configuration",
+            "hours": 6,
+            "enabled": true,
+            "scopeNumber": "4.1"
+          },
+          {
+            "id": "con-approve",
+            "name": "Add approval gates and notifications",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "4.2"
+          },
+          {
+            "id": "con-run",
+            "name": "Run workflows end to end with the operations team",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "4.3"
+          }
+        ]
+      },
+      {
+        "id": "streams-pipeline",
+        "name": "Streaming Pipeline",
+        "category": "Data",
+        "productId": "streams",
+        "scopeNumber": "5",
+        "tasks": [
+          {
+            "id": "str-topics",
+            "name": "Create topics, schemas, and access controls",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "5.1"
+          },
+          {
+            "id": "str-connect",
+            "name": "Wire source connectors and validate throughput",
+            "phase": "Testing and Validation",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "5.2"
+          },
+          {
+            "id": "str-replay",
+            "name": "Demonstrate replay and consumer lag recovery",
+            "phase": "Testing and Validation",
+            "hours": 2,
+            "enabled": true,
+            "scopeNumber": "5.3"
+          }
+        ]
+      },
+      {
+        "id": "lakehouse-analytics",
+        "name": "Lakehouse Analytics",
+        "category": "Data",
+        "productId": "lakehouse",
+        "scopeNumber": "6",
+        "tasks": [
+          {
+            "id": "lake-ingest",
+            "name": "Land streaming data as open tables",
+            "phase": "Configuration",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "6.1"
+          },
+          {
+            "id": "lake-dash",
+            "name": "Build three business dashboards",
+            "phase": "Configuration",
+            "hours": 5,
+            "enabled": true,
+            "scopeNumber": "6.2"
+          },
+          {
+            "id": "lake-perf",
+            "name": "Benchmark query performance against the sample set",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "6.3"
+          }
+        ]
+      },
+      {
+        "id": "edge-sites",
+        "name": "Edge Site Enablement",
+        "category": "Edge",
+        "productId": "edge",
+        "scopeNumber": "7",
+        "tasks": [
+          {
+            "id": "edge-image",
+            "name": "Build the site image and provisioning profile",
+            "phase": "Deployment",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "7.1"
+          },
+          {
+            "id": "edge-first",
+            "name": "Bring up the first site and validate telemetry",
+            "phase": "Deployment",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "7.2"
+          },
+          {
+            "id": "edge-offline",
+            "name": "Validate store-and-forward during a link outage",
+            "phase": "Testing and Validation",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "7.3"
+          }
+        ]
+      },
+      {
+        "id": "fleet-ops",
+        "name": "Fleet Operations",
+        "category": "Edge",
+        "productId": "fleet",
+        "scopeNumber": "8",
+        "tasks": [
+          {
+            "id": "fleet-groups",
+            "name": "Define site groups and configuration baselines",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "8.1"
+          },
+          {
+            "id": "fleet-ota",
+            "name": "Roll an over-the-air update to a canary group",
+            "phase": "Testing and Validation",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "8.2"
+          },
+          {
+            "id": "fleet-rollback",
+            "name": "Demonstrate staged rollback",
+            "phase": "Testing and Validation",
+            "hours": 2,
+            "enabled": false,
+            "scopeNumber": "8.3"
+          }
+        ]
+      },
+      {
+        "id": "insight-models",
+        "name": "Model Development",
+        "category": "Intelligence",
+        "productId": "insight",
+        "scopeNumber": "9",
+        "tasks": [
+          {
+            "id": "ins-workbench",
+            "name": "Provision workbenches and connect Lakehouse data",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "9.1"
+          },
+          {
+            "id": "ins-train",
+            "name": "Train a baseline model on the sample data",
+            "phase": "Configuration",
+            "hours": 6,
+            "enabled": true,
+            "scopeNumber": "9.2"
+          },
+          {
+            "id": "ins-serve",
+            "name": "Serve the model and validate latency",
+            "phase": "Testing and Validation",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "9.3"
+          }
+        ]
+      },
+      {
+        "id": "vision-usecase",
+        "name": "Vision Use Case",
+        "category": "Intelligence",
+        "productId": "vision",
+        "scopeNumber": "10",
+        "tasks": [
+          {
+            "id": "vis-ingest",
+            "name": "Onboard pilot cameras and validate ingest",
+            "phase": "Deployment",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "10.1"
+          },
+          {
+            "id": "vis-detect",
+            "name": "Tune detection for the customer use case",
+            "phase": "Configuration",
+            "hours": 6,
+            "enabled": true,
+            "scopeNumber": "10.2"
+          },
+          {
+            "id": "vis-alert",
+            "name": "Route alerts through Conductor to operations",
+            "phase": "Configuration",
+            "hours": 3,
+            "enabled": true,
+            "scopeNumber": "10.3"
+          },
+          {
+            "id": "vis-accept",
+            "name": "Acceptance test against agreed detection targets",
+            "phase": "Testing and Validation",
+            "hours": 4,
+            "enabled": true,
+            "scopeNumber": "10.4"
+          }
+        ]
+      }
+    ],
+    "solutions": [
+      {
+        "id": "vision",
+        "label": "POPULAR",
+        "title": "Edge vision starter",
+        "subtitle": "Core + Outpost Edge + Nova Vision, trained in Nova Insight",
+        "products": [
+          "core",
+          "edge",
+          "insight",
+          "vision"
+        ]
+      },
+      {
+        "id": "streaming",
+        "label": "SOLUTION",
+        "title": "Streaming data platform",
+        "subtitle": "Core + Streams + Lakehouse with dashboards",
+        "products": [
+          "core",
+          "streams",
+          "lakehouse"
+        ]
+      },
+      {
+        "id": "fleet",
+        "label": "SOLUTION",
+        "title": "Connected fleet at scale",
+        "subtitle": "Outpost Edge + Fleet Manager + Conductor automation",
+        "products": [
+          "core",
+          "edge",
+          "fleet",
+          "conductor"
+        ]
+      },
+      {
+        "id": "zerotrust",
+        "label": "SECURITY",
+        "title": "Zero-trust foundation",
+        "subtitle": "Core + Sentinel Access for three applications",
+        "products": [
+          "core",
+          "sentinel"
+        ]
+      }
+    ]
+  }
+}

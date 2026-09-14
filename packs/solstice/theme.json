@@ -1,0 +1,67 @@
+{
+  "format": "scopewright-theme",
+  "version": 1,
+  "exportedAt": "2026-09-13T02:37:29.990480+00:00",
+  "identity": {
+    "orgName": "Solstice Systems",
+    "workspaceName": "Field Solutions",
+    "tagline": "POC workspace",
+    "initials": "SOL"
+  },
+  "colors": {
+    "primary": "#0f6e73",
+    "accent": "#f2a900",
+    "ink": "#14212b",
+    "muted": "#526069",
+    "paper": "#f4f7f8",
+    "surface": "#ffffff",
+    "line": "#dbe3e7",
+    "sidebar": "#0b2530",
+    "sidebarInk": "#f6fbfb"
+  },
+  "schemes": [
+    {
+      "id": "scheme-solstice-teal",
+      "name": "Solstice Teal",
+      "colors": {
+        "primary": "#0f6e73",
+        "accent": "#f2a900",
+        "ink": "#14212b",
+        "muted": "#526069",
+        "paper": "#f4f7f8",
+        "surface": "#ffffff",
+        "line": "#dbe3e7",
+        "sidebar": "#0b2530",
+        "sidebarInk": "#f6fbfb"
+      }
+    },
+    {
+      "id": "scheme-solstice-dusk",
+      "name": "Solstice Dusk",
+      "colors": {
+        "primary": "#5b2a86",
+        "accent": "#ff6b4a",
+        "ink": "#1c1626",
+        "muted": "#5d5468",
+        "paper": "#f6f4f9",
+        "surface": "#ffffff",
+        "line": "#e3dcec",
+        "sidebar": "#1b1030",
+        "sidebarInk": "#fbf7ff"
+      }
+    }
+  ],
+  "fonts": {
+    "heading": "helvetica",
+    "body": "system"
+  },
+  "document": {
+    "footer": "Solstice Systems \u00b7 Field Solutions",
+    "confidentiality": "Confidential \u00b7 Prepared for customer review",
+    "showLogo": true
+  },
+  "assets": {
+    "logo": "logo.svg",
+    "favicon": "favicon.svg"
+  }
+}

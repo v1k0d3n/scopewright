@@ -1,0 +1,24 @@
+# Binary build: the source is uploaded from the developer's machine with
+#   oc start-build scopewright --from-archive=<tar> --follow
+# so the image is built natively on the cluster and lands in the ImageStream.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: scopewright
+  labels:
+    app: scopewright
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: scopewright:latest
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
