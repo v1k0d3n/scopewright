@@ -12,6 +12,27 @@ the file format, the conventions, and how to check your work. It is written
 so that a language model can follow it directly; every rule is stated
 explicitly, and a complete example is included.
 
+**The output is exactly this shape, and nothing else.** Five sections inside a
+`catalog` object; no other top-level keys, no sections of your own:
+
+```json
+{
+  "format": "scopewright-catalog",
+  "version": 1,
+  "catalog": {
+    "products": [],
+    "installation": {},
+    "prerequisites": {},
+    "groups": [],
+    "solutions": []
+  }
+}
+```
+
+Check a file before importing it: `npm run catalog:check -- my-catalog.json`
+prints every problem in plain language and a summary of what the catalog
+will estimate.
+
 Contents
 
 1. [The model in one picture](#the-model-in-one-picture)
@@ -223,6 +244,34 @@ and tone. A minimal two-product excerpt:
 }
 ```
 
+## Common mistakes
+
+These are the ways a catalog goes wrong when it is written from a different
+mental model, by a person or a language model. Each one is a sign that
+structure was invented instead of using the five sections.
+
+- **Inventing top-level sections** for things like offerings, engagement
+  metadata, work tracks, deployment options, a separate deliverables list,
+  or out-of-scope items. Scopewright has none of these. Offerings are
+  **solutions**; deployment options are **installation questions** on the
+  product they deploy; a deliverable **is** a task (there is no separate
+  deliverables list); out-of-scope items belong in an estimate's
+  assumptions, not the catalog.
+- **Inventing phases.** The five phases are fixed: Planning, Prerequisites,
+  Deployment, Configuration, Testing and Validation. Map your own workflow
+  onto them; do not define new ones.
+- **A flat prerequisites list.** Prerequisites are keyed by the product they
+  belong to (`"prerequisites": { "core": [ ... ] }`), never a single list.
+- **Three-point or ranged estimates.** Each choice and task has one `hours`
+  number. If your source has best/likely/worst, use the likely value.
+- **Tasks without a group.** Every task lives in a group with a `productId`
+  (or `""`), a `phase`, `hours`, and `enabled: true`.
+- **Extra fields on products** (`category`, `components`, `vendor`, ...).
+  Use `portfolio` for grouping and `description` for prose; anything else is
+  ignored.
+- **Prefixed ids** like `prod-core` or `task-install`. Fine but unnecessary;
+  plain kebab-case (`core`, `install-operator`) is the convention.
+
 ## Checklist before importing
 
 - Valid JSON; `format` is `scopewright-catalog`, `version` is `1`.
@@ -245,8 +294,12 @@ the file (see Safety). Import from Settings → Estimate catalog → Import
 Paste this together with this page and your product documentation:
 
 > Using the attached product documentation and the Scopewright authoring
-> guide, produce a Scopewright catalog as a single JSON file. Follow the four
-> sorting rules to decide what becomes an installation question, a
+> guide, produce a Scopewright catalog as a single JSON file. The output must
+> have exactly the top-level keys `format`, `version`, and `catalog`, and
+> `catalog` must contain exactly `products`, `installation`, `prerequisites`,
+> `groups`, and `solutions` as defined in the guide's File format section. Do
+> not add sections, fields, or phases of your own; read "Common mistakes"
+> before you start. Follow the four sorting rules to decide what becomes an installation question, a
 > prerequisite, a deliverable, or a required foundation. Model dependencies
 > between products with `requires`. Give every choice and task hours on the
 > guide's scale, and mark them as first-draft estimates. Use lowercase

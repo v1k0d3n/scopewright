@@ -29,7 +29,7 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
   const importInput = useRef<HTMLInputElement>(null);
   const themeInput = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
-  const flash = (text: string) => { setMessage(text); setTimeout(() => setMessage(""), 2500); };
+  const flash = (text: string) => { setMessage(text); setTimeout(() => setMessage(""), Math.min(12_000, 2_500 + text.length * 40)); };
   const patch = (changes: Partial<Branding>) => setBranding({ ...branding, ...changes });
   const setColor = (key: keyof Branding["colors"], value: string) => patch({ colors: { ...branding.colors, [key]: value } });
   const current = activeTheme(branding);
@@ -85,7 +85,7 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
     reader.onload = () => {
       try {
         const data = JSON.parse(String(reader.result)) as { catalog?: unknown };
-        if (!isCatalog(data.catalog)) throw new Error("Unrecognized file");
+        if (!isCatalog(data.catalog)) { flash('Not a Scopewright catalog: the file needs a top-level "catalog" object with products, installation, prerequisites, groups, and solutions. See docs/authoring.md, or run npm run catalog:check.'); return; }
         const next = mergeCatalog(data.catalog, defaultCatalog);
         if (!window.confirm(`Import ${next.products.length} products and ${next.groups.length} deliverable groups? This replaces the shared catalog for everyone.`)) return;
         setCatalog(next);
