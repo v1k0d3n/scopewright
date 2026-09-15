@@ -8,7 +8,7 @@
  * Pure functions over bytes so the same code runs in the browser and in tests.
  */
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import type { BrandColors, Branding, ColorScheme } from "./types";
+import type { BrandColors, Branding, ColorScheme } from "./types.ts";
 
 const colorKeys: (keyof BrandColors)[] = ["primary", "accent", "ink", "muted", "paper", "surface", "line", "sidebar", "sidebarInk"];
 
@@ -32,6 +32,8 @@ export type ThemeManifest = {
 };
 
 const extensionFor: Record<string, string> = { "image/svg+xml": "svg", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/x-icon": "ico", "image/vnd.microsoft.icon": "ico", "image/gif": "gif" };
+export const MAX_PACK_BYTES = 6_000_000;
+export const MAX_ASSET_BYTES = 450_000;
 const mimeFor: Record<string, string> = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", ico: "image/x-icon", gif: "image/gif" };
 
 const decodeBase64 = (text: string): Uint8Array => {
@@ -88,9 +90,12 @@ export function buildThemePack(branding: Branding): Uint8Array {
 /** Read a theme pack; returns a Branding merged over `base`, or null if the zip is not a theme pack. */
 /** `knownThemes` (for example the built-in ones) are not re-created as org-named themes. */
 export function parseThemePack(bytes: Uint8Array, base: Branding, knownThemes: ColorScheme[] = []): Branding | null {
+  if (bytes.length > MAX_PACK_BYTES) return null;
   let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(bytes);
+    // Only theme.json and small image files are ever read; everything else in
+    // the archive is ignored, and oversized entries are skipped before inflate.
+    files = unzipSync(bytes, { filter: (file) => /(^|\/)(theme\.json|[A-Za-z0-9_-]+\.(svg|png|jpg|jpeg|webp|ico|gif))$/.test(file.name) && file.originalSize <= MAX_ASSET_BYTES });
   } catch {
     return null;
   }
@@ -105,7 +110,7 @@ export function parseThemePack(bytes: Uint8Array, base: Branding, knownThemes: C
     return null;
   }
   if ((manifest.format !== THEME_FORMAT && !LEGACY_THEME_FORMATS.includes(manifest.format ?? "")) || manifest.version !== 1) return null;
-  const asset = (name?: string) => (name && files[prefix + name] ? fileToDataUrl(name, files[prefix + name]) : "");
+  const asset = (name?: string) => (typeof name === "string" && /^[A-Za-z0-9_-]+\.(svg|png|jpg|jpeg|webp|ico|gif)$/.test(name) && files[prefix + name] ? fileToDataUrl(name, files[prefix + name]) : "");
   const colors = { ...base.colors, ...(manifest.colors ?? {}) };
   const schemes = (Array.isArray(manifest.schemes) ? manifest.schemes : []).filter((scheme) => scheme && scheme.id && scheme.name && scheme.colors);
   // A pack that never named its colors still gets a selectable scheme, named after the organization.

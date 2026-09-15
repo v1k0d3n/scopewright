@@ -141,6 +141,10 @@ one between machines.
 
 ## Managing the estimate catalog
 
+Building a catalog from scratch, by hand or with an AI assistant? Read
+[authoring.md](authoring.md) first: it explains the model, the file format,
+and the conventions, and includes a prompt to hand to an AI tool.
+
 The catalog is the shared source of everything an estimate can contain. It
 has five tabs, and each tab drives one part of the estimate workflow.
 

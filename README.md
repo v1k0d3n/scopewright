@@ -18,6 +18,10 @@ start from.
 
 - **[User guide](docs/guide.md)**: the estimate workflow step by step, the
   scope document, catalog management, branding, and import/export.
+- **[Authoring a catalog](docs/authoring.md)**: the model, the file format,
+  and conventions, written so that an AI assistant can build a catalog from
+  your product documentation. Want help building an Estimate Catalog? Point
+  your AI agent at that page.
 - **[Deploying on OpenShift](docs/openshift.md)**: the reference deployment
   with login through the cluster's identity providers.
 

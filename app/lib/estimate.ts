@@ -1,4 +1,6 @@
-import type { Catalog, DeliverableGroup, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types";
+import type { Catalog, DeliverableGroup, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
+import { phases, prerequisiteStatuses } from "./types.ts";
+import { bool, hours as num, id, list, objectOrNull, record, text } from "./sanitize.ts";
 
 /** Selected products plus every foundation they transitively require, in dependency order. */
 export function resolveProducts(selected: string[], products: Product[]): string[] {
@@ -155,16 +157,41 @@ export const defaultTitle = (breakdown: EstimateBreakdown) => `${breakdown.produ
 
 export const statusLabel = (status: PrerequisiteStatus) => status === "provided" ? "Provided" : status === "not-applicable" ? "Not applicable" : "Pending";
 
-/** Fill in anything missing from an older stored catalog. */
+/**
+ * Build a Catalog from untrusted input (a stored document, an API body, or an
+ * imported file). Malformed entries are dropped; malformed fields fall back.
+ * Missing sections fall back to `initial`, so older files still load.
+ */
 export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
-  const s = (stored ?? {}) as Partial<Catalog>;
-  return {
-    products: s.products ?? initial.products,
-    installation: s.installation ?? initial.installation,
-    prerequisites: s.prerequisites ?? initial.prerequisites,
-    groups: (s.groups ?? initial.groups).map((group) => ({ ...group, productId: group.productId ?? "" })),
-    solutions: Array.isArray(s.solutions) ? s.solutions : initial.solutions,
-  };
+  const s = record(stored);
+  const products = s.products === undefined ? initial.products : list(s.products, (item, index) => {
+    const p = objectOrNull(item); if (!p) return null;
+    const pid = id(p.id, `product-${index}`);
+    return { id: pid, name: text(p.name, 120, pid), short: text(p.short, 40, pid), portfolio: text(p.portfolio, 60, "Products"), mark: text(p.mark, 3, pid.slice(0, 2).toUpperCase()), hours: num(p.hours), description: text(p.description, 300) || undefined, requires: list(p.requires, (dep) => (typeof dep === "string" && dep !== pid ? id(dep, "") || null : null)) };
+  });
+  const known = new Set(products.map((product) => product.id));
+  // Foundations must exist; a dangling or self reference is dropped.
+  for (const product of products) product.requires = (product.requires ?? []).filter((dep) => dep !== product.id && known.has(dep));
+  const perProduct = <T>(value: unknown, map: (item: unknown, index: number) => T | null): Record<string, T[]> => Object.fromEntries(Object.entries(record(value)).filter(([key]) => known.has(key)).map(([key, items]) => [key, list(items, map)]));
+  const installation = s.installation === undefined ? initial.installation : perProduct<InstallationField>(s.installation, (item, index) => {
+    const f = objectOrNull(item); if (!f) return null;
+    const choices = list(f.choices, (choice, ci) => { const c = objectOrNull(choice); if (!c) return null; return { id: id(c.id, `choice-${ci}`), label: text(c.label, 160, `Option ${ci + 1}`), hours: num(c.hours), note: text(c.note, 300) || undefined }; });
+    return choices.length ? { id: id(f.id, `field-${index}`), label: text(f.label, 160, `Question ${index + 1}`), help: text(f.help, 300) || undefined, choices } : null;
+  });
+  const prerequisites = s.prerequisites === undefined ? initial.prerequisites : perProduct<PrerequisiteItem>(s.prerequisites, (item, index) => {
+    const r = objectOrNull(item); if (!r) return null;
+    return { id: id(r.id, `prereq-${index}`), label: text(r.label, 160, `Prerequisite ${index + 1}`), placeholder: text(r.placeholder, 200) || undefined, help: text(r.help, 300) || undefined, required: bool(r.required, true) };
+  });
+  const groups = s.groups === undefined ? initial.groups : list(s.groups, (item, index) => {
+    const g = objectOrNull(item); if (!g) return null;
+    const productId = typeof g.productId === "string" && known.has(g.productId) ? g.productId : "";
+    return { id: id(g.id, `group-${index}`), name: text(g.name, 160, `Group ${index + 1}`), category: text(g.category, 60, "General"), productId, scopeNumber: text(g.scopeNumber, 12) || undefined, tasks: list(g.tasks, (task, ti) => { const t = objectOrNull(task); if (!t) return null; return { id: id(t.id, `task-${index}-${ti}`), name: text(t.name, 200, `Task ${ti + 1}`), phase: (phases as readonly string[]).includes(t.phase as string) ? (t.phase as (typeof phases)[number]) : "Deployment", hours: num(t.hours), enabled: bool(t.enabled, true), scopeNumber: text(t.scopeNumber, 12) || undefined }; }) };
+  });
+  const solutions = s.solutions === undefined ? initial.solutions : list(s.solutions, (item, index) => {
+    const sol = objectOrNull(item); if (!sol) return null;
+    return { id: id(sol.id, `solution-${index}`), label: text(sol.label, 24), title: text(sol.title, 120, `Solution ${index + 1}`), subtitle: text(sol.subtitle, 200), products: list(sol.products, (pid) => (typeof pid === "string" && known.has(pid) ? pid : null)) };
+  });
+  return { products, installation, prerequisites, groups, solutions };
 }
 
 export const isCatalog = (value: unknown): value is Catalog => {
@@ -172,11 +199,30 @@ export const isCatalog = (value: unknown): value is Catalog => {
   return Boolean(c && Array.isArray(c.products) && c.installation && typeof c.installation === "object" && Array.isArray(c.groups));
 };
 
-/** Fill in anything missing from an older stored or imported estimate. */
+/** Build an Estimate from untrusted input; malformed fields fall back to `initial`. */
 export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
-  const s = (stored ?? {}) as Partial<Estimate>;
-  return { ...initial, ...s, prerequisites: s.prerequisites ?? {}, customPrerequisites: s.customPrerequisites ?? {}, details: s.details ?? {}, environments: s.environments ?? {}, selections: s.selections ?? {}, selectedTasks: Array.isArray(s.selectedTasks) ? s.selectedTasks : [], products: Array.isArray(s.products) ? s.products : [] };
+  const s = record(stored);
+  const statuses = prerequisiteStatuses as readonly string[];
+  const status = (value: unknown): PrerequisiteStatus => (statuses.includes(value as string) ? (value as PrerequisiteStatus) : "pending");
+  const strMap = (value: unknown, allowed: (v: unknown) => boolean) => Object.fromEntries(Object.entries(record(value)).filter(([key, v]) => key.length <= 240 && allowed(v)).slice(0, MAX_MAP));
+  return {
+    customer: text(s.customer, 200, initial.customer),
+    title: text(s.title, 200, initial.title),
+    goal: text(s.goal, MAX_LONG, initial.goal),
+    products: list(s.products, (pid) => (typeof pid === "string" ? id(pid, "") || null : null)),
+    environments: strMap(s.environments, (v) => v === "new" || v === "existing") as Estimate["environments"],
+    selections: strMap(s.selections, (v) => typeof v === "string" && v.length <= 120) as Estimate["selections"],
+    details: Object.fromEntries(Object.entries(record(s.details)).slice(0, MAX_MAP).map(([key, lines]) => [key, list(lines, (line, index) => { const l = objectOrNull(line); if (!l) return null; return { id: id(l.id, `line-${index}`), description: text(l.description, 300), hours: num(l.hours) }; })])),
+    prerequisites: Object.fromEntries(Object.entries(record(s.prerequisites)).slice(0, MAX_MAP).map(([key, answer]) => { const a = record(answer); return [key, { value: text(a.value, 500), status: status(a.status) } satisfies PrerequisiteAnswer]; })),
+    customPrerequisites: Object.fromEntries(Object.entries(record(s.customPrerequisites)).slice(0, MAX_MAP).map(([key, items]) => [key, list(items, (item, index) => { const c = objectOrNull(item); if (!c) return null; return { id: id(c.id, `prereq-${index}`), label: text(c.label, 200), value: text(c.value, 500), status: status(c.status) }; })])),
+    selectedTasks: list(s.selectedTasks, (tid) => (typeof tid === "string" ? id(tid, "") || null : null)),
+    assumptions: text(s.assumptions, MAX_LONG, initial.assumptions),
+    successCriteria: text(s.successCriteria, MAX_LONG, initial.successCriteria),
+    updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
+  };
 }
+const MAX_MAP = 2_000;
+const MAX_LONG = 20_000;
 
 export const ESTIMATE_FORMAT = "scopewright-estimate";
 const LEGACY_ESTIMATE_FORMATS = ["poc-estimate"];

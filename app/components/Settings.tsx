@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { builtInThemes, defaultBranding, defaultCatalog, fontOptions } from "../lib/defaults";
 import { CATALOG_FORMAT, isCatalog, mergeCatalog } from "../lib/estimate";
-import { activeTheme, isBuiltIn } from "../lib/theme";
-import { buildThemePack, parseThemePack } from "../lib/theme-pack";
+import { activeTheme, isBuiltIn, mergeBranding } from "../lib/theme";
+import { buildThemePack, MAX_PACK_BYTES, parseThemePack } from "../lib/theme-pack";
 import type { Branding, Catalog } from "../lib/types";
 
 const uid = () => `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -69,9 +69,11 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
   const exportTheme = () => { download(`${slug(branding.orgName)}-theme-${stamp()}.zip`, buildThemePack(branding)); flash("Theme exported."); };
   const importTheme = (file: File | undefined) => {
     if (!file) return;
+    if (file.size > MAX_PACK_BYTES) { flash("Theme pack must be under 6 MB."); return; }
     file.arrayBuffer().then((buffer) => {
-      const next = parseThemePack(new Uint8Array(buffer), defaultBranding, builtInThemes);
-      if (!next) { flash("Import failed: choose a theme pack (.zip with theme.json)."); return; }
+      const parsed = parseThemePack(new Uint8Array(buffer), defaultBranding, builtInThemes);
+      if (!parsed) { flash("Import failed: choose a theme pack (.zip with theme.json)."); return; }
+      const next = mergeBranding(parsed);
       if (!window.confirm(`Apply the "${next.orgName}" theme? Colors, fonts, identity, logo, and favicon will be replaced for everyone.`)) return;
       setBranding(next);
       flash(`Applied the ${next.orgName} theme.`);

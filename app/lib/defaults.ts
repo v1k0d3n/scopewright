@@ -1,4 +1,4 @@
-import type { Branding, Catalog, ColorScheme, Estimate } from "./types";
+import type { Branding, Catalog, ColorScheme, Estimate } from "./types.ts";
 
 /**
  * A fresh deployment starts with an empty catalog. Organizations import their

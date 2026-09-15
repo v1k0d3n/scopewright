@@ -9,7 +9,7 @@
  */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { readIdentity } from "./identity";
+import { readIdentity } from "./identity.ts";
 
 const keys = ["catalog", "branding"] as const;
 export type StoreKey = (typeof keys)[number];
