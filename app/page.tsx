@@ -30,7 +30,7 @@ const views: { id: View; label: string; icon: string; section: "WORKSPACE" | "MA
 
 const steps = [
   { label: "Products", title: "What are we helping the customer prove?", copy: "Start with a solution pattern or build the engagement by product." },
-  { label: "Installation Details", title: "Installation Details", copy: "Answer the installation questions for each product. Every answer is priced." },
+  { label: "Installation Details", title: "Installation Details", copy: "Answer the installation questions for each product. Every answer carries hours." },
   { label: "Prerequisites", title: "Prerequisites", copy: "What the customer must provide before work starts. Catalog items are pre-filled for each product; add anything specific to this engagement." },
   { label: "Deliverables", title: "Deliverables", copy: "Select the catalog deliverables included in this engagement." },
   { label: "Review", title: "Review the engagement", copy: "Name the engagement and confirm the scope and estimated effort." },

@@ -2,9 +2,11 @@
 
 Scopewright is a web workspace for scoping, estimating, and documenting
 proof-of-concept engagements. A solutions architect picks the products a
-customer wants to prove, answers priced installation questions, records what
+customer wants to prove, answers installation questions that each carry hours, records what
 the customer must provide, selects deliverables, and gets a live estimate and
-a customer-facing scope document ready to sign.
+a customer-facing scope document ready to sign. The estimate is in hours:
+the solutions architect's investment in the customer's success, whether or
+not the POC is paid.
 
 ![Building an estimate](docs/img/001-estimate-products.png)
 
@@ -28,7 +30,7 @@ Products + portfolios           ──►   1. Products                  ─┐
   base work package hours               (solution cards, foundations) │
   required foundations                                                │
 Solutions                       ──►                                   │
-Installation decisions          ──►   2. Installation details        ─┼──►  every priced decision,
+Installation decisions          ──►   2. Installation details        ─┼──►  every decision with its hours,
   question → choices → hours            (one drop-down per question)  │     prerequisites with status,
 Prerequisites per product       ──►   3. Prerequisites               ─┤     numbered deliverables,
   label, example, required              (value + status per item)     │     effort summary, success

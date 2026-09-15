@@ -43,7 +43,7 @@ test("deliverables are offered only for products in the engagement", () => {
   assert.deepEqual(disabled, []);
 });
 
-test("scope text carries every priced decision", () => {
+test("scope text carries every decision and its hours", () => {
   const estimate = { ...emptyEstimate(), customer: "ACME", products: ["core"], selections: { "core:connectivity": "airgap" }, details: { core: [{ id: "x", description: "Custom DNS", hours: 2 }] }, selectedTasks: ["core-monitor"] };
   const text = scopeText(defaultCatalog, estimate, "Solstice Systems");
   assert.match(text, /^ACME — Core Proof of Concept/);

@@ -3,7 +3,7 @@
 A complete example Scopewright workspace: a made-up infrastructure vendor with nine
 products across five portfolios, a real dependency graph (Nova Vision needs
 both Outpost Edge and Nova Insight, which needs Lakehouse, which needs
-Streams, which needs Core), priced installation decisions, prerequisites,
+Streams, which needs Core), installation decisions with hours, prerequisites,
 deliverable groups, and four solution cards.
 
 | File | Import from |

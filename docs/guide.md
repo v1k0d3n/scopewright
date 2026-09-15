@@ -1,7 +1,7 @@
 # Scopewright user guide
 
-Scopewright turns a conversation with a customer into a priced, signed-off
-proof-of-concept scope. This guide walks through the whole workflow using the
+Scopewright turns a conversation with a customer into a signed-off
+proof-of-concept scope with the hours it will take. This guide walks through the whole workflow using the
 fictitious **Solstice Systems** example that ships in `packs/solstice`.
 
 Contents
@@ -20,7 +20,7 @@ Contents
 
 The sidebar has two sections. **Workspace** is day-to-day use: New estimate,
 Scope documents, and Weekly updates. **Manage** is setup: the Estimate catalog
-(what your team sells and how it is priced) and Settings (how the workspace
+(what your team delivers and the hours each piece takes) and Settings (how the workspace
 looks). The bottom of the sidebar shows who is signed in and the sync state
 of the shared catalog and brand, for example "Shared workspace · synced" or
 "View only".
@@ -55,7 +55,7 @@ come from the catalog and can be empty.
 ![Installation details step](img/002-estimate-install-details.png)
 
 Every product in the engagement gets a frame with its **installation
-decisions** as drop-downs, each answer priced in hours. Products the customer
+decisions** as drop-downs, each answer carrying hours. Products the customer
 already runs can be switched to **Already exists**, which removes their
 installation hours but keeps their prerequisites and deliverables available.
 A product's **base work package** (if it has one) is shown for transparency.
@@ -101,8 +101,8 @@ The scope document is generated from the estimate and is the paperwork the
 customer, the account team, and the delivery team sign off on. The editor on
 the left holds the narrative: customer, title, goal, **success criteria**,
 and **assumptions** (one per line). The document on the right has eight
-sections: goal, products in scope, installation scope (every priced
-decision), prerequisites with values and status, delivery plan with numbered
+sections: goal, products in scope, installation scope (every
+decision with its hours), prerequisites with values and status, delivery plan with numbered
 deliverables, effort summary with the planning range, success criteria, and
 assumptions, followed by sign-off lines and the footer from Settings.
 
@@ -132,7 +132,7 @@ The New estimate page has four buttons:
   with the deal, or preserve the agreed scope before the customer asks for
   changes.
 - **Import** loads such a file after showing what it contains. Hours are
-  recomputed against the current catalog, so if prices changed since the
+  recomputed against the current catalog, so if hours changed since the
   export, the numbers reflect today's catalog. Products that no longer exist
   in the catalog are dropped with a warning.
 
@@ -224,7 +224,7 @@ Theme packs can also be built from a directory with
 ## Loading the Solstice example
 
 `packs/solstice` is a complete fictitious vendor: nine products with a real
-dependency graph, priced decisions, prerequisites, deliverables, four
+dependency graph, installation decisions with hours, prerequisites, deliverables, four
 solutions, a teal-and-amber theme, and a sample estimate for a fictitious
 customer.
 

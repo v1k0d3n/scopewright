@@ -24,7 +24,7 @@ export type Product = {
   requires?: string[];
 };
 
-/** One answer to an installation question, priced in hours. */
+/** One answer to an installation question, with the hours it takes. */
 export type InstallationChoice = { id: string; label: string; hours: number; note?: string };
 
 /** One decision the SA must make when installing a product. */
@@ -58,7 +58,7 @@ export type CustomPrerequisite = { id: string; label: string; value: string; sta
 export const phases = ["Planning", "Prerequisites", "Deployment", "Configuration", "Testing and Validation"] as const;
 export type Phase = (typeof phases)[number];
 
-/** A deliverable the team commits to, priced in hours. */
+/** A deliverable the team commits to, with the hours it takes. */
 export type DeliverableTask = {
   id: string;
   name: string;
