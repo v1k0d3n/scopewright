@@ -1,0 +1,18 @@
+# Podman runs the shared Deployment as one pod; systemd owns its lifecycle.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scopewright
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          securityContext:
+            # Match the Containerfile and the Podman volume ownership.
+            runAsUser: 1001
+            runAsGroup: 0

@@ -96,16 +96,24 @@ with `npm run pack:theme -- packs/solstice` and import
 
 ## How the pieces fit
 
+`deploy/base/` contains the app resources shared with the systemd deployment.
+`deploy/openshift/base/` adds cluster authentication, TLS, and image builds.
+The existing `deploy/openshift/overlays/` directories customize that complete
+OpenShift deployment.
+
 | File | Purpose |
 |------|---------|
-| `base/deployment.yaml` | App container (bound to `127.0.0.1:3000`) and the `oauth-proxy` sidecar |
-| `base/serviceaccount.yaml` | Registers the Route as the OAuth redirect target |
-| `base/rbac.yaml` | ClusterRole for the proxy's review calls; Role + RoleBinding deciding who may log in |
-| `base/configmap.yaml` | `AUTH_MODE=proxy`, `AUTH_EDITORS`, `AUTH_LOGOUT_URL` |
-| `base/service.yaml` | Annotated so the cluster issues the proxy's TLS certificate |
-| `base/route.yaml` | Re-encrypt TLS to the proxy |
-| `base/pvc.yaml` | The shared catalog and theme |
-| `base/buildconfig.yaml`, `base/imagestream.yaml` | On-cluster image build |
+| `deploy/base/deployment.yaml` | App container, data mount, and liveness check |
+| `deploy/base/configmap.yaml` | Shared `AUTH_MODE=proxy` and `AUTH_EDITORS` defaults |
+| `deploy/base/pvc.yaml` | Persistent storage for the shared catalog and theme |
+| `deploy/openshift/base/deployment.yaml` | Patch binding the app to `127.0.0.1:3000`, adding the `oauth-proxy` sidecar, and configuring cluster rollouts |
+| `deploy/openshift/base/serviceaccount.yaml` | Registers the Route as the OAuth redirect target |
+| `deploy/openshift/base/rbac.yaml` | ClusterRole for the proxy's review calls; Role + RoleBinding deciding who may log in |
+| `deploy/openshift/base/configmap.yaml` | The access marker ConfigMap checked by the proxy |
+| `deploy/openshift/base/kustomization.yaml` | Combines shared and OpenShift resources and sets `AUTH_LOGOUT_URL` |
+| `deploy/openshift/base/service.yaml` | Annotated so the cluster issues the proxy's TLS certificate |
+| `deploy/openshift/base/route.yaml` | Re-encrypt TLS to the proxy |
+| `deploy/openshift/base/buildconfig.yaml`, `deploy/openshift/base/imagestream.yaml` | On-cluster image build |
 
 The app itself only knows about identity headers (see `app/lib/identity.ts`
 and the Authentication section of the README). Replacing the OpenShift proxy

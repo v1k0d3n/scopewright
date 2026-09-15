@@ -1,63 +1,27 @@
+# Add OpenShift's OAuth sidecar and rollout behavior to the shared app.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: scopewright
-  labels:
-    app: scopewright
   annotations:
     # Roll out automatically whenever a new build lands in the ImageStream.
     image.openshift.io/triggers: >-
       [{"from":{"kind":"ImageStreamTag","name":"scopewright:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"web\")].image"}]
 spec:
-  # One replica: shared state is a JSON file on a ReadWriteOnce volume.
-  replicas: 1
   strategy:
     type: Recreate
-  selector:
-    matchLabels:
-      app: scopewright
   template:
-    metadata:
-      labels:
-        app: scopewright
     spec:
       serviceAccountName: scopewright
       containers:
         # The app listens on localhost only, so the proxy is the sole way in.
         - name: web
-          image: scopewright:latest
           args: ["node", "node_modules/vinext/dist/cli.js", "start", "--hostname", "127.0.0.1"]
-          env:
-            - name: PORT
-              value: "3000"
-            - name: DATA_DIR
-              value: /opt/app-root/data
-          envFrom:
-            - configMapRef:
-                name: scopewright-config
-          volumeMounts:
-            - name: data
-              mountPath: /opt/app-root/data
           readinessProbe:
             exec:
               command: ["node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
             initialDelaySeconds: 3
             periodSeconds: 10
-          livenessProbe:
-            exec:
-              command: ["node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-            initialDelaySeconds: 15
-            periodSeconds: 30
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              memory: 512Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
         # OpenShift's oauth-proxy: cluster login through any identity provider
         # configured on the cluster, then identity headers to the app. This is
         # the public upstream build, so it pulls without release-payload
@@ -102,9 +66,8 @@ spec:
             capabilities:
               drop: ["ALL"]
       volumes:
+        # Retain the shared data volume first when merging the extra volumes.
         - name: data
-          persistentVolumeClaim:
-            claimName: scopewright-data
         - name: tls
           secret:
             secretName: scopewright-tls

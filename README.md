@@ -24,6 +24,8 @@ start from.
   your AI agent at that page.
 - **[Deploying on OpenShift](docs/openshift.md)**: the reference deployment
   with login through the cluster's identity providers.
+- **[Deploying with systemd](docs/systemd.md)**: a rootless Podman `.kube`
+  Quadlet, with localhost access and your existing proxy handling remote login.
 
 ## How the pieces fit
 
@@ -66,8 +68,8 @@ which use `packs/solstice/catalog.json` as their reference catalog.
 
 - **Catalog and brand are shared.** The server exposes
   `/api/workspace/catalog` and `/api/workspace/branding` (GET/PUT), backed by
-  JSON files under `DATA_DIR` (see `app/lib/server-store.ts`). On OpenShift
-  that directory is a persistent volume, so every visitor sees the same
+  JSON files under `DATA_DIR` (see `app/lib/server-store.ts`). Both deployment
+  targets mount persistent storage there, so every visitor sees the same
   catalog and brand and edits survive restarts. The sidebar shows the sync
   state; if the API is unreachable the app falls back to this browser only.
 - **Each person's working estimate is private** to their browser. Use
@@ -92,7 +94,7 @@ headers; `app/lib/identity.ts` reads them. Everything is configuration:
 
 | Variable | Meaning | Default |
 |----------|---------|---------|
-| `AUTH_MODE` | `open`: no proxy, everyone may read and write. `proxy`: identity headers required; only editors may write. | `open` |
+| `AUTH_MODE` | `open`: everyone may read and write. `proxy`: identity headers determine who may write; the proxy controls access to the app. | `open` |
 | `AUTH_USER_HEADER` / `AUTH_EMAIL_HEADER` | Headers carrying the username and email | `x-forwarded-user` / `x-forwarded-email` |
 | `AUTH_GROUPS_HEADER` | Header carrying comma-separated groups | `x-forwarded-groups` |
 | `AUTH_EDITORS` | Comma-separated usernames or emails allowed to change the shared catalog and theme | empty: every admitted user |
@@ -101,9 +103,11 @@ headers; `app/lib/identity.ts` reads them. Everything is configuration:
 | `AUTH_DEV_USER` | In open mode, a name to show as signed in locally | unset |
 
 Viewers see the catalog and settings read-only; the API answers writes from
-them with 403. The app must be reachable only through the proxy (the
-OpenShift deployment binds it to localhost inside the pod), otherwise the
-headers could be forged.
+them with 403. Read requests do not require identity headers, so the proxy
+must authenticate every remote request and replace client-supplied identity
+headers. OpenShift binds the app to localhost inside the pod; the systemd
+target publishes only on host localhost. Local users who can reach that
+port can forge identity headers, so the systemd host must be trusted.
 
 ## Development
 
@@ -111,7 +115,8 @@ headers could be forged.
 
 CI runs on every push and pull request and weekly: lint, type-check, and
 unit tests; a production build with a smoke test of the server in open and
-proxy modes; a container build from the `Containerfile`; `npm audit`
+proxy modes; a container build from the `Containerfile`; deployment rendering
+and configuration checks; `npm audit`
 (runtime dependencies gate at moderate, the whole tree at high); and CodeQL
 security and quality analysis (on public repositories, where GitHub provides
 code scanning). Dependabot proposes npm, GitHub Actions, and
@@ -131,9 +136,15 @@ The app is a plain Node server. `Containerfile` builds it on a UBI 9 Node.js
 22 base and serves it with `vinext start` on port 3000; run it anywhere
 containers run, and put an authenticating proxy in front of it.
 
-The reference deployment is OpenShift with login through the cluster's OAuth
-server, described step by step in [docs/openshift.md](docs/openshift.md).
-Your own cluster values live in a git-ignored overlay.
+Two targets share Kubernetes manifests in `deploy/base`:
+
+- **[OpenShift](docs/openshift.md)** adds cluster OAuth login, routing, RBAC,
+  and an on-cluster image build.
+- **[systemd](docs/systemd.md)** runs the app with a rootless Podman `.kube`
+  Quadlet on `127.0.0.1:3000`, behind an existing authenticating proxy.
+
+Each target has an example Kustomize overlay; copy it to the git-ignored
+`overlays/local` directory for your values.
 
 ## Estimate, catalog, and theme files
 
@@ -142,9 +153,11 @@ All three are versioned JSON (the theme inside a zip) with a `format` field:
 
 ## Layout
 
-- `docs/` — user guide, deployment guide, and screenshots
+- `docs/` — user guide, deployment guides, and screenshots
 - `packs/` — importable example content (theme, catalog, sample estimate)
-- `deploy/openshift/` — base manifests, an example overlay, and the build script
+- `deploy/base/` — shared app Deployment, configuration, and persistent storage
+- `deploy/openshift/` — OpenShift additions, an example overlay, and the build script
+- `deploy/systemd/` — Podman adjustments, an example overlay, and the `.kube` Quadlet
 
 - `app/lib/` — data model (`types.ts`), built-in themes and the empty
   default catalog (`defaults.ts`), estimate engine (`estimate.ts`), theme variables

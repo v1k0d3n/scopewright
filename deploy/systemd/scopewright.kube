@@ -1,0 +1,19 @@
+[Unit]
+Description=Scopewright workspace
+
+[Kube]
+Yaml=scopewright.yaml
+# The app listens on the pod interface; only host loopback is published.
+PublishPort=127.0.0.1:3000:3000
+ExitCodePropagation=any
+# Keep the shared catalog and theme when stopping or replacing the pod.
+KubeDownForce=false
+LogDriver=journald
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

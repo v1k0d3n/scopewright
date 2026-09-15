@@ -2,13 +2,21 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: scopewright
 resources:
+  - ../../base
   - namespace.yaml
   - serviceaccount.yaml
   - rbac.yaml
   - configmap.yaml
   - imagestream.yaml
   - buildconfig.yaml
-  - pvc.yaml
-  - deployment.yaml
   - service.yaml
   - route.yaml
+patches:
+  - path: deployment.yaml
+  - target:
+      kind: ConfigMap
+      name: scopewright-config
+    patch: |
+      - op: add
+        path: /data/AUTH_LOGOUT_URL
+        value: /oauth/sign_out

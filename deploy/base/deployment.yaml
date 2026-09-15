@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scopewright
+  labels:
+    app: scopewright
+spec:
+  # One replica: shared state is a JSON file on a ReadWriteOnce volume.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scopewright
+  template:
+    metadata:
+      labels:
+        app: scopewright
+    spec:
+      containers:
+        - name: web
+          image: scopewright:latest
+          args: ["node", "node_modules/vinext/dist/cli.js", "start", "--hostname", "0.0.0.0"]
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DATA_DIR
+              value: /opt/app-root/data
+          envFrom:
+            - configMapRef:
+                name: scopewright-config
+          volumeMounts:
+            - name: data
+              mountPath: /opt/app-root/data
+          livenessProbe:
+            exec:
+              command: ["node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: scopewright-data
