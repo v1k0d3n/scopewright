@@ -70,6 +70,18 @@ jobs:
           curl -sf http://localhost:3000/api/workspace/me | grep -q '"mode":"open"'
           docker stop sw
 
+  deployments:
+    name: Render and validate deployment targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install YAML parser
+        run: |
+          python3 -m venv "$RUNNER_TEMP/deployment-checks"
+          "$RUNNER_TEMP/deployment-checks/bin/python" -m pip install PyYAML==6.0.3
+      - name: Check shared, OpenShift, and systemd manifests
+        run: '"$RUNNER_TEMP/deployment-checks/bin/python" scripts/check-deployments.py'
+
   dependency-audit:
     name: npm audit
     runs-on: ubuntu-latest
