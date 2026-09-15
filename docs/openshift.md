@@ -51,6 +51,23 @@ first run, uploads the working tree as a binary build, waits for the rollout,
 and prints the URL. Re-run it to deploy a new version; the volume and the
 secret persist.
 
+### Using your own image instead of the cluster build
+
+The build script uploads the source and builds the image on the cluster. If
+you would rather build with podman or docker and push to a registry the
+cluster can pull from:
+
+```bash
+podman build -t quay.io/you/scopewright:0.1.0 -f Containerfile .
+podman push quay.io/you/scopewright:0.1.0
+```
+
+then uncomment the Deployment patch in your overlay to point at that image
+(see `overlays/example/kustomization.yaml`) and apply with
+`oc apply -k deploy/openshift/overlays/local`. The BuildConfig and ImageStream
+are harmless when unused. Build for the cluster's architecture (`--platform
+linux/amd64` on Apple Silicon).
+
 ## 3. Grant access
 
 Who may open Scopewright is ordinary RBAC. The proxy admits a user only if
@@ -106,6 +123,42 @@ redirects the browser there. The OAuth route is TLS passthrough, so the
 router identifies it by TLS server name (SNI). Configure the external proxy
 to send the hostname as SNI when it connects to the router; without it the
 router answers "Application is not available".
+
+## Troubleshooting
+
+**The app pod shows `ImagePullBackOff` for `scopewright:latest`.** Expected
+until the first build has pushed an image into the ImageStream; the
+Deployment's image trigger then rewrites the reference and the pod starts.
+If a build has completed and the pod is still failing, check
+`oc get istag scopewright:latest -n scopewright`.
+
+**The build never starts ("timed out waiting for build … to run").** The
+build pod could not run. Look at why:
+
+```bash
+oc get pods,builds -n scopewright
+oc describe pod scopewright-1-build -n scopewright | sed -n '/^Events/,$p'
+```
+
+- `FailedScheduling … Insufficient cpu/memory`: the cluster cannot fit the
+  build's requests (250m CPU, 512Mi by default in
+  `base/buildconfig.yaml`); free capacity or lower the limits.
+- `Failed to pull image … registry.access.redhat.com`: the cluster cannot
+  reach Red Hat's public registry for the UBI Node.js base image. Fix
+  outbound access or mirror the two images named in the `Containerfile`.
+- `Failed to pull image … quay.io/openshift-release-dev/… unauthorized`: the
+  build pod's builder image comes from the OpenShift release payload, and the
+  cluster's global pull secret cannot fetch it (expired, replaced, or an
+  installation that never had one). Repair the pull secret
+  (`oc get secret pull-secret -n openshift-config`), or skip the cluster
+  build and use your own image as described above.
+
+**The build fails while running.** `oc logs build/scopewright-<n> -n
+scopewright` shows the npm or build error.
+
+**Login redirects fail or loop.** See "Publishing through an external
+reverse proxy" above, and confirm the Route host in your overlay matches the
+hostname users type; the OAuth callback is registered for that exact host.
 
 ## Removing everything
 

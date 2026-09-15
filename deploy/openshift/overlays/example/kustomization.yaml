@@ -23,3 +23,15 @@ patches:
       - op: replace
         path: /data/AUTH_EDITORS
         value: "alice, bob@example.com"
+  # Optional: run an image you built or pulled yourself instead of building on
+  # the cluster. Point the Deployment at it (the BuildConfig then goes unused):
+  #   podman build -t quay.io/you/scopewright:0.1.0 -f Containerfile . && podman push quay.io/you/scopewright:0.1.0
+  # - target:
+  #     kind: Deployment
+  #     name: scopewright
+  #   patch: |
+  #     - op: replace
+  #       path: /spec/template/spec/containers/0/image
+  #       value: quay.io/you/scopewright:0.1.0
+  #     - op: remove
+  #       path: /metadata/annotations/image.openshift.io~1triggers

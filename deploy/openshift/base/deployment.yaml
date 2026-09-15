@@ -58,10 +58,12 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-        # OpenShift's oauth-proxy: cluster login (GitLab today, any configured
-        # identity provider tomorrow), then identity headers to the app.
+        # OpenShift's oauth-proxy: cluster login through any identity provider
+        # configured on the cluster, then identity headers to the app. This is
+        # the public upstream build, so it pulls without release-payload
+        # credentials; pin it near your cluster's minor version.
         - name: oauth-proxy
-          image: image-registry.openshift-image-registry.svc:5000/openshift/oauth-proxy:v4.4
+          image: quay.io/openshift/origin-oauth-proxy:4.22
           args:
             - --https-address=:8443
             - --provider=openshift

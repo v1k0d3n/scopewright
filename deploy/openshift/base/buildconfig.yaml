@@ -18,7 +18,12 @@ spec:
     to:
       kind: ImageStreamTag
       name: scopewright:latest
+  # Modest requests so the build schedules on small clusters; it may burst
+  # to the limits when capacity is free.
   resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
     limits:
       cpu: "2"
-      memory: 4Gi
+      memory: 3Gi
