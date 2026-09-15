@@ -2,7 +2,7 @@
 # Build the Scopewright image on the cluster from the working tree and roll it out.
 #   deploy/openshift/build.sh
 # Uses deploy/openshift/overlays/local if present (your cluster values, git-ignored),
-# otherwise the generic base. See docs/openshift.md.
+# otherwise the OpenShift base. See docs/openshift.md.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 NAMESPACE=${NAMESPACE:-scopewright}

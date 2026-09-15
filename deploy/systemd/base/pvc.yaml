@@ -1,0 +1,9 @@
+# kube play maps this PVC to a named Podman volume. These IDs are inside
+# the rootless user namespace, not host user IDs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scopewright-data
+  annotations:
+    volume.podman.io/uid: "1001"
+    volume.podman.io/gid: "0"
