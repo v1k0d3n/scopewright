@@ -1,0 +1,28 @@
+# Copy this directory to deploy/systemd/overlays/local (git-ignored).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: ConfigMap
+      name: scopewright-config
+    patch: |
+      - op: replace
+        path: /data/AUTH_EDITORS
+        value: "alice, bob@example.com"
+  # For standalone local use, explicitly opt out of proxy authentication.
+  # Everyone who can connect will be able to edit the shared workspace.
+  # - target:
+  #     kind: ConfigMap
+  #     name: scopewright-config
+  #   patch: |
+  #     - op: replace
+  #       path: /data/AUTH_MODE
+  #       value: "open"
+
+# Optional: use a prebuilt image instead of the local Containerfile build.
+# images:
+#   - name: localhost/scopewright
+#     newName: quay.io/you/scopewright
+#     newTag: "0.1.0"

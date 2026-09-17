@@ -1,0 +1,13 @@
+# The authenticating proxy supplies identity headers. AUTH_EDITORS lists the
+# usernames or emails allowed to change the shared catalog and theme; leave it
+# empty to make every admitted user an editor. Each deployment target configures
+# the proxy and any provider-specific headers or logout URL.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scopewright-config
+  labels:
+    app: scopewright
+data:
+  AUTH_MODE: "proxy"
+  AUTH_EDITORS: ""
