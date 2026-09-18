@@ -15,7 +15,7 @@ tsconfig.tsbuildinfo
 packs/*.zip
 
 # your own cluster values (route host, editors); see docs/openshift.md
-deploy/openshift/overlays/local/
+deploy/openshift/overlays/local*/
 
 # your own host/proxy values; see docs/systemd.md
 deploy/systemd/overlays/local/
