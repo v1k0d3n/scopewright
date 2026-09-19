@@ -226,12 +226,13 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
                     <label>Category<input value={group.category} onChange={(event) => updateGroup(group.id, { category: event.target.value })} /></label>
                     <label>Product<select value={group.productId} onChange={(event) => updateGroup(group.id, { productId: event.target.value })}><option value="">Any product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.short}</option>)}</select></label>
                     <div className="row-actions">
+                      <button type="button" className="offer-toggle" disabled={!group.tasks.length} onClick={() => offerAll(!group.tasks.every((task) => task.enabled), group.id)}>{group.tasks.length && group.tasks.every((task) => task.enabled) ? "Offer none" : "Offer all"}</button>
                       <button type="button" aria-label="Move group up" onClick={() => setGroups(move(catalog.groups, index, index - 1))}>↑</button>
                       <button type="button" aria-label="Move group down" onClick={() => setGroups(move(catalog.groups, index, index + 1))}>↓</button>
                       <button type="button" className="danger" onClick={() => window.confirm(`Delete “${group.name}” and its tasks?`) && setGroups(catalog.groups.filter((item) => item.id !== group.id))}>Delete</button>
                     </div>
                   </div>
-                  <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow <button type="button" className="link tiny" onClick={() => offerAll(!group.tasks.every((task) => task.enabled), group.id)}>{group.tasks.every((task) => task.enabled) ? "none" : "all"}</button></span><span></span></div>
+                  <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow</span><span></span></div>
                   {group.tasks.map((task) => (
                     <div className="catalog-task" key={task.id}>
                       <input className="scope-number" placeholder="2.1" value={task.scopeNumber ?? ""} onChange={(event) => updateTask(group.id, task.id, { scopeNumber: event.target.value })} />
