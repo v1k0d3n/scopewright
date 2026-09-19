@@ -78,20 +78,29 @@ export function useLibrary(owner: string) {
   const letGo = useCallback(() => { epoch.current += 1; setActive(null); }, [setActive]);
   const fail = (problem: unknown) => setError(problem instanceof Error ? problem.message : String(problem));
 
+  // Bumped on every source selection. Listing a folder or a drive takes a moment; a result that arrives after the
+  // user has picked another source belongs to the old one and is dropped, or its rows would be shown, and acted on, under the new one.
+  const selection = useRef(0);
   const refresh = useCallback(async (from: SourceProvider) => {
+    const at = selection.current;
     const found = await from.list();
-    setDocuments(found.sort((a, b) => b.updatedAt - a.updatedAt));
+    if (at === selection.current) setDocuments(found.sort((a, b) => b.updatedAt - a.updatedAt));
   }, []);
 
   const switchTo = useCallback(async (next: SourceProvider, ctx: SourceContext) => {
+    const mine = (selection.current += 1);
     setProvider(next);
     setError("");
     setDocuments([]);
     setState("loading");
     writeJson(SOURCE_KEY, next.id);
     try {
-      if (await next.resume(ctx)) { await refresh(next); setState("ready"); } else setState("needs-connect");
+      const resumed = await next.resume(ctx);
+      if (mine !== selection.current) return;
+      if (resumed) await refresh(next);
+      if (mine === selection.current) setState(resumed ? "ready" : "needs-connect");
     } catch (problem) {
+      if (mine !== selection.current) return;
       fail(problem);
       setState("needs-connect");
     }
