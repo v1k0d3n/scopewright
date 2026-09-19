@@ -3,13 +3,14 @@
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Estimate } from "../lib/types";
 
-export function Review({ estimate, breakdown, update }: { estimate: Estimate; breakdown: EstimateBreakdown; update: (patch: Partial<Estimate>) => void }) {
+export function Review({ estimate, breakdown, onEditEngagement }: { estimate: Estimate; breakdown: EstimateBreakdown; onEditEngagement: () => void }) {
   return (
     <div className="review">
-      <div className="review-fields">
-        <label>Customer name<input placeholder="Enter customer name" value={estimate.customer} onChange={(event) => update({ customer: event.target.value })} /></label>
-        <label>Engagement title<input placeholder={`${breakdown.products.map((item) => item.product.short).join(" + ") || "Product"} Proof of Concept`} value={estimate.title} onChange={(event) => update({ title: event.target.value })} /></label>
-        <label className="wide">POC goal<textarea placeholder="Describe what the customer needs to prove and the intended outcome." value={estimate.goal} onChange={(event) => update({ goal: event.target.value })} /></label>
+      <div className="review-summary">
+        <div><span>Customer</span><b className={estimate.customer ? "" : "placeholder-copy"}>{estimate.customer || "Not set"}</b></div>
+        <div><span>Engagement</span><b>{estimate.title || `${breakdown.products.map((item) => item.product.short).join(" + ") || "Product"} Proof of Concept`}</b></div>
+        <div className="wide"><span>Goal</span><p className={estimate.goal ? "" : "placeholder-copy"}>{estimate.goal || "No goal written yet."}</p></div>
+        <button type="button" className="link" onClick={onEditEngagement}>Edit engagement details →</button>
       </div>
       {breakdown.prerequisites.length > 0 && (
         <div className={`notice ${breakdown.pendingPrerequisites ? "" : "notice-ok"}`}>
@@ -37,7 +38,7 @@ export function Review({ estimate, breakdown, update }: { estimate: Estimate; br
         </tbody>
         <tfoot><tr><td colSpan={2}>Estimated effort</td><td>{breakdown.total}h</td></tr></tfoot>
       </table>
-      <div className="notice"><b>Ready for the scope document</b><span>Everything above is generated from your selections. Open Scope documents to add success criteria and assumptions, then print or copy the customer-facing document.</span></div>
+      <div className="notice"><b>Ready for the scope document</b><span>Everything above is generated from your selections. Open Scope documents for the final review, then print or copy the customer-facing document.</span></div>
     </div>
   );
 }

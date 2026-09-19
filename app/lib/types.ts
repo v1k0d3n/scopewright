@@ -80,6 +80,15 @@ export type DeliverableGroup = {
   scopeNumber?: string;
 };
 
+/** Something commonly excluded from an engagement, offered as a checkbox in the Engagement step. */
+export type OutOfScopeItem = { id: string; label: string };
+
+/** Presentation choices for the scope document; saved with the estimate. */
+export type ScopeOptions = {
+  /** Print hours and the effort summary. Off for conversations about scope without effort. */
+  showHours: boolean;
+};
+
 /** The whole reusable catalog. */
 export type Catalog = {
   products: Product[];
@@ -88,6 +97,8 @@ export type Catalog = {
   groups: DeliverableGroup[];
   /** Solution cards at the top of the Products step; may be empty. */
   solutions: SolutionTemplate[];
+  /** Common out-of-scope items for this workspace; may be empty. */
+  outOfScope: OutOfScopeItem[];
 };
 
 export type EnvironmentState = "new" | "existing";
@@ -116,6 +127,11 @@ export type Estimate = {
   selectedTasks: string[];
   assumptions: string;
   successCriteria: string;
+  /** Ids of catalog out-of-scope items that apply to this engagement. */
+  outOfScope: string[];
+  /** Engagement-specific out-of-scope items, one per line. */
+  customOutOfScope: string;
+  options: ScopeOptions;
   updatedAt: number;
 };
 

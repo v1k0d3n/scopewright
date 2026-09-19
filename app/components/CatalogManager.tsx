@@ -6,7 +6,7 @@ import { phases } from "../lib/types";
 import type { Catalog, DeliverableGroup, DeliverableTask, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
 
 type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void; onReset: () => void };
-type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions";
+type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions" | "outofscope";
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -28,6 +28,7 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
       prerequisites,
       groups: catalog.groups.filter((group) => group.productId !== id),
       solutions: catalog.solutions.map((solution) => ({ ...solution, products: solution.products.filter((item) => item !== id) })),
+      outOfScope: catalog.outOfScope,
     });
   };
 
@@ -51,7 +52,7 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
   return (
     <div className="designer">
       <div className="designer-tabs" role="tablist">
-        {([["products", "01", "Products"], ["solutions", "02", "Solutions"], ["installation", "03", "Installation Details"], ["prerequisites", "04", "Prerequisites"], ["deliverables", "05", "Deliverables"]] as const).map(([id, number, label]) => (
+        {([["products", "01", "Products"], ["solutions", "02", "Solutions"], ["installation", "03", "Installation Details"], ["prerequisites", "04", "Prerequisites"], ["deliverables", "05", "Deliverables"], ["outofscope", "06", "Out of Scope"]] as const).map(([id, number, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><span>{number}</span> {label}</button>
         ))}
       </div>
@@ -186,6 +187,25 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
                 </details>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {tab === "outofscope" && (
+        <div className="content designer-content">
+          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Out of scope</h1><p>Things your team commonly excludes from an engagement. They appear as checkboxes in the Engagement step, and the ones an SA ticks are printed in the scope document. SAs can always add engagement-specific items there too.</p></div><button type="button" className="primary" onClick={() => patch({ outOfScope: [...catalog.outOfScope, { id: uid("oos"), label: "" }] })}>+ Add item</button></div>
+          <div className="designer-list oos-list">
+            {catalog.outOfScope.length === 0 && <p className="panel-copy list-empty">No common out-of-scope items yet.</p>}
+            {catalog.outOfScope.map((item, index) => (
+              <div className="oos-edit" key={item.id}>
+                <input aria-label="Out-of-scope item" placeholder="e.g. Production hardening and performance tuning" value={item.label} onChange={(event) => patch({ outOfScope: catalog.outOfScope.map((entry) => entry.id === item.id ? { ...entry, label: event.target.value } : entry) })} />
+                <div className="row-actions">
+                  <button type="button" aria-label="Move up" onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index - 1) })}>↑</button>
+                  <button type="button" aria-label="Move down" onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index + 1) })}>↓</button>
+                  <button type="button" aria-label="Remove item" onClick={() => patch({ outOfScope: catalog.outOfScope.filter((entry) => entry.id !== item.id) })}>−</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

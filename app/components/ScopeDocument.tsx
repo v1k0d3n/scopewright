@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { defaultTitle, scopeText, statusLabel } from "../lib/estimate";
+import { defaultTitle, outOfScopeLines, scopeText, statusLabel } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
 
@@ -21,6 +21,12 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
   };
   const list = (text: string) => text.split("\n").map((line) => line.trim()).filter(Boolean);
   const date = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const showHours = estimate.options.showHours;
+  const excluded = outOfScopeLines(catalog, estimate);
+  // Sections are numbered as they are rendered, so hiding one never leaves a gap.
+  let sectionNumber = 0;
+  const heading = (name: string) => <h5>{++sectionNumber} / {name}</h5>;
+  const hours = (value: number) => (showHours ? <span>{value}h</span> : null);
   return (
     <div className="content scope-page">
       <div className="title-row no-print">
@@ -29,20 +35,19 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
       </div>
       <div className="document-grid">
         <div className="editor-panel scope-editor no-print">
-          <h3>Engagement</h3>
-          <label>Customer name<input placeholder="Enter customer name" value={estimate.customer} onChange={(event) => update({ customer: event.target.value })} /></label>
-          <label>Engagement title<input placeholder={title} value={estimate.title} onChange={(event) => update({ title: event.target.value })} /></label>
-          <label>POC goal<textarea placeholder="Describe what the customer needs to prove and the intended outcome." value={estimate.goal} onChange={(event) => update({ goal: event.target.value })} /></label>
-          <h3>Agreement</h3>
-          <label>Success criteria <small>one per line</small><textarea value={estimate.successCriteria} onChange={(event) => update({ successCriteria: event.target.value })} /></label>
-          <label>Assumptions <small>one per line</small><textarea value={estimate.assumptions} onChange={(event) => update({ assumptions: event.target.value })} /></label>
+          <h3>Options</h3>
+          <label className="switch" htmlFor="option-show-hours">
+            <input id="option-show-hours" type="checkbox" role="switch" aria-label="Show hours" checked={showHours} onChange={(event) => update({ options: { ...estimate.options, showHours: event.target.checked } })} />
+            <span><b>Show hours</b><small>Turn off to discuss scope and prerequisites without effort. Hides every hour figure and the effort summary, here, in the PDF, and in the copied text.</small></span>
+          </label>
           <div className="scope-source-note">
             <b>Generated from the estimate</b>
             <span>{breakdown.products.length} product{breakdown.products.length === 1 ? "" : "s"} in scope</span>
             <span>{breakdown.products.reduce((sum, item) => sum + item.decisions.length, 0)} installation decisions</span>
             <span>{breakdown.prerequisites.reduce((sum, item) => sum + item.items.length, 0)} prerequisites{breakdown.pendingPrerequisites ? ` (${breakdown.pendingPrerequisites} pending)` : ""}</span>
             <span>{breakdown.deliverables.reduce((sum, item) => sum + item.tasks.length, 0)} deliverables</span>
-            <button type="button" className="link" onClick={onEdit}>Change scope items in the Estimate Builder →</button>
+            <span>{excluded.length} out-of-scope item{excluded.length === 1 ? "" : "s"}</span>
+            <button type="button" className="link" onClick={onEdit}>Edit the engagement in the Estimate Builder →</button>
           </div>
         </div>
         <article className="doc-preview">
@@ -55,28 +60,28 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <h2>{title}</h2>
           <h4>Prepared for {estimate.customer || "Customer name"} by {branding.orgName}{branding.workspaceName && ` · ${branding.workspaceName}`}</h4>
           <hr />
-          <h5>1 / GOAL</h5>
-          <p className={!estimate.goal ? "placeholder-copy" : ""}>{estimate.goal || "Add a concise POC goal using the editor."}</p>
-          <h5>2 / PRODUCTS IN SCOPE</h5>
+          {heading("GOAL")}
+          <p className={!estimate.goal ? "placeholder-copy" : ""}>{estimate.goal || "Add a concise POC goal in the Engagement step."}</p>
+          {heading("PRODUCTS IN SCOPE")}
           {breakdown.products.length ? (
             <table className="doc-table">
-              <thead><tr><th>Product</th><th>Environment</th><th>Effort</th></tr></thead>
-              <tbody>{breakdown.products.map((item) => <tr key={item.product.id}><td>{item.product.name}{item.foundation && <small> (required foundation)</small>}</td><td>{item.existing ? "Existing" : "New deployment"}</td><td>{item.hours}h</td></tr>)}</tbody>
+              <thead><tr><th>Product</th><th>Environment</th>{showHours && <th>Effort</th>}</tr></thead>
+              <tbody>{breakdown.products.map((item) => <tr key={item.product.id}><td>{item.product.name}{item.foundation && <small> (required foundation)</small>}</td><td>{item.existing ? "Existing" : "New deployment"}</td>{showHours && <td>{item.hours}h</td>}</tr>)}</tbody>
             </table>
           ) : <p className="placeholder-copy">No products selected in the Estimate Builder.</p>}
-          <h5>3 / INSTALLATION SCOPE</h5>
+          {heading("INSTALLATION SCOPE")}
           {breakdown.products.map((item) => (
             <section className="scope-product" key={item.product.id}>
               <b>{item.product.name}</b>
               <ul>
                 {item.existing && <li>Validate access to the existing environment. No installation effort.</li>}
-                {item.baseHours > 0 && <li>Base work package <span>{item.baseHours}h</span></li>}
-                {item.decisions.map((decision) => <li key={decision.field.id}>{decision.field.label}: <b>{decision.choice.label}</b> <span>{decision.choice.hours}h</span></li>)}
-                {(estimate.details[item.product.id] ?? []).filter((line) => line.description).map((line) => <li key={line.id}>{line.description} <span>{line.hours}h</span></li>)}
+                {showHours && item.baseHours > 0 && <li>Base work package {hours(item.baseHours)}</li>}
+                {item.decisions.map((decision) => <li key={decision.field.id}>{decision.field.label}: <b>{decision.choice.label}</b> {hours(decision.choice.hours)}</li>)}
+                {(estimate.details[item.product.id] ?? []).filter((line) => line.description).map((line) => <li key={line.id}>{line.description} {hours(line.hours)}</li>)}
               </ul>
             </section>
           ))}
-          <h5>4 / PREREQUISITES</h5>
+          {heading("PREREQUISITES")}
           {breakdown.prerequisites.length ? breakdown.prerequisites.map((item) => (
             <section className="scope-product" key={item.product.id}>
               <b>{item.product.name}</b>
@@ -86,25 +91,28 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
               </table>
             </section>
           )) : <p className="placeholder-copy">No prerequisites are defined for the selected products.</p>}
-          <h5>5 / DELIVERY PLAN</h5>
+          {heading("DELIVERY PLAN")}
           {breakdown.deliverables.length ? breakdown.deliverables.map((item) => (
             <section className="scope-product" key={item.group.id}>
               <b>{item.group.scopeNumber && `${item.group.scopeNumber}. `}{item.group.name}</b>
-              <ul>{item.tasks.map((task) => <li key={task.id}>{task.scopeNumber && `${task.scopeNumber}. `}{task.name} <small>({task.phase})</small> <span>{task.hours}h</span></li>)}</ul>
+              <ul>{item.tasks.map((task) => <li key={task.id}>{task.scopeNumber && `${task.scopeNumber}. `}{task.name} <small>({task.phase})</small> {hours(task.hours)}</li>)}</ul>
             </section>
           )) : <p className="placeholder-copy">No deliverables selected in the Estimate Builder.</p>}
-          <h5>6 / EFFORT SUMMARY</h5>
-          <table className="doc-table">
-            <tbody>
-              <tr><td>Installation and configuration</td><td>{breakdown.installationHours}h</td></tr>
-              <tr><td>Deliverables</td><td>{breakdown.deliverableHours}h</td></tr>
-              <tr className="doc-total"><td>Total estimated effort</td><td>{breakdown.total}h</td></tr>
-              <tr><td>Planning range</td><td>{breakdown.low}–{breakdown.high}h</td></tr>
-            </tbody>
-          </table>
-          <h5>7 / SUCCESS CRITERIA</h5>
+          {excluded.length > 0 && <>{heading("OUT OF SCOPE")}<ul>{excluded.map((line, index) => <li key={index}>{line}</li>)}</ul></>}
+          {showHours && <>
+            {heading("EFFORT SUMMARY")}
+            <table className="doc-table">
+              <tbody>
+                <tr><td>Installation and configuration</td><td>{breakdown.installationHours}h</td></tr>
+                <tr><td>Deliverables</td><td>{breakdown.deliverableHours}h</td></tr>
+                <tr className="doc-total"><td>Total estimated effort</td><td>{breakdown.total}h</td></tr>
+                <tr><td>Planning range</td><td>{breakdown.low}–{breakdown.high}h</td></tr>
+              </tbody>
+            </table>
+          </>}
+          {heading("SUCCESS CRITERIA")}
           <ul>{list(estimate.successCriteria).map((line, index) => <li key={index}>{line}</li>)}</ul>
-          <h5>8 / ASSUMPTIONS</h5>
+          {heading("ASSUMPTIONS")}
           <ul>{list(estimate.assumptions).map((line, index) => <li key={index}>{line}</li>)}</ul>
           <div className="signatures">
             <div><span>Customer</span></div>

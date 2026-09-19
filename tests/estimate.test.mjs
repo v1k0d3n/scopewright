@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
+import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, resolveProducts, scopeText } from "../app/lib/estimate.ts";
 
 /** The fictitious Solstice pack is the reference catalog; the app itself ships empty. */
-const defaultCatalog = JSON.parse(readFileSync(new URL("../packs/solstice/catalog.json", import.meta.url), "utf8")).catalog;
-import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, resolveProducts, scopeText } from "../app/lib/estimate.ts";
+const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };
+const defaultCatalog = mergeCatalog(JSON.parse(readFileSync(new URL("../packs/solstice/catalog.json", import.meta.url), "utf8")).catalog, emptyCatalog);
 
 test("foundations are added transitively and ordered before dependents", () => {
   assert.deepEqual(resolveProducts(["lakehouse"], defaultCatalog.products), ["core", "streams", "lakehouse"]);
@@ -87,4 +88,32 @@ test("catalog merge keeps solutions from an older export and accepts an empty li
   const old = { products: defaultCatalog.products, installation: {}, groups: [] };
   assert.equal(mergeCatalog(old, defaultCatalog).solutions, defaultCatalog.solutions);
   assert.deepEqual(mergeCatalog({ ...old, solutions: [] }, defaultCatalog).solutions, []);
+});
+
+test("hours can be hidden from the scope text, and sections stay numbered without gaps", () => {
+  const base = { ...emptyEstimate(), customer: "ACME", products: ["core"], selectedTasks: ["core-monitor"], customOutOfScope: "Production hardening\n\n  Data migration  " };
+  const withHours = scopeText(defaultCatalog, base, "Solstice Systems");
+  assert.match(withHours, /\(\d+ hours\)/);
+  assert.match(withHours, /6\. OUT OF SCOPE\n- Production hardening\n- Data migration\n/);
+  assert.match(withHours, /7\. EFFORT SUMMARY/);
+  assert.match(withHours, /9\. ASSUMPTIONS/);
+  const without = scopeText(defaultCatalog, { ...base, options: { showHours: false } }, "Solstice Systems");
+  assert.doesNotMatch(without, /hours/i);
+  assert.doesNotMatch(without, /EFFORT SUMMARY/);
+  assert.match(without, /2\.1\. Enable monitoring, alerting, and log forwarding \(Configuration\)/);
+  assert.match(without, /7\. SUCCESS CRITERIA/);
+  assert.match(without, /8\. ASSUMPTIONS/);
+  const none = scopeText(defaultCatalog, { ...emptyEstimate(), products: ["core"] }, "Solstice Systems");
+  assert.doesNotMatch(none, /OUT OF SCOPE/);
+  assert.match(none, /6\. EFFORT SUMMARY/);
+});
+
+test("catalog out-of-scope items are chosen by id and sanitized", () => {
+  const catalog = mergeCatalog({ ...defaultCatalog, outOfScope: [{ id: "perf", label: "Performance benchmarking" }, { id: "blank", label: "" }, "junk", { id: "dr", label: "Disaster recovery design" }] }, defaultCatalog);
+  assert.deepEqual(catalog.outOfScope.map((item) => item.id), ["perf", "dr"]);
+  const estimate = mergeEstimate({ products: ["core"], outOfScope: ["dr", "ghost", 7], customOutOfScope: "Training" }, emptyEstimate());
+  assert.deepEqual(estimate.outOfScope, ["dr", "ghost"]);
+  assert.equal(estimate.options.showHours, true, "older estimates default to showing hours");
+  assert.match(scopeText(catalog, estimate, "X"), /OUT OF SCOPE\n- Disaster recovery design\n- Training\n/);
+  assert.deepEqual(mergeCatalog({ products: [], installation: {}, prerequisites: {}, groups: [], solutions: [] }, defaultCatalog).outOfScope, []);
 });
