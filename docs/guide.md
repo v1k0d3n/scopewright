@@ -175,9 +175,11 @@ going at once. Pick where they are saved:
   is one click while you are signed in to Google. **Delete** moves a file to
   the Drive trash.
 
-For the folder sources, **Change folder** picks a different folder and **New
-folder…** creates one inside the current folder and switches to it. An open
-estimate is closed first, since it belongs to the folder you are leaving.
+**Change folder** picks a different folder. For a local folder, create new
+folders in the dialog your computer shows. Google's folder chooser cannot
+create folders, so Google Drive also has **New folder…**, which creates one
+inside the current folder and switches to it. Either way an open estimate is
+closed first, since it belongs to the folder you are leaving.
 
 **Save current estimate here** saves the estimate you are building as a new
 file. **Open** loads one into the estimate builder; from then on the **Save**

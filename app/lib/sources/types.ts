@@ -66,7 +66,11 @@ export interface SourceProvider {
 
   /** Optional: let the user pick a different location while staying connected. Must be called from a click. */
   changeLocation?(context: SourceContext): Promise<void>;
-  /** Optional: create a folder inside the current location and move into it. Sources without folders omit this. */
+  /**
+   * Optional: create a folder inside the current location and move into it.
+   * Only for sources whose own chooser cannot: the operating system's folder
+   * dialog has a New Folder button, Google's picker does not.
+   */
   createFolder?(name: string): Promise<void>;
 
   list(): Promise<DocumentRef[]>;
