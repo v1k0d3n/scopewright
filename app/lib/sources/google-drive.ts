@@ -81,10 +81,14 @@ function authorize(clientId: string): Promise<void> {
 function pickFolder(apiKey: string, projectNumber: string): Promise<PickerDoc> {
   return new Promise((resolve, reject) => {
     const picker = globals().google!.picker!;
-    const view = new picker.DocsView(picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setIncludeFolders(true).setEnableDrives(true).setMimeTypes("application/vnd.google-apps.folder");
+    // One tab per place a folder can live. setEnableDrives turns a view into
+    // "shared drives only", so it must be its own view rather than a flag on the first.
+    const folders = () => new picker.DocsView(picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setIncludeFolders(true).setMimeTypes("application/vnd.google-apps.folder");
     new picker.PickerBuilder()
       .setTitle("Choose the folder that holds your estimates")
-      .addView(view)
+      .addView(folders().setParent("root").setLabel("My Drive"))
+      .addView(folders().setOwnedByMe(false).setLabel("Shared with me"))
+      .addView(folders().setEnableDrives(true).setLabel("Shared drives"))
       .enableFeature(picker.Feature.SUPPORT_DRIVES)
       .setOAuthToken(token!.value)
       .setDeveloperKey(apiKey)
