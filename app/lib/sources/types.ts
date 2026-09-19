@@ -64,6 +64,11 @@ export interface SourceProvider {
   /** Human-readable place the documents live, once connected. */
   location(): string;
 
+  /** Optional: let the user pick a different location while staying connected. Must be called from a click. */
+  changeLocation?(context: SourceContext): Promise<void>;
+  /** Optional: create a folder inside the current location and move into it. Sources without folders omit this. */
+  createFolder?(name: string): Promise<void>;
+
   list(): Promise<DocumentRef[]>;
   read(id: string): Promise<DocumentBody>;
   /**

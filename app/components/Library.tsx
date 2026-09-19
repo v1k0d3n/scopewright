@@ -45,6 +45,8 @@ export function Library({ library, now, hasDraft, onOpen, onSaveNew, onRefresh }
             <span>{provider.location()} · {documents.length} estimate{documents.length === 1 ? "" : "s"}</span>
             <span className="row-actions">
               <button type="button" className="link" onClick={onRefresh}>Refresh</button>
+              {provider.createFolder && <button type="button" className="link" onClick={() => { const name = window.prompt(`New folder inside ${provider.location()}. Estimates will be saved there from now on.\n\nFolder name:`); if (name !== null) void library.createFolder(name); }}>New folder…</button>}
+              {provider.changeLocation && <button type="button" className="link" onClick={library.changeLocation}>Change folder</button>}
               {needsSetup && <button type="button" className="link" onClick={library.disconnect}>Disconnect</button>}
             </span>
           </div>

@@ -141,6 +141,24 @@ export function useLibrary(owner: string) {
     setState("needs-connect");
   };
 
+  /** Move to another location in the same source. The open document, if it lives here, is closed first: it belongs to the place being left. */
+  const relocate = async (move: () => Promise<void>) => {
+    setError("");
+    try {
+      await move();
+      if (active?.sourceId === provider.id) { await release(provider, active.id, token.current).catch(() => {}); setActive(null); }
+      await refresh(provider);
+      setState("ready");
+    } catch (problem) {
+      if (!(problem instanceof DOMException && problem.name === "AbortError")) fail(problem);
+    }
+  };
+  const changeLocation = () => relocate(async () => { await provider.changeLocation?.(context); });
+  const createFolder = (name: string) => relocate(async () => {
+    if (!(await provider.resume(context))) await provider.connect(context);
+    await provider.createFolder?.(name);
+  });
+
   /** Resolves to the payload, or to the lock that blocks opening. */
   const open = async (doc: DocumentRef): Promise<{ payload: unknown } | { blockedBy: LockInfo }> => {
     setError("");
@@ -189,7 +207,7 @@ export function useLibrary(owner: string) {
     offered, context, provider, state, documents, active, error, token: tokenValue,
     select: (id: string) => switchTo(sourceById(id), context),
     reload: () => refresh(provider).catch(fail),
-    connect, disconnect, open, save, close, remove, setError,
+    connect, disconnect, changeLocation, createFolder, open, save, close, remove, setError,
   };
 }
 

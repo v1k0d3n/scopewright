@@ -1,4 +1,4 @@
-import { uniqueName } from "./documents.ts";
+import { folderNameFor, uniqueName } from "./documents.ts";
 import { parseLock } from "./locks.ts";
 import { ConflictError, NotConnectedError } from "./types.ts";
 import type { DocumentBody, DocumentRef, LockInfo, SourceContext, SourceProvider } from "./types.ts";
@@ -114,6 +114,10 @@ async function drive(url: string, init: RequestInit = {}): Promise<Response> {
   return response;
 }
 
+function rememberFolder() {
+  try { window.localStorage.setItem(FOLDER_KEY, JSON.stringify(folder)); } catch { /* remembered for this page only */ }
+}
+
 function where(): PickerDoc {
   if (!folder) throw new NotConnectedError();
   return folder;
@@ -180,14 +184,27 @@ export const googleDriveSource: SourceProvider = {
   },
 
   async connect(context) {
+    await script("https://accounts.google.com/gsi/client");
+    if (!token || token.expires < Date.now()) await authorize(settings(context).clientId);
+    if (!folder) await this.changeLocation!(context);
+  },
+
+  async changeLocation(context) {
     const { clientId, apiKey, projectNumber } = settings(context);
     await script("https://accounts.google.com/gsi/client");
     if (!token || token.expires < Date.now()) await authorize(clientId);
-    if (folder) return;
     await script("https://apis.google.com/js/api.js");
     await new Promise<void>((resolve) => globals().gapi!.load("picker", resolve));
     folder = await pickFolder(apiKey, projectNumber);
-    try { window.localStorage.setItem(FOLDER_KEY, JSON.stringify(folder)); } catch { /* remembered for this page only */ }
+    rememberFolder();
+  },
+
+  /** drive.file covers this: the app may create inside a folder the user picked, and then owns what it created. */
+  async createFolder(name) {
+    const body = JSON.stringify({ name: folderNameFor(name), mimeType: "application/vnd.google-apps.folder", parents: [where().id] });
+    const created = (await (await drive(`${API}?supportsAllDrives=true&fields=id,name`, { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as PickerDoc;
+    folder = { id: safeId(created.id), name: created.name };
+    rememberFolder();
   },
 
   async disconnect() {

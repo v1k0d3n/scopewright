@@ -7,6 +7,14 @@ export function fileNameFor(customer: string, title: string): string {
   return `${slug || "estimate"}.json`;
 }
 
+/** A folder name typed by the user, made safe for any filesystem or drive. Throws if nothing usable is left. */
+export function folderNameFor(typed: string): string {
+  // eslint-disable-next-line no-control-regex
+  const name = typed.replace(/[\u0000-\u001f/\\:*?"<>|]/g, " ").replace(/\s+/g, " ").replace(/^[. ]+/, "").replace(/[. ]+$/, "").slice(0, 100).trim();
+  if (!name) throw new Error("Type a name for the folder.");
+  return name;
+}
+
 /** Pick a name that is not taken by adding -2, -3, ... before the extension. */
 export function uniqueName(wanted: string, taken: Iterable<string>): string {
   const used = new Set([...taken].map((name) => name.toLowerCase()));

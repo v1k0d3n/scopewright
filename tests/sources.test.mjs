@@ -66,3 +66,13 @@ test("deployment settings: browser is always offered and secrets are never publi
   assert.deepEqual(read.enabled, ["browser", "local-folder"]);
   assert.deepEqual(read.config, { GOOGLE_CLIENT_ID: "abc" });
 });
+
+test("typed folder names are made safe, and an empty one is refused", async () => {
+  const { folderNameFor } = await import("../app/lib/sources/documents.ts");
+  assert.equal(folderNameFor("  Acme / 2026: POCs  "), "Acme 2026 POCs");
+  assert.equal(folderNameFor("../../etc"), "etc");
+  assert.equal(folderNameFor("..hidden"), "hidden");
+  assert.equal(folderNameFor("trailing. . "), "trailing");
+  assert.equal(folderNameFor("x".repeat(300)).length, 100);
+  assert.throws(() => folderNameFor(" /\\ .. "), /Type a name/);
+});

@@ -1,4 +1,4 @@
-import { describe, uniqueName } from "./documents.ts";
+import { describe, folderNameFor, uniqueName } from "./documents.ts";
 import { parseLock } from "./locks.ts";
 import { ConflictError, NotConnectedError } from "./types.ts";
 import type { DocumentBody, DocumentRef, LockInfo, SourceProvider } from "./types.ts";
@@ -115,6 +115,10 @@ export const localFolderSource: SourceProvider = {
       folder = remembered;
       return;
     }
+    await this.changeLocation!({ config: {} });
+  },
+
+  async changeLocation() {
     const picked = await (window as PickerWindow).showDirectoryPicker!({ id: "scopewright", mode: "readwrite" });
     folder = picked;
     await remember(picked);
@@ -126,6 +130,12 @@ export const localFolderSource: SourceProvider = {
   },
 
   location: () => (folder ? `Folder “${folder.name}”` : ""),
+
+  async createFolder(name) {
+    const created = (await dir().getDirectoryHandle(folderNameFor(name), { create: true })) as Directory;
+    folder = created;
+    await remember(created);
+  },
 
   async list(): Promise<DocumentRef[]> {
     const found: DocumentRef[] = [];
