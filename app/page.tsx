@@ -7,14 +7,16 @@ import { Engagement } from "./components/Engagement";
 import { InstallationDetails } from "./components/InstallationDetails";
 import { Prerequisites } from "./components/Prerequisites";
 import { ProductChooser } from "./components/ProductChooser";
+import { FileMenu } from "./components/FileMenu";
 import { Library } from "./components/Library";
+import { SaveAs } from "./components/SaveAs";
 import { EstimateCard, Review } from "./components/Review";
 import { ScopeDocument } from "./components/ScopeDocument";
 import { Settings } from "./components/Settings";
 import { WeeklyUpdate } from "./components/WeeklyUpdate";
 import { defaultBranding, defaultCatalog, emptyEstimate } from "./lib/defaults";
 import { availableGroups, calculate, defaultTitle, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport } from "./lib/estimate";
-import { fileNameFor } from "./lib/sources/documents";
+import { fileNameFor, fileNameFromTyped } from "./lib/sources/documents";
 import { ConflictError } from "./lib/sources/types";
 import type { DocumentRef } from "./lib/sources/types";
 import { useLibrary } from "./lib/sources/useLibrary";
@@ -54,6 +56,7 @@ export default function Home() {
   // Persisted so a reload does not make a saved estimate look edited.
   const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0);
   const [notice, setNotice] = useState("");
+  const [savingAs, setSavingAs] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => {
     fetch("/api/workspace/me", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setIdentity(value as Identity | null)).catch(() => setIdentity(null));
@@ -70,7 +73,7 @@ export default function Home() {
   const importInput = useRef<HTMLInputElement>(null);
   const brandingLoaded = brandingSync !== "loading";
   const sync: SyncStatus = readOnly ? "readonly" : [catalogSync, brandingSync].includes("readonly") ? "readonly" : [catalogSync, brandingSync].includes("error") ? "error" : [catalogSync, brandingSync].includes("saving") ? "saving" : [catalogSync, brandingSync].includes("loading") ? "loading" : [catalogSync, brandingSync].includes("local") ? "local" : "synced";
-  const flash = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(""), 3000); };
+  const flash = (text: string, ms = 3000) => { setNotice(text); window.setTimeout(() => setNotice(""), ms); };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -98,21 +101,37 @@ export default function Home() {
   const toggleProduct = (id: string) => update({ products: estimate.products.includes(id) ? estimate.products.filter((item) => item !== id) : [...estimate.products, id] });
   const hasDraft = Boolean(estimate.customer || estimate.title || estimate.products.length);
   const documentName = () => fileNameFor(estimate.customer, estimate.title || defaultTitle(breakdown));
-  /** Keep the draft in this browser and, when a saved estimate is open, write it back to where it lives. */
-  const save = async (asNew = false) => {
+  const describeProblem = (problem: unknown) => problem instanceof ConflictError ? `${problem.message} Nothing was overwritten. Use Save as to keep yours under another name.` : problem instanceof Error ? problem.message : String(problem);
+  /**
+   * Save. An estimate that lives in a file is written back to it. One that does
+   * not yet is kept as this browser's draft, and `askWhere` opens Save as.
+   */
+  const save = async (askWhere = false) => {
     const stamped = { ...estimate, updatedAt: Date.now() };
     setEstimate(stamped);
-    if (!asNew && !library.active) { setSavedAt(Date.now()); return true; }
+    if (!library.active) { if (askWhere) setSavingAs(true); else setSavedAt(Date.now()); return !askWhere; }
     try {
-      const saved = await library.save(documentName(), estimateExport(catalog, stamped), asNew);
+      const saved = await library.save(estimateExport(catalog, stamped));
       setSavedAt(Date.now());
       flash(`Saved “${saved.name}”.`);
       return true;
     } catch (problem) {
-      if (problem instanceof DOMException && problem.name === "AbortError") return false;
-      library.setError(problem instanceof ConflictError ? `${problem.message} Nothing was overwritten. Use “Save current estimate here” to keep yours as a separate copy.` : problem instanceof Error ? problem.message : String(problem));
-      setView("library");
+      if (!(problem instanceof DOMException && problem.name === "AbortError")) flash(describeProblem(problem), 9000);
       return false;
+    }
+  };
+  /** Resolves to a message for the dialog when the save did not happen, else null. */
+  const saveAs = async (typedName: string): Promise<string | null> => {
+    try {
+      const stamped = { ...estimate, updatedAt: Date.now() };
+      const saved = await library.saveAs(fileNameFromTyped(typedName), estimateExport(catalog, stamped), (existing) => window.confirm(`“${existing.name}” already exists in ${library.provider.label.toLowerCase()}. Replace it?`));
+      setEstimate(stamped);
+      setSavedAt(Date.now());
+      setSavingAs(false);
+      flash(`Saved “${saved.name}”.`);
+      return null;
+    } catch (problem) {
+      return problem instanceof DOMException && problem.name === "AbortError" ? "" : describeProblem(problem);
     }
   };
   const replaceDraft = (action: string) => !hasDraft || Boolean(savedAt) || window.confirm(`${action} Unsaved changes to the current draft will be lost.`);
@@ -202,13 +221,16 @@ export default function Home() {
         {view === "estimate" && (
           <div className="content">
             <div className="title-row">
-              <div><span className="eyebrow">ESTIMATE BUILDER</span><h1>{estimate.title || "New estimate"}</h1><p>Build a defensible estimate across products and services.</p><p className="document-where">{library.active ? <>Saved as <b>{library.active.name}</b> in {library.offered.find((source) => source.id === library.active?.sourceId)?.label.toLowerCase() ?? "a source that is no longer offered"}{savedAt ? "" : " · unsaved changes"}</> : <>A draft in this browser. <button type="button" className="link" onClick={() => setView("library")}>Save it to work on several</button></>}</p></div>
+              <div><span className="eyebrow">ESTIMATE BUILDER</span><h1>{estimate.title || "New estimate"}</h1><p>Build a defensible estimate across products and services.</p><p className="document-where">{library.active ? <>Saved as <b>{library.active.name}</b> in {library.offered.find((source) => source.id === library.active?.sourceId)?.label.toLowerCase() ?? "a source that is no longer offered"}{savedAt ? "" : " · unsaved changes"}</> : <>A draft in this browser, not saved to a file yet.</>}</p></div>
               <div className="actions">
                 {notice && <span className="flash">{notice}</span>}
-                <button type="button" className="secondary" onClick={startNew}>New estimate</button>
-                <button type="button" className="secondary" onClick={() => importInput.current?.click()}>Import</button>
-                <button type="button" className="secondary" onClick={exportEstimate}>Export</button>
-                <button type="button" className="secondary" onClick={() => save()}>{savedAt ? "Saved ✓" : library.active ? "Save" : "Save draft"}</button>
+                <FileMenu status={!hasDraft ? "" : savedAt ? "Saved" : "Unsaved"} actions={[
+                  { label: "New estimate", hint: "Start from a blank estimate", run: startNew },
+                  { label: "Import…", hint: "Load an exported estimate file", run: () => importInput.current?.click() },
+                  { label: "Export", hint: "Download this estimate as a file", disabled: !hasDraft, run: exportEstimate },
+                  { label: "Save", hint: library.active ? `Write back to ${library.active.name}` : "Choose where to save it", disabled: !hasDraft, run: () => void save(true) },
+                  { label: "Save as…", hint: "Pick a location and a file name", disabled: !hasDraft, run: () => setSavingAs(true) },
+                ]} />
                 <input ref={importInput} type="file" accept="application/json,.json" hidden onChange={(event) => { importEstimate(event.target.files?.[0]); event.target.value = ""; }} />
               </div>
             </div>
@@ -235,7 +257,8 @@ export default function Home() {
         )}
         {view === "scope" && <ScopeDocument catalog={catalog} estimate={estimate} breakdown={breakdown} branding={branding} update={update} onEdit={() => { setView("estimate"); setStep(1); }} />}
         {view === "updates" && <WeeklyUpdate estimate={estimate} branding={branding} />}
-        {view === "library" && <Library library={library} now={now} hasDraft={hasDraft} onOpen={openDocument} onSaveNew={() => save(true)} onRefresh={() => { setNow(Date.now()); void library.reload(); }} />}
+        {savingAs && <SaveAs library={library} suggested={library.active?.name ?? documentName()} onSave={saveAs} onCancel={() => setSavingAs(false)} onManage={() => { setSavingAs(false); setView("library"); }} />}
+        {view === "library" && <Library library={library} now={now} onOpen={openDocument} onRefresh={() => { setNow(Date.now()); void library.reload(); }} />}
         {view === "catalog" && <ReadOnlyGate readOnly={readOnly}><CatalogManager catalog={catalog} setCatalog={setCatalog} onReset={resetCatalog} /></ReadOnlyGate>}
         {view === "settings" && <ReadOnlyGate readOnly={readOnly}><Settings branding={branding} setBranding={setBranding} catalog={catalog} setCatalog={setCatalog} /></ReadOnlyGate>}
       </section>

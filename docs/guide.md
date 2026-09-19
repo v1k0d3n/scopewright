@@ -137,27 +137,35 @@ never sends mail itself.
 
 ## Saving, exporting, and importing estimates
 
-The New estimate page has four buttons:
+Everything that happens to the estimate as a file is in one place: the
+**Estimate** menu at the top of the New estimate page. Beside it you can see
+whether the estimate is saved or has unsaved changes, and the line under the
+title names the file it is saved as.
 
-- **New estimate** clears the draft after confirming.
-- **Save draft** stores the current estimate in your browser (it is also
-  saved automatically as you work).
-- **Export** writes the estimate as a versioned JSON file named after the
-  customer and date. Use it to hand an estimate to a colleague, keep a copy
-  with the deal, or preserve the agreed scope before the customer asks for
-  changes.
-- **Import** loads such a file after showing what it contains. Hours are
-  recomputed against the current catalog, so if hours changed since the
-  export, the numbers reflect today's catalog. Products that no longer exist
-  in the catalog are dropped with a warning.
+- **New estimate** starts from blank, after confirming if there are unsaved
+  changes. A file you had open is closed and unlocked.
+- **Import…** loads an exported file after showing what it contains. Hours are
+  recomputed against the current catalog, so the numbers reflect today's
+  catalog. Products that no longer exist in the catalog are dropped with a
+  warning.
+- **Export** downloads the estimate as a versioned JSON file named after the
+  customer and date: a copy to attach to the deal or hand to someone.
+- **Save** writes the estimate back to the file it came from. For an estimate
+  that has never been saved, it opens Save as.
+- **Save as…** asks where (one of your save locations) and under what file
+  name. Saving under a name that already exists replaces that file, after
+  asking, the way saving works anywhere else; it does not pile up copies. A
+  file that someone else has open cannot be replaced.
 
-Exporting is one way to move an estimate between machines. Saved estimates,
-below, is the other.
+Your work in progress is also kept as a draft in this browser as you type, so
+a refresh does not lose it.
 
 ## Saved estimates
 
-**Saved estimates** in the sidebar is where you keep more than one estimate
-going at once. Pick where they are saved:
+**Saved estimates** in the sidebar is where you set up save locations, see
+what is saved in each, and open an estimate back into the builder. It is how
+you keep more than one estimate going at once. Saving itself happens in the
+builder's Estimate menu. The locations:
 
 - **This browser** keeps them in this browser only. Nothing to set up, private
   to you, and gone if you clear site data.
@@ -181,11 +189,8 @@ create folders, so Google Drive also has **New folder…**, which creates one
 inside the current folder and switches to it. Either way an open estimate is
 closed first, since it belongs to the folder you are leaving.
 
-**Save current estimate here** saves the estimate you are building as a new
-file. **Open** loads one into the estimate builder; from then on the **Save**
-button on the New estimate page writes back to the same file, and the line
-under the title says which file is open and whether it has unsaved changes.
-**New estimate** closes it.
+**Open** loads an estimate into the builder and marks it "Open here". From
+then on **Save** writes back to that file.
 
 Files go straight from your browser to the place you chose. They are never
 sent to or stored on the Scopewright server, so customer names stay out of
@@ -200,8 +205,7 @@ itself after ten minutes.
 
 The lock is a courtesy, not a guarantee. As a backstop, saving checks that the
 file has not changed since you opened it. If it has, nothing is overwritten
-and you are told; use **Save current estimate here** to keep your version as
-a separate copy.
+and you are told; use **Save as…** to keep your version under another name.
 
 ## Managing the estimate catalog
 

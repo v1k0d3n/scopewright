@@ -7,14 +7,13 @@ import type { DocumentRef } from "../lib/sources/types";
 const when = (time: number) => new Date(time).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const clock = (time: number) => new Date(time).toLocaleTimeString(undefined, { timeStyle: "short" });
 
-export function Library({ library, now, hasDraft, onOpen, onSaveNew, onRefresh }: { library: LibraryModel; now: number; hasDraft: boolean; onOpen: (doc: DocumentRef) => void; onSaveNew: () => void; onRefresh: () => void }) {
+export function Library({ library, now, onOpen, onRefresh }: { library: LibraryModel; now: number; onOpen: (doc: DocumentRef) => void; onRefresh: () => void }) {
   const { provider, state, documents, active, error } = library;
   const needsSetup = provider.id !== "browser";
   return (
     <div className="content library">
       <div className="title-row">
-        <div><span className="eyebrow">SAVED ESTIMATES</span><h1>Your estimates</h1><p>Save estimates to a place you choose and open them again later. An estimate that someone has open is locked until they close it.</p></div>
-        <div className="actions"><button type="button" className="primary" disabled={!hasDraft || state === "loading"} onClick={onSaveNew}>Save current estimate here</button></div>
+        <div><span className="eyebrow">SAVED ESTIMATES</span><h1>Your estimates</h1><p>Choose where estimates are saved, see what is there, and open one in the estimate builder. Saving happens in the builder, under Estimate ▸ Save. An estimate that someone has open is locked until they close it.</p></div>
       </div>
 
       <div className="source-picker" role="radiogroup" aria-label="Where estimates are saved">
@@ -50,7 +49,7 @@ export function Library({ library, now, hasDraft, onOpen, onSaveNew, onRefresh }
               {needsSetup && <button type="button" className="link" onClick={library.disconnect}>Disconnect</button>}
             </span>
           </div>
-          {!documents.length && <div className="library-empty"><p>Nothing saved here yet. Build an estimate, then use “Save current estimate here”.</p></div>}
+          {!documents.length && <div className="library-empty"><p>Nothing saved here yet. Build an estimate, then choose Estimate ▸ Save as in the estimate builder.</p></div>}
           <div className="library-list">
             {documents.map((doc) => {
               const mine = active?.id === doc.id && active.sourceId === provider.id;

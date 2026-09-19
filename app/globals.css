@@ -541,3 +541,21 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
   .library-row { grid-template-columns: 1fr auto; gap: 8px 16px; }
   .library-row .library-when, .library-row .lock-badge, .library-row .row-actions { grid-column: 1 / -1; }
 }
+
+/* Estimate menu and Save as */
+.file-menu { position: relative; }
+.file-menu > button em { font-style: normal; font-weight: 400; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--line); color: var(--muted-soft); }
+.file-menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 270px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.file-menu-list button { display: grid; gap: 2px; text-align: left; padding: 9px 12px; border: 0; background: transparent; border-radius: 5px; color: var(--ink); font-weight: 400; }
+.file-menu-list button:hover:not(:disabled) { background: var(--brand-soft); }
+.file-menu-list button:disabled { opacity: .45; cursor: not-allowed; }
+.file-menu-list b { font-size: 13px; }
+.file-menu-list span { font-size: 11px; color: var(--muted); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .4); }
+.modal { width: min(460px, 100%); display: grid; gap: 14px; padding: 26px; background: var(--surface); border-radius: var(--radius-sm); box-shadow: 0 24px 60px rgb(0 0 0 / .3); }
+.modal h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.modal label { display: grid; gap: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+.modal input, .modal select { padding: 10px; font-size: 14px; font-weight: 400; text-transform: none; }
+.modal-note { margin: -6px 0 0; font-size: 12px; color: var(--muted); }
+.modal-problem { margin: 0; padding: 10px 12px; font-size: 12px; background: #fbeaea; color: #7a1a15; border-radius: 5px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }

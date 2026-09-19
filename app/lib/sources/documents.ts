@@ -15,6 +15,11 @@ export function folderNameFor(typed: string): string {
   return name;
 }
 
+/** A file name typed by the user: made safe, and always ending in .json. */
+export function fileNameFromTyped(typed: string): string {
+  return `${folderNameFor(typed.trim().replace(/\.json$/i, ""))}.json`;
+}
+
 /** Pick a name that is not taken by adding -2, -3, ... before the extension. */
 export function uniqueName(wanted: string, taken: Iterable<string>): string {
   const used = new Set([...taken].map((name) => name.toLowerCase()));

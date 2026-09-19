@@ -76,3 +76,11 @@ test("typed folder names are made safe, and an empty one is refused", async () =
   assert.equal(folderNameFor("x".repeat(300)).length, 100);
   assert.throws(() => folderNameFor(" /\\ .. "), /Type a name/);
 });
+
+test("a typed file name always ends in .json, exactly once", async () => {
+  const { fileNameFromTyped } = await import("../app/lib/sources/documents.ts");
+  assert.equal(fileNameFromTyped("Acme POC"), "Acme POC.json");
+  assert.equal(fileNameFromTyped(" acme-poc.JSON "), "acme-poc.json");
+  assert.equal(fileNameFromTyped("a/b\\c.json"), "a b c.json");
+  assert.throws(() => fileNameFromTyped(".json"), /Type a name/);
+});
