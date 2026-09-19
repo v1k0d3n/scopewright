@@ -151,8 +151,43 @@ The New estimate page has four buttons:
   export, the numbers reflect today's catalog. Products that no longer exist
   in the catalog are dropped with a warning.
 
-Because estimates are private to a browser, exporting is also how you move
-one between machines.
+Exporting is one way to move an estimate between machines. Saved estimates,
+below, is the other.
+
+## Saved estimates
+
+**Saved estimates** in the sidebar is where you keep more than one estimate
+going at once. Pick where they are saved:
+
+- **This browser** keeps them in this browser only. Nothing to set up, private
+  to you, and gone if you clear site data.
+- **Local folder** keeps each estimate as a JSON file in a folder you choose.
+  Choose a synced or network folder and a team can share it. It needs Chrome
+  or Edge; other browsers cannot open folders, and Import and Export remain
+  the way to move files there. The browser asks for permission to the folder,
+  and may ask again after a restart.
+
+**Save current estimate here** saves the estimate you are building as a new
+file. **Open** loads one into the estimate builder; from then on the **Save**
+button on the New estimate page writes back to the same file, and the line
+under the title says which file is open and whether it has unsaved changes.
+**New estimate** closes it.
+
+Files go straight from your browser to the place you chose. They are never
+sent to or stored on the Scopewright server, so customer names stay out of
+the shared workspace.
+
+### Locking
+
+An estimate that someone has open is locked: others see who has it and cannot
+open or delete it. The lock is released when they start a new estimate, open
+another one, or disconnect. If a browser is simply closed, the lock expires by
+itself after ten minutes.
+
+The lock is a courtesy, not a guarantee. As a backstop, saving checks that the
+file has not changed since you opened it. If it has, nothing is overwritten
+and you are told; use **Save current estimate here** to keep your version as
+a separate copy.
 
 ## Managing the estimate catalog
 

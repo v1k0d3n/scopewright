@@ -101,6 +101,8 @@ headers; `app/lib/identity.ts` reads them. Everything is configuration:
 | `AUTH_EDITOR_GROUP` | A group whose members may write | unset |
 | `AUTH_LOGOUT_URL` | Sign-out link shown to signed-in users | unset |
 | `AUTH_DEV_USER` | In open mode, a name to show as signed in locally | unset |
+| `SOURCES` | Comma-separated places users may save estimates (`local-folder`, ...). `browser` is always offered. | all |
+| `SOURCE_<NAME>` | A public setting handed to the source providers in the browser. Never a secret: every visitor can read it. | unset |
 
 Viewers see the catalog and settings read-only; the API answers writes from
 them with 403. Read requests do not require identity headers, so the proxy

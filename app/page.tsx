@@ -7,24 +7,30 @@ import { Engagement } from "./components/Engagement";
 import { InstallationDetails } from "./components/InstallationDetails";
 import { Prerequisites } from "./components/Prerequisites";
 import { ProductChooser } from "./components/ProductChooser";
+import { Library } from "./components/Library";
 import { EstimateCard, Review } from "./components/Review";
 import { ScopeDocument } from "./components/ScopeDocument";
 import { Settings } from "./components/Settings";
 import { WeeklyUpdate } from "./components/WeeklyUpdate";
 import { defaultBranding, defaultCatalog, emptyEstimate } from "./lib/defaults";
 import { availableGroups, calculate, defaultTitle, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport } from "./lib/estimate";
+import { fileNameFor } from "./lib/sources/documents";
+import { ConflictError } from "./lib/sources/types";
+import type { DocumentRef } from "./lib/sources/types";
+import { useLibrary } from "./lib/sources/useLibrary";
 import { usePersistentState, useSharedState } from "./lib/storage";
 import type { SyncStatus } from "./lib/storage";
 import { mergeBranding, themeVariables } from "./lib/theme";
 import type { Catalog, Estimate } from "./lib/types";
 import type { Identity } from "./lib/identity";
 
-type View = "estimate" | "scope" | "updates" | "catalog" | "settings";
+type View = "estimate" | "scope" | "updates" | "library" | "catalog" | "settings";
 
 const views: { id: View; label: string; icon: string; section: "WORKSPACE" | "MANAGE" }[] = [
   { id: "estimate", label: "New estimate", icon: "⌁", section: "WORKSPACE" },
   { id: "scope", label: "Scope documents", icon: "□", section: "WORKSPACE" },
   { id: "updates", label: "Weekly updates", icon: "↗", section: "WORKSPACE" },
+  { id: "library", label: "Saved estimates", icon: "▤", section: "WORKSPACE" },
   { id: "catalog", label: "Estimate catalog", icon: "⊞", section: "MANAGE" },
   { id: "settings", label: "Settings", icon: "⚙", section: "MANAGE" },
 ];
@@ -45,13 +51,22 @@ export default function Home() {
   const [catalog, setCatalog, catalogSync] = useSharedState<Catalog>("catalog", defaultCatalog, mergeCatalog);
   const [estimate, setEstimate] = usePersistentState<Estimate>("estimate", emptyEstimate(), mergeEstimate);
   const [branding, setBranding, brandingSync] = useSharedState("branding", defaultBranding, (stored) => mergeBranding(stored));
-  const [savedAt, setSavedAt] = useState(0);
+  // Persisted so a reload does not make a saved estimate look edited.
+  const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0);
   const [notice, setNotice] = useState("");
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => {
     fetch("/api/workspace/me", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setIdentity(value as Identity | null)).catch(() => setIdentity(null));
   }, []);
   const readOnly = identity !== null && !identity.editor;
+  const library = useLibrary(identity?.user || identity?.email || "Someone");
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const timer = window.setInterval(tick, 30_000);
+    const first = window.setTimeout(tick, 0);
+    return () => { window.clearInterval(timer); window.clearTimeout(first); };
+  }, []);
   const importInput = useRef<HTMLInputElement>(null);
   const brandingLoaded = brandingSync !== "loading";
   const sync: SyncStatus = readOnly ? "readonly" : [catalogSync, brandingSync].includes("readonly") ? "readonly" : [catalogSync, brandingSync].includes("error") ? "error" : [catalogSync, brandingSync].includes("saving") ? "saving" : [catalogSync, brandingSync].includes("loading") ? "loading" : [catalogSync, brandingSync].includes("local") ? "local" : "synced";
@@ -81,8 +96,43 @@ export default function Home() {
 
   const update = (patch: Partial<Estimate>) => { setEstimate({ ...estimate, ...patch, updatedAt: Date.now() }); setSavedAt(0); };
   const toggleProduct = (id: string) => update({ products: estimate.products.includes(id) ? estimate.products.filter((item) => item !== id) : [...estimate.products, id] });
-  const save = () => { setEstimate({ ...estimate, updatedAt: Date.now() }); setSavedAt(Date.now()); };
-  const startNew = () => { if (!estimate.products.length || window.confirm("Start a new estimate? The current draft will be replaced.")) { setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); } };
+  const hasDraft = Boolean(estimate.customer || estimate.title || estimate.products.length);
+  const documentName = () => fileNameFor(estimate.customer, estimate.title || defaultTitle(breakdown));
+  /** Keep the draft in this browser and, when a saved estimate is open, write it back to where it lives. */
+  const save = async (asNew = false) => {
+    const stamped = { ...estimate, updatedAt: Date.now() };
+    setEstimate(stamped);
+    if (!asNew && !library.active) { setSavedAt(Date.now()); return true; }
+    try {
+      const saved = await library.save(documentName(), estimateExport(catalog, stamped), asNew);
+      setSavedAt(Date.now());
+      flash(`Saved “${saved.name}”.`);
+      return true;
+    } catch (problem) {
+      if (problem instanceof DOMException && problem.name === "AbortError") return false;
+      library.setError(problem instanceof ConflictError ? `${problem.message} Nothing was overwritten. Use “Save current estimate here” to keep yours as a separate copy.` : problem instanceof Error ? problem.message : String(problem));
+      setView("library");
+      return false;
+    }
+  };
+  const replaceDraft = (action: string) => !hasDraft || Boolean(savedAt) || window.confirm(`${action} Unsaved changes to the current draft will be lost.`);
+  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; await library.close(); setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); setView("estimate"); };
+  const openDocument = async (doc: DocumentRef) => {
+    if (!replaceDraft(`Open “${doc.name}”?`)) return;
+    try {
+      const result = await library.open(doc);
+      if ("blockedBy" in result) { library.setError(`${result.blockedBy.owner} has “${doc.name}” open. It unlocks when they close it, or automatically at ${new Date(result.blockedBy.until).toLocaleTimeString(undefined, { timeStyle: "short" })}.`); return; }
+      const parsed = parseEstimateExport(result.payload, emptyEstimate());
+      if (!parsed) { await library.close(); library.setError(`“${doc.name}” is not a Scopewright estimate.`); return; }
+      setEstimate({ ...parsed, products: parsed.products.filter((id) => catalog.products.some((product) => product.id === id)) });
+      setStep(1);
+      setSavedAt(Date.now());
+      setView("estimate");
+      flash(`Opened “${doc.name}”. Hours reflect the current catalog.`);
+    } catch (problem) {
+      library.setError(problem instanceof Error ? problem.message : String(problem));
+    }
+  };
   const exportEstimate = () => {
     const payload = estimateExport(catalog, estimate);
     const slug = (estimate.customer || "estimate").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -152,13 +202,13 @@ export default function Home() {
         {view === "estimate" && (
           <div className="content">
             <div className="title-row">
-              <div><span className="eyebrow">ESTIMATE BUILDER</span><h1>{estimate.title || "New estimate"}</h1><p>Build a defensible estimate across products and services.</p></div>
+              <div><span className="eyebrow">ESTIMATE BUILDER</span><h1>{estimate.title || "New estimate"}</h1><p>Build a defensible estimate across products and services.</p><p className="document-where">{library.active ? <>Saved as <b>{library.active.name}</b> in {library.offered.find((source) => source.id === library.active?.sourceId)?.label.toLowerCase() ?? "a source that is no longer offered"}{savedAt ? "" : " · unsaved changes"}</> : <>A draft in this browser. <button type="button" className="link" onClick={() => setView("library")}>Save it to work on several</button></>}</p></div>
               <div className="actions">
                 {notice && <span className="flash">{notice}</span>}
                 <button type="button" className="secondary" onClick={startNew}>New estimate</button>
                 <button type="button" className="secondary" onClick={() => importInput.current?.click()}>Import</button>
                 <button type="button" className="secondary" onClick={exportEstimate}>Export</button>
-                <button type="button" className="secondary" onClick={save}>{savedAt ? "Saved ✓" : "Save draft"}</button>
+                <button type="button" className="secondary" onClick={() => save()}>{savedAt ? "Saved ✓" : library.active ? "Save" : "Save draft"}</button>
                 <input ref={importInput} type="file" accept="application/json,.json" hidden onChange={(event) => { importEstimate(event.target.files?.[0]); event.target.value = ""; }} />
               </div>
             </div>
@@ -176,7 +226,7 @@ export default function Home() {
                 {step === 6 && <Review estimate={estimate} breakdown={breakdown} onEditEngagement={() => setStep(1)} />}
                 <div className="form-footer">
                   <button type="button" className="back" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>← Back</button>
-                  {step < 6 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 5 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={() => { save(); setView("scope"); }}>Open scope document <span>→</span></button>}
+                  {step < 6 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 5 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={async () => { if (await save()) setView("scope"); }}>Open scope document <span>→</span></button>}
                 </div>
               </div>
               <EstimateCard breakdown={breakdown} saved={Boolean(savedAt)} />
@@ -185,6 +235,7 @@ export default function Home() {
         )}
         {view === "scope" && <ScopeDocument catalog={catalog} estimate={estimate} breakdown={breakdown} branding={branding} update={update} onEdit={() => { setView("estimate"); setStep(1); }} />}
         {view === "updates" && <WeeklyUpdate estimate={estimate} branding={branding} />}
+        {view === "library" && <Library library={library} now={now} hasDraft={hasDraft} onOpen={openDocument} onSaveNew={() => save(true)} onRefresh={() => { setNow(Date.now()); void library.reload(); }} />}
         {view === "catalog" && <ReadOnlyGate readOnly={readOnly}><CatalogManager catalog={catalog} setCatalog={setCatalog} onReset={resetCatalog} /></ReadOnlyGate>}
         {view === "settings" && <ReadOnlyGate readOnly={readOnly}><Settings branding={branding} setBranding={setBranding} catalog={catalog} setCatalog={setCatalog} /></ReadOnlyGate>}
       </section>
