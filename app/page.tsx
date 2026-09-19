@@ -51,10 +51,10 @@ export default function Home() {
   const [view, setView] = useState<View>("estimate");
   const [step, setStep] = useState(1);
   const [catalog, setCatalog, catalogSync] = useSharedState<Catalog>("catalog", defaultCatalog, mergeCatalog);
-  const [estimate, setEstimate] = usePersistentState<Estimate>("estimate", emptyEstimate(), mergeEstimate);
+  const [estimate, setEstimate] = usePersistentState<Estimate>("estimate", emptyEstimate(), mergeEstimate, "tab");
   const [branding, setBranding, brandingSync] = useSharedState("branding", defaultBranding, (stored) => mergeBranding(stored));
   // Persisted so a reload does not make a saved estimate look edited.
-  const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0);
+  const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0, undefined, "tab");
   const [notice, setNotice] = useState("");
   const [savingAs, setSavingAs] = useState(false);
   // The newest estimate, readable after an await: a save that finishes late must not vouch for edits made while it ran.

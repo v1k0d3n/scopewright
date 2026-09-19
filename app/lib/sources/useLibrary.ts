@@ -29,18 +29,26 @@ function lockToken(): string {
   }
 }
 
-function readJson<T>(key: string): T | null {
+/**
+ * `tab` storage (sessionStorage) survives a reload but belongs to one tab;
+ * `browser` storage (localStorage) is shared by every tab. Which document is
+ * open is per tab, like the lock token: shared, a second tab opening another
+ * file would repoint this one on its next reload, and its Save would land in
+ * the wrong file.
+ */
+function readJson<T>(key: string, where: "tab" | "browser" = "browser"): T | null {
   try {
-    return JSON.parse(window.localStorage.getItem(key) ?? "null") as T | null;
+    return JSON.parse((where === "tab" ? window.sessionStorage : window.localStorage).getItem(key) ?? "null") as T | null;
   } catch {
     return null;
   }
 }
 
-function writeJson(key: string, value: unknown) {
+function writeJson(key: string, value: unknown, where: "tab" | "browser" = "browser") {
   try {
-    if (value === null) window.localStorage.removeItem(key);
-    else window.localStorage.setItem(key, JSON.stringify(value));
+    const storage = where === "tab" ? window.sessionStorage : window.localStorage;
+    if (value === null) storage.removeItem(key);
+    else storage.setItem(key, JSON.stringify(value));
   } catch {
     /* private mode: the choice lasts for this page only */
   }
@@ -66,7 +74,7 @@ export function useLibrary(owner: string) {
   const ownerRef = useRef(owner);
   useEffect(() => { ownerRef.current = owner; }, [owner]);
 
-  const setActive = useCallback((next: ActiveDocument | null) => { setActiveState(next); writeJson(ACTIVE_KEY, next); }, []);
+  const setActive = useCallback((next: ActiveDocument | null) => { setActiveState(next); writeJson(ACTIVE_KEY, next, "tab"); }, []);
   const letGo = useCallback(() => { epoch.current += 1; setActive(null); }, [setActive]);
   const fail = (problem: unknown) => setError(problem instanceof Error ? problem.message : String(problem));
 
@@ -104,11 +112,13 @@ export function useLibrary(owner: string) {
         const usable = (source: SourceProvider) => allowed.includes(source) && source.unavailable(ctx) === null;
         setContext(ctx);
         setOffered(allowed.length ? allowed : [sources[0]]);
-        const remembered = readJson<ActiveDocument>(ACTIVE_KEY);
+        // Builds before release kept this pointer in shared storage; it cannot be trusted to be this tab's, so drop it.
+        writeJson(ACTIVE_KEY, null);
+        const remembered = readJson<ActiveDocument>(ACTIVE_KEY, "tab");
         const wanted = sourceById(remembered?.sourceId ?? readJson<string>(SOURCE_KEY) ?? "browser");
         const start = usable(wanted) ? wanted : sources[0];
         if (remembered && remembered.sourceId === start.id) setActiveState(remembered);
-        else if (remembered) writeJson(ACTIVE_KEY, null);
+        else if (remembered) writeJson(ACTIVE_KEY, null, "tab");
         void switchTo(start, ctx);
       });
     return () => { cancelled = true; };
@@ -259,7 +269,8 @@ export function useLibrary(owner: string) {
       const other = await acquire(provider, existing.id, ownerRef.current, token.current, Date.now());
       if (other) throw new Error(`${other.owner} has “${existing.name}” open, so it cannot be replaced. Choose another name.`);
     }
-    const written = await provider.write(existing?.id ?? null, name, payload, null).catch(async (problem) => {
+    // Replacing another file was confirmed by the user, so it is unconditional. Writing to the one open here is an ordinary save and keeps its revision check.
+    const written = await provider.write(existing?.id ?? null, name, payload, mine ? active.revision : null).catch(async (problem) => {
       if (existing && !mine) await release(provider, existing.id, token.current, Date.now()).catch(() => {});
       throw problem;
     });

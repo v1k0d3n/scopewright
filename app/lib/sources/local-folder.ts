@@ -96,7 +96,15 @@ async function writeJson(handle: FileSystemFileHandle, data: unknown, stillCurre
   await writable.close();
 }
 
-const revisionOf = (file: File) => `${file.lastModified}:${file.size}`;
+/**
+ * The revision is a digest of the content. Modified time and size are not
+ * enough: on a filesystem with coarse timestamps, a same-sized edit inside one
+ * tick would look unchanged. Estimates are small, so hashing one is cheap.
+ */
+async function revisionOf(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 async function lockOf(name: string): Promise<LockInfo | null> {
   try {
@@ -161,7 +169,7 @@ export const localFolderSource: SourceProvider = {
 
   async read(id): Promise<DocumentBody> {
     const { data, file } = await readJson(await dir().getFileHandle(safeName(id)));
-    return { payload: data, revision: revisionOf(file) };
+    return { payload: data, revision: await revisionOf(file) };
   },
 
   async write(id, name, payload, revision) {
@@ -173,13 +181,13 @@ export const localFolderSource: SourceProvider = {
     }
     const unchanged = async () => {
       const current = await dir().getFileHandle(target).then((handle) => handle.getFile()).catch(() => null);
-      return Boolean(current && revisionOf(current) === revision);
+      return Boolean(current && (await revisionOf(current)) === revision);
     };
     // A missing file counts as changed: it was deleted elsewhere and must not be recreated.
     if (id && revision !== null && !(await unchanged())) throw new ConflictError();
     const handle = await dir().getFileHandle(target, { create: !id || revision === null });
     await writeJson(handle, payload, id && revision !== null ? unchanged : undefined);
-    return { id: target, name: target, revision: revisionOf(await handle.getFile()) };
+    return { id: target, name: target, revision: await revisionOf(await handle.getFile()) };
   },
 
   async remove(id) {

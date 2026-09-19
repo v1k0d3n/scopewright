@@ -10,18 +10,25 @@ const PREFIX = "scopewright:";
  * The first render always uses `initial` so server and client markup match;
  * the stored value is applied in an effect, and every later change is written
  * back. `merge` lets callers upgrade older stored shapes with new defaults.
+ *
+ * With scope "tab" the value belongs to this tab: it is read from
+ * sessionStorage, which survives a reload but is not shared, so two tabs
+ * working on different things do not swap state when one reloads. It is still
+ * copied to localStorage, which is where a brand-new tab (or the browser after
+ * a restart) picks up the most recent value.
  */
-export function usePersistentState<T>(key: string, initial: T, merge?: (stored: unknown, initial: T) => T) {
+export function usePersistentState<T>(key: string, initial: T, merge?: (stored: unknown, initial: T) => T, scope: "browser" | "tab" = "browser") {
   const [value, setValue] = useState<T>(initial);
   const [loaded, setLoaded] = useState(false);
   // Captured once: callers may pass a fresh `initial` object on every render.
-  const [config] = useState(() => ({ initial, merge }));
+  const [config] = useState(() => ({ initial, merge, scope }));
   useEffect(() => {
     // Hydration: the stored value can only be read on the client, after the
     // first render, so a synchronous setState here is intentional.
     /* eslint-disable react-hooks/set-state-in-effect */
     try {
-      const raw = window.localStorage.getItem(PREFIX + key);
+      const own = config.scope === "tab" ? window.sessionStorage.getItem(PREFIX + key) : null;
+      const raw = own ?? window.localStorage.getItem(PREFIX + key);
       if (raw !== null) {
         const stored = JSON.parse(raw) as unknown;
         setValue(config.merge ? config.merge(stored, config.initial) : (stored as T));
@@ -35,11 +42,12 @@ export function usePersistentState<T>(key: string, initial: T, merge?: (stored: 
   useEffect(() => {
     if (!loaded) return;
     try {
+      if (config.scope === "tab") window.sessionStorage.setItem(PREFIX + key, JSON.stringify(value));
       window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
     } catch {
       /* quota exceeded or private mode: the app keeps working in memory */
     }
-  }, [key, value, loaded]);
+  }, [key, value, loaded, config]);
   return [value, setValue, loaded] as const;
 }
 

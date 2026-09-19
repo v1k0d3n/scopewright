@@ -164,3 +164,15 @@ test("this browser: a migration that runs out of space keeps the old copy and re
   assert.equal(store.has("scopewright:library"), false);
   delete globalThis.window;
 });
+
+test("a lock that claims to last longer than the app ever grants is ignored", async () => {
+  const { MAX_LOCK_AHEAD_MS } = await import("../app/lib/sources/locks.ts");
+  const now = 1_000_000;
+  assert.equal(lockedByOther({ owner: "mallory", token: "x", until: Number.MAX_VALUE }, "me", now), false, "forever");
+  assert.equal(lockedByOther({ owner: "mallory", token: "x", until: now + MAX_LOCK_AHEAD_MS + 1 }, "me", now), false, "just past the limit");
+  assert.equal(lockedByOther({ owner: "ana", token: "x", until: now + MAX_LOCK_AHEAD_MS }, "me", now), true, "a real lock, even with clocks a little apart");
+  // and a crafted record cannot stop someone from taking the document
+  const provider = memoryProvider();
+  await provider.writeLock("a.json", { owner: "mallory", token: "x", until: Number.MAX_VALUE });
+  assert.equal(await acquire(provider, "a.json", "ana", "tab-1", now), null);
+});

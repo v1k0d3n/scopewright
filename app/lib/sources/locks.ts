@@ -24,8 +24,16 @@ export function parseLock(data: unknown): LockInfo | null {
   return { owner: d.owner.slice(0, 120), token: d.token.slice(0, 120), until: d.until };
 }
 
+/**
+ * Locks are only ever granted for LOCK_MINUTES. Lock records sit in shared
+ * folders and can be written by anyone, so one that claims to last longer than
+ * that (with room for two machines' clocks disagreeing) was not written by this
+ * app and is ignored; honouring it would let a crafted file block a document forever.
+ */
+export const MAX_LOCK_AHEAD_MS = 2 * LOCK_MINUTES * 60_000;
+
 export function lockedByOther(lock: LockInfo | null, token: string, now: number): boolean {
-  return Boolean(lock && lock.token !== token && lock.until > now);
+  return Boolean(lock && lock.token !== token && lock.until > now && lock.until - now <= MAX_LOCK_AHEAD_MS);
 }
 
 /** Take or renew the lock. Resolves to the other holder's lock if there is one, else null. */
