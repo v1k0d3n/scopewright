@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { acquire, release, RENEW_MINUTES } from "./locks.ts";
 import { sourceById, sources } from "./registry.ts";
 import type { SourcesConfig } from "./server-config.ts";
+import { NotConnectedError } from "./types.ts";
 import type { DocumentRef, LockInfo, SourceContext, SourceProvider } from "./types.ts";
 
 const SOURCE_KEY = "scopewright:source";
@@ -96,7 +97,7 @@ export function useLibrary(owner: string) {
         if (cancelled) return;
         setTokenValue(token.current);
         const ctx = { config: settings?.config ?? {} };
-        const allowed = sources.filter((source) => !settings?.enabled || settings.enabled.includes(source.id));
+        const allowed = sources.filter((source) => (!settings?.enabled || settings.enabled.includes(source.id)) && source.configured(ctx));
         setContext(ctx);
         setOffered(allowed.length ? allowed : [sources[0]]);
         const remembered = readJson<ActiveDocument>(ACTIVE_KEY);
@@ -114,7 +115,8 @@ export function useLibrary(owner: string) {
     if (!active || state !== "ready" || provider.id !== active.sourceId) return;
     const renew = () => acquire(provider, active.id, ownerRef.current, token.current, Date.now())
       .then((other) => { if (other) setError(`${other.owner} now has “${active.name}” open. Your changes cannot be saved over theirs; export a copy if you need to keep them.`); })
-      .catch(() => { /* a missed renewal is retried on the next tick */ });
+      // A missed renewal is retried on the next tick, but a lapsed session needs the user.
+      .catch((problem) => { if (problem instanceof NotConnectedError) { setError(`${problem.message} Until then “${active.name}” is not held for you.`); setState("needs-connect"); } });
     void renew();
     const timer = window.setInterval(renew, RENEW_MINUTES * 60_000);
     return () => window.clearInterval(timer);
@@ -155,8 +157,8 @@ export function useLibrary(owner: string) {
   const save = async (name: string, payload: unknown, asNew: boolean) => {
     setError("");
     const target = !asNew && active ? sourceById(active.sourceId) : provider;
-    if (target.id === provider.id && state !== "ready") await target.connect(context);
-    else if (target.id !== provider.id && !(await target.resume(context))) await target.connect(context);
+    // A folder permission or a cloud session can lapse while the page is open; this runs from a click, so reconnecting is allowed.
+    if (!(await target.resume(context))) await target.connect(context);
     const written = await target.write(asNew ? null : active?.id ?? null, name, payload, asNew ? null : active?.revision ?? null);
     if (asNew && active) await release(sourceById(active.sourceId), active.id, token.current).catch(() => {});
     const saved = { sourceId: target.id, id: written.id, name: written.name, revision: written.revision };

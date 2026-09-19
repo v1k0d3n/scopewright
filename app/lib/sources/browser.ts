@@ -32,6 +32,7 @@ export const browserSource: SourceProvider = {
   label: "This browser",
   description: "Kept in this browser only. Private to you, and gone if you clear site data.",
 
+  configured: () => true,
   unavailable: () => null,
   resume: async () => true,
   connect: async () => {},

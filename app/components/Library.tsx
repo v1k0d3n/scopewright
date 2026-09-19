@@ -35,7 +35,7 @@ export function Library({ library, now, hasDraft, onOpen, onSaveNew, onRefresh }
       {state === "needs-connect" && (
         <div className="library-empty">
           <p>{provider.description}</p>
-          <button type="button" className="primary" onClick={library.connect}>Connect {provider.label.toLowerCase()}</button>
+          <button type="button" className="primary" onClick={library.connect}>Connect {provider.label}</button>
         </div>
       )}
 

@@ -167,6 +167,14 @@ going at once. Pick where they are saved:
   the way to move files there. The browser asks for permission to the folder,
   and may ask again after a restart.
 
+- **Google Drive**, when your deployment has set it up, keeps each estimate as
+  a JSON file in a Drive folder you choose. You sign in to Google in Google's
+  own window; Scopewright never sees your password. It asks only for access to
+  files it creates or you pick, not the rest of your Drive. Share the folder
+  in Drive to work with a team. The session lasts about an hour; reconnecting
+  is one click while you are signed in to Google. **Delete** moves a file to
+  the Drive trash.
+
 **Save current estimate here** saves the estimate you are building as a new
 file. **Open** loads one into the estimate builder; from then on the **Save**
 button on the New estimate page writes back to the same file, and the line

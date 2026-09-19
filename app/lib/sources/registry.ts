@@ -1,4 +1,5 @@
 import { browserSource } from "./browser.ts";
+import { googleDriveSource } from "./google-drive.ts";
 import { localFolderSource } from "./local-folder.ts";
 import type { SourceProvider } from "./types.ts";
 
@@ -10,7 +11,7 @@ import type { SourceProvider } from "./types.ts";
  * A deployment narrows the list with the SOURCES environment variable
  * (see app/api/workspace/sources). "browser" is always offered.
  */
-export const sources: SourceProvider[] = [browserSource, localFolderSource];
+export const sources: SourceProvider[] = [browserSource, localFolderSource, googleDriveSource];
 
 export function sourceById(id: string): SourceProvider {
   return sources.find((source) => source.id === id) ?? browserSource;

@@ -98,6 +98,7 @@ export const localFolderSource: SourceProvider = {
   label: "Local folder",
   description: "JSON files in a folder you choose. Use a synced or network folder to share with a team.",
 
+  configured: () => true,
   unavailable: () => (typeof window !== "undefined" && "showDirectoryPicker" in window ? null : "This browser cannot open folders. Use Chrome or Edge, or keep using Import and Export."),
 
   async resume() {

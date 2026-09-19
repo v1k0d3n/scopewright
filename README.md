@@ -102,6 +102,7 @@ headers; `app/lib/identity.ts` reads them. Everything is configuration:
 | `AUTH_LOGOUT_URL` | Sign-out link shown to signed-in users | unset |
 | `AUTH_DEV_USER` | In open mode, a name to show as signed in locally | unset |
 | `SOURCES` | Comma-separated places users may save estimates (`local-folder`, ...). `browser` is always offered. | all |
+| `SOURCE_GOOGLE_CLIENT_ID`, `SOURCE_GOOGLE_API_KEY`, `SOURCE_GOOGLE_PROJECT_NUMBER` | Enable the Google Drive source. Public values from your own Google Cloud project: an OAuth web client whose JavaScript origins include this site, an API key restricted to the Picker API and this site, and the project number. No client secret is used. | unset: Drive is not offered |
 | `SOURCE_<NAME>` | A public setting handed to the source providers in the browser. Never a secret: every visitor can read it. | unset |
 
 Viewers see the catalog and settings read-only; the API answers writes from

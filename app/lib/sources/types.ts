@@ -51,6 +51,8 @@ export interface SourceProvider {
   /** One sentence for the source picker. */
   readonly description: string;
 
+  /** False when this deployment has not set the source up; it is then not offered at all. */
+  configured(context: SourceContext): boolean;
   /** Null when usable here; otherwise the reason it is not (unsupported browser, not configured). */
   unavailable(context: SourceContext): string | null;
 
