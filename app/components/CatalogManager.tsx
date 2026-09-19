@@ -47,6 +47,8 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
   const setGroups = (groups: DeliverableGroup[]) => patch({ groups });
   const updateGroup = (id: string, changes: Partial<DeliverableGroup>) => setGroups(catalog.groups.map((group) => group.id === id ? { ...group, ...changes } : group));
   const updateTask = (groupId: string, taskId: string, changes: Partial<DeliverableTask>) => updateGroup(groupId, { tasks: catalog.groups.find((group) => group.id === groupId)!.tasks.map((task) => task.id === taskId ? { ...task, ...changes } : task) });
+  /** Turn the "Offer" switch on or off for every task, or for one group. */
+  const offerAll = (enabled: boolean, groupId?: string) => setGroups(catalog.groups.map((group) => (!groupId || group.id === groupId) ? { ...group, tasks: group.tasks.map((task) => ({ ...task, enabled })) } : group));
   const addGroup = () => setGroups([...catalog.groups, { id: uid("group"), name: "New deliverable group", category: "Platform", productId: "", scopeNumber: String(catalog.groups.length + 1), tasks: [] }]);
 
   return (
@@ -212,7 +214,7 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
 
       {tab === "deliverables" && (
         <div className="content designer-content">
-          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Deliverable workflows</h1><p>Group tasks by the product they belong to. Only groups tied to a product in the engagement, or to no product, are offered in the Deliverables step.</p></div><button type="button" className="primary" onClick={addGroup}>+ Add group</button></div>
+          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Deliverable workflows</h1><p>Group tasks by the product they belong to. Only groups tied to a product in the engagement, or to no product, are offered in the Deliverables step.</p></div><div className="actions"><button type="button" className="secondary" onClick={() => offerAll(true)}>Offer all</button><button type="button" className="secondary" onClick={() => offerAll(false)}>Offer none</button><button type="button" className="primary" onClick={addGroup}>+ Add group</button></div></div>
           <div className="catalog-groups">
             {catalog.groups.map((group, index) => (
               <details key={group.id} open={index === 0}>
@@ -229,7 +231,7 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
                       <button type="button" className="danger" onClick={() => window.confirm(`Delete “${group.name}” and its tasks?`) && setGroups(catalog.groups.filter((item) => item.id !== group.id))}>Delete</button>
                     </div>
                   </div>
-                  <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow</span><span></span></div>
+                  <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow <button type="button" className="link tiny" onClick={() => offerAll(!group.tasks.every((task) => task.enabled), group.id)}>{group.tasks.every((task) => task.enabled) ? "none" : "all"}</button></span><span></span></div>
                   {group.tasks.map((task) => (
                     <div className="catalog-task" key={task.id}>
                       <input className="scope-number" placeholder="2.1" value={task.scopeNumber ?? ""} onChange={(event) => updateTask(group.id, task.id, { scopeNumber: event.target.value })} />

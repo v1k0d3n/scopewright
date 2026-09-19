@@ -89,8 +89,10 @@ specific to this engagement.
 Deliverables are grouped by delivery phase (Planning, Prerequisites,
 Deployment, Configuration, Testing and Validation) and within a phase by
 catalog group. Only groups tied to a product in the engagement, or to no
-product, are offered. Tick individual tasks or **Select all** for a group;
-the phase header totals the hours selected.
+product, are offered. **Select all** and **Clear all** at the top act on
+everything offered; each phase has its own **Select phase** control and each
+group its own **Select all**. Deselect what the engagement does not need; the
+phase header totals the hours selected.
 
 ### 6. Review
 
@@ -208,7 +210,9 @@ Deliverable **groups** have a section number, a name, a category, and the
 product they belong to ("Any product" for engagement-wide work such as
 kickoff and readout). Each **task** has an item number, a delivery phase,
 hours, and an **Offer** toggle that controls whether it is shown in the
-Deliverables step. Numbering carries through to the scope document.
+Deliverables step. **Offer all** and **Offer none** at the top switch every
+task at once, and the "all / none" link in a group's Workflow column does the
+same for that group. Numbering carries through to the scope document.
 
 ### Out of scope
 
