@@ -11,6 +11,7 @@ export type LintMessage = { level: "error" | "warning"; text: string };
 
 const TOP_LEVEL = ["format", "version", "exportedAt", "catalog", "$schema"];
 const SECTIONS = ["products", "installation", "prerequisites", "groups", "solutions"];
+const OPTIONAL_SECTIONS = ["outOfScope"];
 
 /** Structural problems that prevent import or signal the wrong shape. */
 export function lintCatalogFile(data: unknown): LintMessage[] {
@@ -27,10 +28,11 @@ export function lintCatalogFile(data: unknown): LintMessage[] {
   if (d.format !== "scopewright-catalog") out.push({ level: "warning", text: `"format" should be "scopewright-catalog" (found ${JSON.stringify(d.format)}).` });
   const c = d.catalog as Record<string, unknown>;
   for (const key of SECTIONS) if (!(key in c)) out.push({ level: "error", text: `catalog.${key} is missing (use [] or {} when empty).` });
-  for (const key of Object.keys(c)) if (!SECTIONS.includes(key)) out.push({ level: "warning", text: `catalog.${key} is not a Scopewright section and will be ignored.` });
+  for (const key of Object.keys(c)) if (!SECTIONS.includes(key) && !OPTIONAL_SECTIONS.includes(key)) out.push({ level: "warning", text: `catalog.${key} is not a Scopewright section and will be ignored.` });
   if (!Array.isArray(c.products)) out.push({ level: "error", text: "catalog.products must be an array of products." });
   if (c.installation && (typeof c.installation !== "object" || Array.isArray(c.installation))) out.push({ level: "error", text: "catalog.installation must be an object keyed by product id, not a list." });
   if (c.prerequisites && (typeof c.prerequisites !== "object" || Array.isArray(c.prerequisites))) out.push({ level: "error", text: "catalog.prerequisites must be an object keyed by product id (each product lists what the customer provides), not a flat list." });
+  if (c.outOfScope !== undefined && !Array.isArray(c.outOfScope)) out.push({ level: "error", text: 'catalog.outOfScope must be an array of { "id", "label" } items.' });
   if (c.groups && !Array.isArray(c.groups)) out.push({ level: "error", text: "catalog.groups must be an array of deliverable groups, each with tasks." });
   return out;
 }

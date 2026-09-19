@@ -24,10 +24,13 @@ explicitly, and a complete example is included.
     "installation": {},
     "prerequisites": {},
     "groups": [],
-    "solutions": []
+    "solutions": [],
+    "outOfScope": []
   }
 }
 ```
+
+(`outOfScope` is optional; the other five sections are required.)
 
 Check a file before importing it: `npm run catalog:check -- my-catalog.json`
 prints every problem in plain language and a summary of what the catalog
@@ -166,6 +169,18 @@ All five sections are required (use `[]` or `{}` when empty). Field by field:
 | `subtitle` | string | no | |
 | `products` | string[] of product ids | yes | Selected when the card is clicked. Foundations need not be listed; they follow. |
 
+### `outOfScope[]` (optional)
+
+| Field | Type | Required | Meaning |
+|-------|------|----------|---------|
+| `id` | string, unique | yes | |
+| `label` | string | yes | Something your team commonly excludes, e.g. "Production hardening and performance tuning". |
+
+These are workspace-wide, not per product. They appear as checkboxes in the
+Engagement step; the ones the architect ticks are printed in the scope
+document's "Out of scope" section, along with any free-text items added for
+that engagement.
+
 ## Conventions
 
 - **ids** are lowercase kebab-case and stable: `core`, `edge-runtime`,
@@ -255,8 +270,8 @@ structure was invented instead of using the five sections.
   or out-of-scope items. Scopewright has none of these. Offerings are
   **solutions**; deployment options are **installation questions** on the
   product they deploy; a deliverable **is** a task (there is no separate
-  deliverables list); out-of-scope items belong in an estimate's
-  assumptions, not the catalog.
+  deliverables list); common out-of-scope items go in the optional
+  `outOfScope` section.
 - **Inventing phases.** The five phases are fixed: Planning, Prerequisites,
   Deployment, Configuration, Testing and Validation. Map your own workflow
   onto them; do not define new ones.

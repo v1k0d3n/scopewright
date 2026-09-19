@@ -102,6 +102,7 @@ button.link { padding: 0; text-align: left; }
 --------------------------------------------------------------------------- */
 .stepper { margin: 38px 0 28px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); }
 .stepper.steps-5 { grid-template-columns: repeat(5, 1fr); }
+.stepper.steps-6 { grid-template-columns: repeat(6, 1fr); }
 .stepper button { padding: 0 0 17px; border: 0; border-bottom: 2px solid transparent; background: none; text-align: left; color: var(--muted-soft); display: flex; align-items: center; gap: 10px; font-size: 12px; }
 .stepper button span { width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; font-size: 10px; }
 .stepper button.current { border-color: var(--brand); color: var(--brand); }
@@ -135,7 +136,22 @@ button.link { padding: 0; text-align: left; }
 .total strong { font-family: var(--font-heading); font-size: 18px; }
 .hint { font-size: 10px; line-height: 1.5; color: var(--muted-soft); background: var(--paper); padding: 11px; border-radius: 5px; margin: 0; }
 
-/* Step 1: products */
+/* Step 1: engagement */
+.engagement { display: grid; gap: 26px; padding: 22px 0 4px; }
+.engagement section { display: grid; gap: 14px; }
+.engagement h3 { font-size: 15px; font-weight: 600; margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.engagement label { display: flex; flex-direction: column; gap: 8px; font-size: 11px; font-weight: 700; color: var(--muted); min-width: 0; }
+.engagement label small { font-weight: 400; }
+.engagement-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.section-copy { margin: 0; font-size: 12px; color: var(--muted); }
+.oos-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.engagement label.oos-pick { flex-direction: row; align-items: flex-start; gap: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.oos-pick input { margin-top: 2px; flex: none; }
+.oos-pick:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+.oos-edit { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.oos-edit .row-actions button { width: 32px; height: 32px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+
+/* Step 2: products */
 .product-chooser { padding: 22px 0; }
 .template-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .template-strip button, .template-card { min-height: 106px; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; align-items: flex-start; transition: .18s ease; }
@@ -175,7 +191,7 @@ button.link { padding: 0; text-align: left; }
 .designer-fields .row-actions.wide { grid-column: 1 / -1; }
 .list-empty { padding: 18px 0; }
 
-/* Step 2: installation */
+/* Step 3: installation */
 .installation-stack { display: grid; gap: 18px; padding: 22px 0 4px; }
 .installation-frame { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
 .installation-frame > header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: var(--paper); border-bottom: 1px solid var(--line); height: auto; font-size: inherit; }
@@ -210,7 +226,7 @@ button.link { padding: 0; text-align: left; }
 .detail-row label input { width: 65px; border: 0; box-shadow: none; }
 .detail-row label span { font-size: 12px; color: var(--muted); }
 
-/* Step 3: prerequisites */
+/* Step 4: prerequisites */
 .installation-frame > header em.pending { color: #b35c00; }
 .installation-frame > header em.complete { color: var(--ok); }
 .prereq-list { padding: 8px 18px 4px; display: grid; }
@@ -241,7 +257,7 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .read-only-body { pointer-events: none; opacity: .6; user-select: none; }
 .sync-error, .sync-local { color: #f0a050; }
 
-/* Step 4: deliverables */
+/* Step 5: deliverables */
 .capability-phases { border-top: 1px solid var(--line); margin-top: 22px; }
 .capability-phases details { border-bottom: 1px solid var(--line); }
 .capability-phases summary { display: grid; grid-template-columns: 1fr auto 56px; align-items: center; gap: 16px; padding: 13px 4px; cursor: pointer; list-style: none; }
@@ -262,7 +278,15 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .phase-body label strong { font-size: 12px; font-weight: 600; }
 .item-number { display: inline-block; min-width: 42px; color: var(--muted); font-style: normal; font-variant-numeric: tabular-nums; }
 
-/* Step 4: review */
+/* Step 6: review */
+.review-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.review-summary > div { display: grid; gap: 4px; min-width: 0; }
+.review-summary .wide, .review-summary > button { grid-column: 1 / -1; }
+.review-summary span { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.review-summary b { font-size: 14px; }
+.review-summary p { margin: 0; font-size: 13px; line-height: 1.5; }
+.review-summary > button { justify-self: start; font-size: 12px; }
+
 .review { padding: 22px 0 4px; display: grid; gap: 20px; }
 .review-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .review-fields label, .editor-panel > label, .panel > label { display: flex; flex-direction: column; gap: 8px; font-size: 11px; font-weight: 700; color: var(--muted); }
@@ -286,6 +310,15 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .editor-panel > label, .panel > label { margin: 0 0 17px; }
 .editor-panel > label small { font-weight: 400; }
 .scope-editor { align-self: start; position: sticky; top: 24px; }
+.switch { display: grid !important; grid-template-columns: auto 1fr; gap: 12px !important; align-items: start; cursor: pointer; font-weight: 400 !important; }
+.switch input { appearance: none; width: 38px; height: 22px; border-radius: 22px; background: var(--line); border: 0; padding: 0; position: relative; transition: background .15s; flex: none; margin-top: 1px; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: transform .15s; box-shadow: 0 1px 2px #0003; }
+.switch input:checked { background: var(--brand); }
+.switch input:checked::after { transform: translateX(16px); }
+.switch input:focus-visible { box-shadow: 0 0 0 3px var(--brand-tint); }
+.switch span { display: grid; gap: 4px; }
+.switch b { font-size: 13px; color: var(--ink); }
+.switch small { font-size: 11px; line-height: 1.45; }
 .scope-source-note { display: grid; gap: 6px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
 .scope-source-note span::before { content: "✓"; margin-right: 8px; color: var(--ok); font-weight: 700; }
 .scope-source-note button { margin-top: 6px; font-size: 12px; }
@@ -423,7 +456,7 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
   .workspace-grid, .document-grid, .update-grid { grid-template-columns: 1fr; }
   .estimate-card { order: -1; position: static; }
   .scope-editor { position: static; }
-  .fields, .review-fields { grid-template-columns: 1fr; }
+  .fields, .review-fields, .engagement-row, .review-summary { grid-template-columns: 1fr; }
   .content { padding: 30px 24px; }
   .doc-preview { padding: 40px; }
   .designer-fields, .solution-fields { grid-template-columns: 1fr 1fr; padding-left: 10px; }

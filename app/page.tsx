@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { Deliverables } from "./components/Deliverables";
+import { Engagement } from "./components/Engagement";
 import { InstallationDetails } from "./components/InstallationDetails";
 import { Prerequisites } from "./components/Prerequisites";
 import { ProductChooser } from "./components/ProductChooser";
@@ -29,11 +30,12 @@ const views: { id: View; label: string; icon: string; section: "WORKSPACE" | "MA
 ];
 
 const steps = [
+  { label: "Engagement", title: "Who is this for, and what must it prove?", copy: "Name the customer and the engagement, then write down the goal, the agreement, and what is out of scope." },
   { label: "Products", title: "What are we helping the customer prove?", copy: "Start with a solution pattern or build the engagement by product." },
   { label: "Installation Details", title: "Installation Details", copy: "Answer the installation questions for each product. Every answer carries hours." },
   { label: "Prerequisites", title: "Prerequisites", copy: "What the customer must provide before work starts. Catalog items are pre-filled for each product; add anything specific to this engagement." },
   { label: "Deliverables", title: "Deliverables", copy: "Select the catalog deliverables included in this engagement." },
-  { label: "Review", title: "Review the engagement", copy: "Name the engagement and confirm the scope and estimated effort." },
+  { label: "Review", title: "Review the engagement", copy: "Confirm the scope and estimated effort before opening the scope document." },
 ];
 
 
@@ -160,20 +162,21 @@ export default function Home() {
                 <input ref={importInput} type="file" accept="application/json,.json" hidden onChange={(event) => { importEstimate(event.target.files?.[0]); event.target.value = ""; }} />
               </div>
             </div>
-            <div className="stepper steps-5">
+            <div className="stepper steps-6">
               {steps.map((item, index) => <button key={item.label} type="button" className={step === index + 1 ? "current" : step > index + 1 ? "done" : ""} onClick={() => setStep(index + 1)}><span>{step > index + 1 ? "✓" : index + 1}</span><b>{item.label}</b></button>)}
             </div>
             <div className="workspace-grid">
               <div className="form-card">
                 <div className="form-heading"><span>{String(step).padStart(2, "0")}</span><div><h2>{current.title}</h2><p>{current.copy}</p></div></div>
-                {step === 1 && <ProductChooser products={catalog.products} selected={estimate.products} templates={catalog.solutions} onToggle={toggleProduct} onTemplate={(ids) => { update({ products: ids }); setStep(2); }} />}
-                {step === 2 && <InstallationDetails catalog={catalog} estimate={estimate} breakdown={breakdown.products} update={update} />}
-                {step === 3 && <Prerequisites estimate={estimate} breakdown={breakdown.prerequisites} update={update} />}
-                {step === 4 && <Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} />}
-                {step === 5 && <Review estimate={estimate} breakdown={breakdown} update={update} />}
+                {step === 1 && <Engagement catalog={catalog} estimate={estimate} update={update} />}
+                {step === 2 && <ProductChooser products={catalog.products} selected={estimate.products} templates={catalog.solutions} onToggle={toggleProduct} onTemplate={(ids) => { update({ products: ids }); setStep(3); }} />}
+                {step === 3 && <InstallationDetails catalog={catalog} estimate={estimate} breakdown={breakdown.products} update={update} />}
+                {step === 4 && <Prerequisites estimate={estimate} breakdown={breakdown.prerequisites} update={update} />}
+                {step === 5 && <Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} />}
+                {step === 6 && <Review estimate={estimate} breakdown={breakdown} onEditEngagement={() => setStep(1)} />}
                 <div className="form-footer">
                   <button type="button" className="back" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>← Back</button>
-                  {step < 5 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 4 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={() => { save(); setView("scope"); }}>Open scope document <span>→</span></button>}
+                  {step < 6 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 5 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={() => { save(); setView("scope"); }}>Open scope document <span>→</span></button>}
                 </div>
               </div>
               <EstimateCard breakdown={breakdown} saved={Boolean(savedAt)} />

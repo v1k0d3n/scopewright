@@ -34,12 +34,21 @@ Two kinds of data live in Scopewright:
 
 ## Building an estimate
 
-Open **New estimate**. The five steps run left to right, and the **Live
+Open **New estimate**. The six steps run left to right, and the **Live
 estimate** card on the right updates with every choice: total hours, the
 equivalent working days, a planning range of ±20 percent, and a line per
 product and deliverable group.
 
-### 1. Products
+### 1. Engagement
+
+Who the engagement is for and what it must prove: customer name, engagement
+title, the POC goal, **success criteria** and **assumptions** (one per
+line), and what is **out of scope**. Out-of-scope items come from two places:
+checkboxes for the common exclusions your editors keep in the catalog, and a
+free-text box for anything specific to this customer. Everything here prints
+in the scope document.
+
+### 2. Products
 
 ![Products step](img/001-estimate-products.png)
 
@@ -50,7 +59,7 @@ requires Core) pulls the foundation into the estimate automatically; the
 Products step shows the requirement under each product. The solution cards
 come from the catalog and can be empty.
 
-### 2. Installation details
+### 3. Installation details
 
 ![Installation details step](img/002-estimate-install-details.png)
 
@@ -62,7 +71,7 @@ A product's **base work package** (if it has one) is shown for transparency.
 **Other details** lets you add free-text work with hours for anything the
 catalog does not cover; it appears in the estimate and the scope document.
 
-### 3. Prerequisites
+### 4. Prerequisites
 
 ![Prerequisites step](img/003-estimate-prerequisites.png)
 
@@ -73,7 +82,7 @@ data, and so on. Type the value and the status flips to **Provided**; set
 frame header counts what is still pending. **Other prerequisites** adds items
 specific to this engagement.
 
-### 4. Deliverables
+### 5. Deliverables
 
 ![Deliverables step](img/004-estimate-deliverables.png)
 
@@ -83,11 +92,11 @@ catalog group. Only groups tied to a product in the engagement, or to no
 product, are offered. Tick individual tasks or **Select all** for a group;
 the phase header totals the hours selected.
 
-### 5. Review
+### 6. Review
 
 ![Review step](img/005-estimate-review.png)
 
-Name the customer and the engagement, describe the POC goal, and confirm the
+A summary of the engagement details with a link back to step 1, and the
 scope table: one row per product with its chosen decisions and hours, one per
 deliverable group, and the total. A banner shows how many required
 prerequisites are still pending. **Open scope document** saves the draft and
@@ -98,13 +107,17 @@ moves on.
 ![Scope document](img/006-scope-document.png)
 
 The scope document is generated from the estimate and is the paperwork the
-customer, the account team, and the delivery team sign off on. The editor on
-the left holds the narrative: customer, title, goal, **success criteria**,
-and **assumptions** (one per line). The document on the right has eight
-sections: goal, products in scope, installation scope (every
-decision with its hours), prerequisites with values and status, delivery plan with numbered
-deliverables, effort summary with the planning range, success criteria, and
-assumptions, followed by sign-off lines and the footer from Settings.
+customer, the account team, and the delivery team sign off on. This page is
+the final review: the narrative is written in the Engagement step, and the
+panel on the left holds presentation **options**. **Show hours** can be
+turned off to discuss scope and prerequisites without effort; it removes
+every hour figure and the effort summary from the preview, the PDF, and the
+copied text, and is saved with the estimate. The document has up to nine
+sections, numbered as they appear: goal, products in scope, installation
+scope, prerequisites with values and status, delivery plan with numbered
+deliverables, out of scope, effort summary with the planning range, success
+criteria, and assumptions, followed by sign-off lines and the footer from
+Settings.
 
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
@@ -146,7 +159,7 @@ Building a catalog from scratch, by hand or with an AI assistant? Read
 and the conventions, and includes a prompt to hand to an AI tool.
 
 The catalog is the shared source of everything an estimate can contain. It
-has five tabs, and each tab drives one part of the estimate workflow.
+has six tabs, and each tab drives one part of the estimate workflow.
 
 ### Products
 
@@ -196,6 +209,11 @@ product they belong to ("Any product" for engagement-wide work such as
 kickoff and readout). Each **task** has an item number, a delivery phase,
 hours, and an **Offer** toggle that controls whether it is shown in the
 Deliverables step. Numbering carries through to the scope document.
+
+### Out of scope
+
+A simple list of things your team commonly excludes from an engagement. They
+appear as checkboxes in the Engagement step.
 
 **Reset catalog** on the Products tab returns to an empty catalog. Catalog
 export and import live in Settings (see below).

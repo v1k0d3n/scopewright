@@ -119,37 +119,52 @@ export function calculate(catalog: Catalog, estimate: Estimate): EstimateBreakdo
 
 export const groupHours = (group: DeliverableGroup) => group.tasks.reduce((sum, task) => sum + (Number(task.hours) || 0), 0);
 
+/** Out-of-scope lines for an estimate: chosen catalog items (in catalog order) then the free-text ones. */
+export function outOfScopeLines(catalog: Catalog, estimate: Estimate): string[] {
+  // Tolerate catalogs and estimates written before this section existed.
+  const chosen = (catalog.outOfScope ?? []).filter((item) => (estimate.outOfScope ?? []).includes(item.id)).map((item) => item.label);
+  const custom = (estimate.customOutOfScope ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
+  return [...chosen, ...custom];
+}
+
 /** Plain-text rendering of the scope document, for pasting into email or a ticket. */
 export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string): string {
   const breakdown = calculate(catalog, estimate);
   const title = estimate.title || defaultTitle(breakdown);
+  const showHours = estimate.options?.showHours ?? true;
+  const h = (hours: number, extra = "") => (showHours ? ` (${hours} hours${extra})` : extra ? ` (${extra.replace(/^, /, "")})` : "");
+  let n = 0;
+  const section = (name: string) => `${++n}. ${name}`;
   const lines: string[] = [`${estimate.customer || "Customer"} — ${title}`, `Prepared by ${orgName}`, ""];
-  lines.push("1. GOAL", estimate.goal || "Goal to be defined.", "");
-  lines.push("2. PRODUCTS IN SCOPE");
+  lines.push(section("GOAL"), estimate.goal || "Goal to be defined.", "");
+  lines.push(section("PRODUCTS IN SCOPE"));
   for (const item of breakdown.products) lines.push(`- ${item.product.name}: ${item.existing ? "existing environment" : "new deployment"}${item.foundation ? " (required foundation)" : ""}`);
-  lines.push("", "3. INSTALLATION SCOPE");
+  lines.push("", section("INSTALLATION SCOPE"));
   for (const item of breakdown.products) {
     lines.push(item.product.name);
     if (item.existing) lines.push("- Existing environment validated; no installation effort.");
-    if (item.baseHours) lines.push(`- Base work package (${item.baseHours} hours)`);
-    for (const decision of item.decisions) lines.push(`- ${decision.field.label}: ${decision.choice.label} (${decision.choice.hours} hours)`);
-    for (const line of estimate.details[item.product.id] ?? []) if (line.description) lines.push(`- ${line.description} (${line.hours} hours)`);
+    if (item.baseHours && showHours) lines.push(`- Base work package${h(item.baseHours)}`);
+    for (const decision of item.decisions) lines.push(`- ${decision.field.label}: ${decision.choice.label}${h(decision.choice.hours)}`);
+    for (const line of estimate.details[item.product.id] ?? []) if (line.description) lines.push(`- ${line.description}${h(line.hours)}`);
     lines.push("");
   }
-  lines.push("4. PREREQUISITES");
+  lines.push(section("PREREQUISITES"));
   for (const item of breakdown.prerequisites) {
     lines.push(item.product.name);
     for (const line of item.items) lines.push(`- ${line.label}${line.required ? "" : " (optional)"}: ${line.value || "—"} [${statusLabel(line.status)}]`);
     lines.push("");
   }
-  lines.push("5. DELIVERY PLAN");
+  lines.push(section("DELIVERY PLAN"));
   for (const item of breakdown.deliverables) {
     lines.push(`${item.group.scopeNumber ? `${item.group.scopeNumber}. ` : ""}${item.group.name}`);
-    for (const task of item.tasks) lines.push(`- ${task.scopeNumber ? `${task.scopeNumber}. ` : ""}${task.name} (${task.hours} hours, ${task.phase})`);
+    for (const task of item.tasks) lines.push(`- ${task.scopeNumber ? `${task.scopeNumber}. ` : ""}${task.name}${h(task.hours, `, ${task.phase}`)}`);
   }
-  lines.push("", "6. EFFORT SUMMARY", `Installation: ${breakdown.installationHours} hours`, `Deliverables: ${breakdown.deliverableHours} hours`, `Total: ${breakdown.total} hours (planning range ${breakdown.low}–${breakdown.high})`, "");
-  lines.push("7. SUCCESS CRITERIA", ...estimate.successCriteria.split("\n").filter(Boolean).map((line) => `- ${line}`), "");
-  lines.push("8. ASSUMPTIONS", ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
+  lines.push("");
+  const excluded = outOfScopeLines(catalog, estimate);
+  if (excluded.length) lines.push(section("OUT OF SCOPE"), ...excluded.map((line) => `- ${line}`), "");
+  if (showHours) lines.push(section("EFFORT SUMMARY"), `Installation: ${breakdown.installationHours} hours`, `Deliverables: ${breakdown.deliverableHours} hours`, `Total: ${breakdown.total} hours (planning range ${breakdown.low}–${breakdown.high})`, "");
+  lines.push(section("SUCCESS CRITERIA"), ...estimate.successCriteria.split("\n").filter(Boolean).map((line) => `- ${line}`), "");
+  lines.push(section("ASSUMPTIONS"), ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
   return lines.join("\n");
 }
 
@@ -191,7 +206,12 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
     const sol = objectOrNull(item); if (!sol) return null;
     return { id: id(sol.id, `solution-${index}`), label: text(sol.label, 24), title: text(sol.title, 120, `Solution ${index + 1}`), subtitle: text(sol.subtitle, 200), products: list(sol.products, (pid) => (typeof pid === "string" && known.has(pid) ? pid : null)) };
   });
-  return { products, installation, prerequisites, groups, solutions };
+  const outOfScope = s.outOfScope === undefined ? initial.outOfScope : list(s.outOfScope, (item, index) => {
+    const o = objectOrNull(item); if (!o) return null;
+    const label = text(o.label, 200);
+    return label ? { id: id(o.id, `oos-${index}`), label } : null;
+  });
+  return { products, installation, prerequisites, groups, solutions, outOfScope };
 }
 
 export const isCatalog = (value: unknown): value is Catalog => {
@@ -218,6 +238,9 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
     selectedTasks: list(s.selectedTasks, (tid) => (typeof tid === "string" ? id(tid, "") || null : null)),
     assumptions: text(s.assumptions, MAX_LONG, initial.assumptions),
     successCriteria: text(s.successCriteria, MAX_LONG, initial.successCriteria),
+    outOfScope: list(s.outOfScope, (oid) => (typeof oid === "string" ? id(oid, "") || null : null)),
+    customOutOfScope: text(s.customOutOfScope, MAX_LONG),
+    options: { showHours: bool(record(s.options).showHours, true) },
     updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
   };
 }
