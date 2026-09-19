@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
+import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, resolveProducts, scopeText } from "../app/lib/estimate.ts";
 
 /** The fictitious Solstice pack is the reference catalog; the app itself ships empty. */
 const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };
 const defaultCatalog = mergeCatalog(JSON.parse(readFileSync(new URL("../packs/solstice/catalog.json", import.meta.url), "utf8")).catalog, emptyCatalog);
-import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, resolveProducts, scopeText } from "../app/lib/estimate.ts";
 
 test("foundations are added transitively and ordered before dependents", () => {
   assert.deepEqual(resolveProducts(["lakehouse"], defaultCatalog.products), ["core", "streams", "lakehouse"]);
