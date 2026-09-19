@@ -148,3 +148,19 @@ test("this browser: estimates kept under the old single key are carried over onc
   assert.equal((await browserSource.read("old1")).revision, "3");
   delete globalThis.window;
 });
+
+test("this browser: a migration that runs out of space keeps the old copy and resumes later", async () => {
+  const store = fakeLocalStorage();
+  const { browserSource } = await import("../app/lib/sources/browser.ts");
+  const doc = (name) => ({ name, payload: { format: "scopewright-estimate", version: 1, estimate: {} }, revision: 1, updatedAt: 1, lock: null });
+  store.set("scopewright:library", JSON.stringify({ one: doc("one.json"), two: doc("two.json") }));
+  const realSet = window.localStorage.setItem;
+  let budget = 1;
+  window.localStorage.setItem = (key, value) => { if (budget-- <= 0) throw new DOMException("full", "QuotaExceededError"); realSet(key, value); };
+  assert.deepEqual((await browserSource.list()).map((d) => d.name), ["one.json"], "only the first fitted");
+  assert.ok(store.has("scopewright:library"), "the old copy is kept, since it is the only copy of two.json");
+  window.localStorage.setItem = realSet;
+  assert.deepEqual((await browserSource.list()).map((d) => d.name).sort(), ["one.json", "two.json"], "the next attempt finishes the job");
+  assert.equal(store.has("scopewright:library"), false);
+  delete globalThis.window;
+});

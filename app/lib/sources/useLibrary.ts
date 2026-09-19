@@ -61,10 +61,13 @@ export function useLibrary(owner: string) {
   const token = useRef("");
   // The same token, as state, for rendering "open here" against each row's lock.
   const [tokenValue, setTokenValue] = useState("");
+  // Bumped whenever the open document is let go. A save still in flight compares it on return and, if it moved, does not re-attach the file.
+  const epoch = useRef(0);
   const ownerRef = useRef(owner);
   useEffect(() => { ownerRef.current = owner; }, [owner]);
 
   const setActive = useCallback((next: ActiveDocument | null) => { setActiveState(next); writeJson(ACTIVE_KEY, next); }, []);
+  const letGo = useCallback(() => { epoch.current += 1; setActive(null); }, [setActive]);
   const fail = (problem: unknown) => setError(problem instanceof Error ? problem.message : String(problem));
 
   const refresh = useCallback(async (from: SourceProvider) => {
@@ -113,15 +116,25 @@ export function useLibrary(owner: string) {
 
   // Hold the lock while a document is open. Losing it (someone took over after it lapsed) is reported, not hidden.
   useEffect(() => {
-    if (!active || state !== "ready" || provider.id !== active.sourceId) return;
-    const renew = () => acquire(provider, active.id, ownerRef.current, token.current, Date.now())
-      .then((other) => { if (other) setError(`${other.owner} now has “${active.name}” open. Your changes cannot be saved over theirs; export a copy if you need to keep them.`); })
-      // A missed renewal is retried on the next tick, but a lapsed session needs the user.
-      .catch((problem) => { if (problem instanceof NotConnectedError) { setError(`${problem.message} Until then “${active.name}” is not held for you.`); setState("needs-connect"); } });
+    if (!active) return;
+    // The document's own source, not the selected one: browsing another source, or choosing one in Save as, must not let this lock lapse.
+    const target = sourceById(active.sourceId);
+    const selected = target.id === provider.id;
+    if (selected && state !== "ready") return;
+    const renew = async () => {
+      try {
+        if (!selected && !(await target.resume(context))) throw new NotConnectedError(`${target.label} needs reconnecting.`);
+        const other = await acquire(target, active.id, ownerRef.current, token.current, Date.now());
+        if (other) setError(`${other.owner} now has “${active.name}” open. Your changes cannot be saved over theirs; export a copy if you need to keep them.`);
+      } catch (problem) {
+        // A missed renewal is retried on the next tick, but a lapsed session needs the user.
+        if (problem instanceof NotConnectedError) { setError(`${problem.message} Until then “${active.name}” is not held for you.`); if (selected) setState("needs-connect"); }
+      }
+    };
     void renew();
     const timer = window.setInterval(renew, RENEW_MINUTES * 60_000);
     return () => window.clearInterval(timer);
-  }, [active, provider, state]);
+  }, [active, provider, state, context]);
 
   /** A source that says it cannot work here is never asked to connect, whichever path leads to it. */
   const usableOrThrow = (target: SourceProvider) => { const reason = target.unavailable(context); if (reason) throw new Error(reason); };
@@ -140,7 +153,7 @@ export function useLibrary(owner: string) {
   };
 
   const disconnect = async () => {
-    if (active?.sourceId === provider.id) { await release(provider, active.id, token.current, Date.now()).catch(() => {}); setActive(null); }
+    if (active?.sourceId === provider.id) { await release(provider, active.id, token.current, Date.now()).catch(() => {}); letGo(); }
     await provider.disconnect().catch(() => {});
     setDocuments([]);
     setState("needs-connect");
@@ -155,7 +168,7 @@ export function useLibrary(owner: string) {
       // Release first: once the provider points at the new place, the old lock can no longer be reached.
       if (leaving) await release(provider, leaving.id, token.current, Date.now()).catch(() => {});
       await move();
-      if (leaving) setActive(null);
+      if (leaving) letGo();
       await refresh(provider);
       setState("ready");
     } catch (problem) {
@@ -182,6 +195,7 @@ export function useLibrary(owner: string) {
       throw problem;
     });
     if (active && (active.id !== doc.id || active.sourceId !== provider.id)) await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
+    epoch.current += 1;
     setActive({ sourceId: provider.id, id: doc.id, name: doc.name, revision: body.revision });
     await refresh(provider).catch(() => {});
     return { payload: body.payload };
@@ -190,11 +204,19 @@ export function useLibrary(owner: string) {
   // A folder permission or a cloud session can lapse while the page is open; saves run from a click, so reconnecting is allowed.
   const ready = async (target: SourceProvider) => { usableOrThrow(target); if (!(await target.resume(context))) await target.connect(context); };
 
-  const adopt = async (target: SourceProvider, written: { id: string; name: string; revision: string; notice?: string }, takeLock: boolean) => {
+  const adopt = async (target: SourceProvider, written: { id: string; name: string; revision: string; notice?: string }, takeLock: boolean, started: number) => {
     const saved = { sourceId: target.id, id: written.id, name: written.name, revision: written.revision };
+    // The user moved on (New estimate, Import, Open, ...) while this write was in flight. The file is saved, which is what
+    // they asked for, but it is no longer the open document: do not re-attach it to whatever is in the builder now, and do not hold it.
+    if (started !== epoch.current) {
+      await release(target, written.id, token.current, Date.now()).catch(() => {});
+      if (target.id === provider.id) await refresh(provider).catch(() => {});
+      return saved;
+    }
     if (takeLock) {
       // The file is written; whether it is ours to keep editing depends on the lock. A failure here is reported, not swallowed.
       const other = await acquire(target, written.id, ownerRef.current, token.current, Date.now());
+      if (started !== epoch.current) { await release(target, written.id, token.current, Date.now()).catch(() => {}); return saved; }
       if (other) { if (target.id === provider.id) await refresh(provider).catch(() => {}); throw new Error(`“${written.name}” was saved, but ${other.owner} opened it at the same moment, so it is not open here. Use Save as with another name to keep working.`); }
     }
     setActive(saved);
@@ -207,13 +229,14 @@ export function useLibrary(owner: string) {
   const save = async (payload: unknown) => {
     if (!active) throw new Error("This estimate has not been saved anywhere yet. Use Save as.");
     setError("");
+    const started = epoch.current;
     const target = sourceById(active.sourceId);
     await ready(target);
     // Our lock may have lapsed while this tab was in the background, and someone who opened the file since has not
     // changed its revision yet. Renew the lock now; if it is theirs, stop. Being refused writes nothing, so no lock is left behind.
     const other = await acquire(target, active.id, ownerRef.current, token.current, Date.now());
     if (other) throw new Error(`${other.owner} opened “${active.name}” after your hold on it lapsed, so it was not saved over theirs. Use Save as to keep your version under another name.`);
-    return adopt(target, await target.write(active.id, active.name, payload, active.revision), false);
+    return adopt(target, await target.write(active.id, active.name, payload, active.revision), false, started);
   };
 
   /**
@@ -223,6 +246,7 @@ export function useLibrary(owner: string) {
    */
   const saveAs = async (name: string, payload: unknown, confirmReplace: (existing: DocumentRef) => boolean) => {
     setError("");
+    const started = epoch.current;
     await ready(provider);
     const existing = (await provider.list()).find((doc) => doc.name.toLowerCase() === name.toLowerCase());
     const mine = existing && active?.sourceId === provider.id && active.id === existing.id;
@@ -241,26 +265,29 @@ export function useLibrary(owner: string) {
     });
     // Let go of the previous file only once the new one is really ours: if adopt throws, the old file is still open and still held.
     const previous = active && !mine ? active : null;
-    const saved = await adopt(provider, written, true);
-    if (previous) await release(sourceById(previous.sourceId), previous.id, token.current, Date.now()).catch(() => {});
+    const saved = await adopt(provider, written, true, started);
+    if (previous && started === epoch.current) await release(sourceById(previous.sourceId), previous.id, token.current, Date.now()).catch(() => {});
     return saved;
   };
 
   /** Stop editing the open document and free it for others. */
   const close = async () => {
     if (!active) return;
-    await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
-    setActive(null);
+    // Invalidate first, so a save that returns while the lock is being released already knows.
+    const closing = active;
+    letGo();
+    await release(sourceById(closing.sourceId), closing.id, token.current, Date.now()).catch(() => {});
     if (state === "ready") await refresh(provider).catch(() => {});
   };
 
   const remove = async (doc: DocumentRef) => {
     setError("");
     try {
+      // Enforced here as well as in the list: the builder would be left showing a file that no longer exists as saved.
+      if (active?.id === doc.id && active.sourceId === provider.id) throw new Error(`“${doc.name}” is open here. Start a new estimate or open another one before deleting it.`);
       const lock = await provider.readLock(doc.id);
       if (lockedByOther(lock, token.current, Date.now())) { await refresh(provider).catch(() => {}); throw new Error(`${lock!.owner} has “${doc.name}” open, so it cannot be deleted.`); }
       await provider.remove(doc.id);
-      if (active?.id === doc.id && active.sourceId === provider.id) setActive(null);
       await refresh(provider);
     } catch (problem) { fail(problem); }
   };

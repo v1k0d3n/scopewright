@@ -66,7 +66,7 @@ export function Library({ library, now, onOpen, onRefresh }: { library: LibraryM
                   <span className={mine ? "lock-badge mine" : locked ? "lock-badge" : "lock-badge free"}>{mine ? "Open here" : locked ? `Locked by ${doc.lock!.owner} until ${clock(doc.lock!.until)}` : "Available"}</span>
                   <span className="row-actions">
                     <button type="button" className="secondary" disabled={locked || mine} onClick={() => onOpen(doc)}>{mine ? "Opened" : "Open"}</button>
-                    <button type="button" className="danger" disabled={locked} onClick={() => window.confirm(`Delete “${doc.name}” from ${provider.label.toLowerCase()}? This cannot be undone.`) && library.remove(doc)}>Delete</button>
+                    <button type="button" className="danger" disabled={locked || mine} title={mine ? "Open here. Start a new estimate or open another one first." : undefined} onClick={() => window.confirm(`Delete “${doc.name}” from ${provider.label.toLowerCase()}? This cannot be undone.`) && library.remove(doc)}>Delete</button>
                   </span>
                 </div>
               );

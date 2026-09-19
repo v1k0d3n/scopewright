@@ -36,10 +36,20 @@ const put = (id: string, entry: Entry) => window.localStorage.setItem(PREFIX + i
 function migrate() {
   const raw = window.localStorage.getItem(LEGACY_KEY);
   if (raw === null) return;
+  let entries: [string, unknown][];
   try {
-    for (const [id, entry] of Object.entries(JSON.parse(raw) as Record<string, unknown>)) if (parse(JSON.stringify(entry)) && !get(id)) put(id, entry as Entry);
+    entries = Object.entries(JSON.parse(raw) as Record<string, unknown>);
   } catch {
-    /* unreadable: nothing to carry over */
+    // Unreadable: there is nothing in it to carry over.
+    window.localStorage.removeItem(LEGACY_KEY);
+    return;
+  }
+  try {
+    for (const [id, entry] of entries) if (parse(JSON.stringify(entry)) && !get(id)) put(id, entry as Entry);
+  } catch {
+    // Copying doubles the data for a moment and can hit the quota. Keep the old copy: it is the only
+    // one for whatever did not make it, and entries already across are skipped on the next attempt.
+    return;
   }
   window.localStorage.removeItem(LEGACY_KEY);
 }
