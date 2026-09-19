@@ -211,8 +211,7 @@ product they belong to ("Any product" for engagement-wide work such as
 kickoff and readout). Each **task** has an item number, a delivery phase,
 hours, and an **Offer** toggle that controls whether it is shown in the
 Deliverables step. **Offer all** and **Offer none** at the top switch every
-task at once, and the "all / none" link in a group's Workflow column does the
-same for that group. Numbering carries through to the scope document.
+task at once, and the same button on each group does it for that group alone. Numbering carries through to the scope document.
 
 ### Out of scope
 

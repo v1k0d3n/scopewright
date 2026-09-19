@@ -263,7 +263,6 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .bulk-bar .secondary { padding: 7px 12px; }
 .bulk-bar + .capability-phases { margin-top: 12px; }
 .capability-phases summary .phase-toggle { border: 0; background: transparent; color: var(--brand); font-size: 11px; font-weight: 700; padding: 2px 6px; }
-button.link.tiny { font-size: 10px; text-transform: none; margin-left: 4px; }
 .capability-phases { border-top: 1px solid var(--line); margin-top: 22px; }
 .capability-phases details { border-bottom: 1px solid var(--line); }
 .capability-phases summary { display: grid; grid-template-columns: 1fr auto auto 56px; align-items: center; gap: 16px; padding: 13px 4px; cursor: pointer; list-style: none; }
@@ -394,7 +393,8 @@ button.link.tiny { font-size: 10px; text-transform: none; margin-left: 4px; }
 .group-settings { display: grid; grid-template-columns: 90px 1.5fr 1fr 1fr auto; gap: 10px; padding: 10px 0 14px; border-bottom: 1px solid var(--line-soft); align-items: end; }
 .group-settings label { display: grid; gap: 4px; color: var(--muted); font-size: 10px; text-transform: uppercase; font-weight: 700; }
 .group-settings input, .group-settings select { padding: 8px; text-transform: none; font-weight: 400; }
-.group-settings .row-actions button:not(.danger) { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+.group-settings .row-actions button:not(.danger):not(.offer-toggle) { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+.group-settings .row-actions .offer-toggle { height: 34px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; font-size: 11px; white-space: nowrap; }
 .catalog-task-head, .catalog-task { display: grid; grid-template-columns: 70px 1.3fr 1fr 90px 82px 34px; gap: 10px; align-items: center; padding: 9px 0; }
 .catalog-task-head { font-size: 10px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
 .catalog-task { border-bottom: 1px solid var(--line-soft); }
