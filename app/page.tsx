@@ -57,6 +57,10 @@ export default function Home() {
   const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0);
   const [notice, setNotice] = useState("");
   const [savingAs, setSavingAs] = useState(false);
+  // The newest estimate, readable after an await: a save that finishes late must not vouch for edits made while it ran.
+  const latest = useRef(estimate);
+  useEffect(() => { latest.current = estimate; }, [estimate]);
+  const markSaved = (written: Estimate) => { if (latest.current.updatedAt === written.updatedAt) setSavedAt(Date.now()); };
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => {
     fetch("/api/workspace/me", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setIdentity(value as Identity | null)).catch(() => setIdentity(null));
@@ -112,7 +116,7 @@ export default function Home() {
     if (!library.active) { if (askWhere) setSavingAs(true); else setSavedAt(Date.now()); return !askWhere; }
     try {
       const saved = await library.save(estimateExport(catalog, stamped));
-      setSavedAt(Date.now());
+      markSaved(stamped);
       flash(`Saved “${saved.name}”.`);
       return true;
     } catch (problem) {
@@ -124,9 +128,9 @@ export default function Home() {
   const saveAs = async (typedName: string): Promise<string | null> => {
     try {
       const stamped = { ...estimate, updatedAt: Date.now() };
-      const saved = await library.saveAs(fileNameFromTyped(typedName), estimateExport(catalog, stamped), (existing) => window.confirm(`“${existing.name}” already exists in ${library.provider.label.toLowerCase()}. Replace it?`));
       setEstimate(stamped);
-      setSavedAt(Date.now());
+      const saved = await library.saveAs(fileNameFromTyped(typedName), estimateExport(catalog, stamped), (existing) => window.confirm(`“${existing.name}” already exists in ${library.provider.label.toLowerCase()}. Replace it?`));
+      markSaved(stamped);
       setSavingAs(false);
       flash(`Saved “${saved.name}”.`);
       return null;
@@ -143,11 +147,13 @@ export default function Home() {
       if ("blockedBy" in result) { library.setError(`${result.blockedBy.owner} has “${doc.name}” open. It unlocks when they close it, or automatically at ${new Date(result.blockedBy.until).toLocaleTimeString(undefined, { timeStyle: "short" })}.`); return; }
       const parsed = parseEstimateExport(result.payload, emptyEstimate());
       if (!parsed) { await library.close(); library.setError(`“${doc.name}” is not a Scopewright estimate.`); return; }
-      setEstimate({ ...parsed, products: parsed.products.filter((id) => catalog.products.some((product) => product.id === id)) });
+      const missing = parsed.products.filter((id) => !catalog.products.some((product) => product.id === id));
+      setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)) });
       setStep(1);
-      setSavedAt(Date.now());
+      // Dropping products changes the estimate: show it as unsaved so the file is only rewritten on purpose.
+      setSavedAt(missing.length ? 0 : Date.now());
       setView("estimate");
-      flash(`Opened “${doc.name}”. Hours reflect the current catalog.`);
+      flash(missing.length ? `Opened “${doc.name}”, but ${missing.length} product(s) in it no longer exist in the catalog and were dropped. The file is unchanged until you save.` : `Opened “${doc.name}”. Hours reflect the current catalog.`, missing.length ? 9000 : 3000);
     } catch (problem) {
       library.setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -164,7 +170,7 @@ export default function Home() {
   const importEstimate = (file: File | undefined) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const parsed = parseEstimateExport(JSON.parse(String(reader.result)), emptyEstimate());
         if (!parsed) throw new Error("bad file");
@@ -173,7 +179,8 @@ export default function Home() {
         const label = `${parsed.customer || "Untitled customer"} — ${parsed.title || defaultTitle(preview)} (${preview.total}h)`;
         if (!window.confirm(`Load "${label}"? Your current draft will be replaced.${missing.length ? ` Note: ${missing.length} product(s) in the file no longer exist in the catalog and will be dropped.` : ""}`)) return;
         // The import is a different estimate: let go of the open file first, or the next Save would write this one over it.
-        void library.close();
+        // Wait for it: releasing a lock in a folder or in Drive takes a moment, and a Save in that moment would still see the old file as open.
+        await library.close();
         setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)), updatedAt: Date.now() });
         setStep(1);
         setSavedAt(0);

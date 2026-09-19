@@ -142,9 +142,14 @@ function fit(value: string, bytes = 90): string {
   return out;
 }
 
+/** Written on every file the app saves; anything else in the folder is not ours to list or replace. */
+const MARKER = { swFormat: "scopewright-estimate" };
+// swHours: files saved before the marker existed.
+const isOurs = (file: DriveFile) => file.appProperties?.swFormat === MARKER.swFormat || (file.appProperties !== undefined && "swHours" in file.appProperties);
+
 function summaryProperties(payload: unknown): Record<string, string> {
   const summary = (payload as { summary?: { customer?: unknown; title?: unknown; totalHours?: unknown } } | null)?.summary;
-  return { swCustomer: fit(typeof summary?.customer === "string" ? summary.customer : ""), swTitle: fit(typeof summary?.title === "string" ? summary.title : ""), swHours: typeof summary?.totalHours === "number" ? String(summary.totalHours) : "" };
+  return { ...MARKER, swCustomer: fit(typeof summary?.customer === "string" ? summary.customer : ""), swTitle: fit(typeof summary?.title === "string" ? summary.title : ""), swHours: typeof summary?.totalHours === "number" ? String(summary.totalHours) : "" };
 }
 
 function lockFrom(properties: Record<string, string> | undefined): LockInfo | null {
@@ -163,7 +168,7 @@ async function children(): Promise<DriveFile[]> {
   do {
     const query = new URLSearchParams({ q: `'${where().id}' in parents and trashed = false and mimeType = 'application/json'`, fields: `nextPageToken,files(${FIELDS})`, pageSize: "200", supportsAllDrives: "true", includeItemsFromAllDrives: "true", ...(pageToken ? { pageToken } : {}) });
     const page = (await (await drive(`${API}?${query}`)).json()) as { files?: DriveFile[]; nextPageToken?: string };
-    found.push(...(page.files ?? []));
+    found.push(...(page.files ?? []).filter(isOurs));
     pageToken = page.nextPageToken ?? "";
   } while (pageToken && found.length < MAX_FILES);
   return found;
@@ -247,6 +252,7 @@ export const googleDriveSource: SourceProvider = {
 
   async read(id): Promise<DocumentBody> {
     const file = await metadata(id);
+    if (!isOurs(file)) throw new Error(`${file.name} was not saved by Scopewright.`);
     if (Number(file.size ?? 0) > MAX_BYTES) throw new Error(`${file.name} is too large to be an estimate.`);
     const payload = (await (await drive(`${API}/${safeId(id)}?alt=media&supportsAllDrives=true`)).json()) as unknown;
     return { payload, revision: file.headRevisionId ?? "" };
@@ -255,7 +261,9 @@ export const googleDriveSource: SourceProvider = {
   async write(id, name, payload, revision) {
     const body = JSON.stringify(payload, null, 2);
     if (id) {
-      if (revision !== null && (await metadata(id)).headRevisionId !== revision) throw new ConflictError();
+      const current = await metadata(id);
+      if (!isOurs(current)) throw new Error(`${current.name} was not saved by Scopewright, so it will not be replaced.`);
+      if (revision !== null && current.headRevisionId !== revision) throw new ConflictError();
       await drive(`${UPLOAD}/${safeId(id)}?uploadType=media&supportsAllDrives=true`, { method: "PATCH", headers: { "content-type": "application/json" }, body });
       const updated = (await (await drive(`${API}/${safeId(id)}?fields=${FIELDS}&supportsAllDrives=true`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ appProperties: summaryProperties(payload) }) })).json()) as DriveFile;
       const written = updated.headRevisionId ?? "";

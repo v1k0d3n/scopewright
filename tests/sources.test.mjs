@@ -89,6 +89,14 @@ test("a typed file name always ends in .json, exactly once", async () => {
   assert.throws(() => fileNameFromTyped(".json"), /Type a name/);
 });
 
+/** Enough of localStorage for the browser source, with every setItem recorded. */
+function fakeLocalStorage() {
+  const store = new Map();
+  store.writes = [];
+  globalThis.window = { localStorage: { get length() { return store.size; }, key: (index) => [...store.keys()][index] ?? null, getItem: (key) => store.get(key) ?? null, setItem: (key, value) => { store.writes.push(key); store.set(key, value); }, removeItem: (key) => void store.delete(key) } };
+  return store;
+}
+
 test("releasing never removes a lock that may have changed hands", async () => {
   const { RELEASE_MARGIN_MS } = await import("../app/lib/sources/locks.ts");
   const provider = memoryProvider();
@@ -104,8 +112,7 @@ test("releasing never removes a lock that may have changed hands", async () => {
 });
 
 test("this browser: saving back to a document deleted elsewhere is a conflict, not a resurrection", async () => {
-  const store = new Map();
-  globalThis.window = { localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => void store.set(key, value), removeItem: (key) => void store.delete(key) } };
+  fakeLocalStorage();
   const { browserSource } = await import("../app/lib/sources/browser.ts");
   const { ConflictError } = await import("../app/lib/sources/types.ts");
   const payload = { format: "scopewright-estimate", version: 1, estimate: {} };
@@ -115,5 +122,29 @@ test("this browser: saving back to a document deleted elsewhere is a conflict, n
   await browserSource.remove(first.id);
   await assert.rejects(browserSource.write(first.id, "acme.json", payload, "2"), ConflictError, "a deleted document");
   assert.deepEqual(await browserSource.list(), []);
+  delete globalThis.window;
+});
+
+test("this browser: a save touches only its own record, so another tab's save cannot be erased", async () => {
+  const store = fakeLocalStorage();
+  const { browserSource } = await import("../app/lib/sources/browser.ts");
+  const payload = { format: "scopewright-estimate", version: 1, estimate: {} };
+  const a = await browserSource.write(null, "a.json", payload, null);
+  const b = await browserSource.write(null, "b.json", payload, null);
+  store.writes.length = 0;
+  await browserSource.write(a.id, "a.json", payload, a.revision);
+  await browserSource.writeLock(b.id, { owner: "ana", token: "t", until: 5 });
+  assert.deepEqual(store.writes, [`scopewright:document:${a.id}`, `scopewright:document:${b.id}`]);
+  assert.equal((await browserSource.list()).length, 2);
+  delete globalThis.window;
+});
+
+test("this browser: estimates kept under the old single key are carried over once", async () => {
+  const store = fakeLocalStorage();
+  const { browserSource } = await import("../app/lib/sources/browser.ts");
+  store.set("scopewright:library", JSON.stringify({ old1: { name: "old.json", payload: { format: "scopewright-estimate", version: 1, estimate: {} }, revision: 3, updatedAt: 1, lock: null }, junk: "nope" }));
+  assert.deepEqual((await browserSource.list()).map((doc) => [doc.id, doc.name]), [["old1", "old.json"]]);
+  assert.equal(store.has("scopewright:library"), false);
+  assert.equal((await browserSource.read("old1")).revision, "3");
   delete globalThis.window;
 });

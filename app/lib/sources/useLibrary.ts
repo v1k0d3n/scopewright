@@ -209,6 +209,10 @@ export function useLibrary(owner: string) {
     setError("");
     const target = sourceById(active.sourceId);
     await ready(target);
+    // Our lock may have lapsed while this tab was in the background, and someone who opened the file since has not
+    // changed its revision yet. Renew the lock now; if it is theirs, stop. Being refused writes nothing, so no lock is left behind.
+    const other = await acquire(target, active.id, ownerRef.current, token.current, Date.now());
+    if (other) throw new Error(`${other.owner} opened “${active.name}” after your hold on it lapsed, so it was not saved over theirs. Use Save as to keep your version under another name.`);
     return adopt(target, await target.write(active.id, active.name, payload, active.revision), false);
   };
 
@@ -227,7 +231,7 @@ export function useLibrary(owner: string) {
       if (!confirmReplace(existing)) throw new DOMException("Cancelled", "AbortError");
     }
     // Replacing a file: hold it before writing, so nobody can open it in between.
-    if (existing && !mine) {
+    if (existing) {
       const other = await acquire(provider, existing.id, ownerRef.current, token.current, Date.now());
       if (other) throw new Error(`${other.owner} has “${existing.name}” open, so it cannot be replaced. Choose another name.`);
     }
@@ -235,8 +239,11 @@ export function useLibrary(owner: string) {
       if (existing && !mine) await release(provider, existing.id, token.current, Date.now()).catch(() => {});
       throw problem;
     });
-    if (active && !mine) await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
-    return adopt(provider, written, true);
+    // Let go of the previous file only once the new one is really ours: if adopt throws, the old file is still open and still held.
+    const previous = active && !mine ? active : null;
+    const saved = await adopt(provider, written, true);
+    if (previous) await release(sourceById(previous.sourceId), previous.id, token.current, Date.now()).catch(() => {});
+    return saved;
   };
 
   /** Stop editing the open document and free it for others. */
