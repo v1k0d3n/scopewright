@@ -98,11 +98,12 @@ export function useLibrary(owner: string) {
         setTokenValue(token.current);
         const ctx = { config: settings?.config ?? {} };
         const allowed = sources.filter((source) => (!settings?.enabled || settings.enabled.includes(source.id)) && source.configured(ctx));
+        const usable = (source: SourceProvider) => allowed.includes(source) && source.unavailable(ctx) === null;
         setContext(ctx);
         setOffered(allowed.length ? allowed : [sources[0]]);
         const remembered = readJson<ActiveDocument>(ACTIVE_KEY);
         const wanted = sourceById(remembered?.sourceId ?? readJson<string>(SOURCE_KEY) ?? "browser");
-        const start = allowed.includes(wanted) ? wanted : sources[0];
+        const start = usable(wanted) ? wanted : sources[0];
         if (remembered && remembered.sourceId === start.id) setActiveState(remembered);
         else if (remembered) writeJson(ACTIVE_KEY, null);
         void switchTo(start, ctx);
@@ -122,9 +123,13 @@ export function useLibrary(owner: string) {
     return () => window.clearInterval(timer);
   }, [active, provider, state]);
 
+  /** A source that says it cannot work here is never asked to connect, whichever path leads to it. */
+  const usableOrThrow = (target: SourceProvider) => { const reason = target.unavailable(context); if (reason) throw new Error(reason); };
+
   const connect = async () => {
     setError("");
     try {
+      usableOrThrow(provider);
       await provider.connect(context);
       await refresh(provider);
       setState("ready");
@@ -135,7 +140,7 @@ export function useLibrary(owner: string) {
   };
 
   const disconnect = async () => {
-    if (active?.sourceId === provider.id) { await release(provider, active.id, token.current).catch(() => {}); setActive(null); }
+    if (active?.sourceId === provider.id) { await release(provider, active.id, token.current, Date.now()).catch(() => {}); setActive(null); }
     await provider.disconnect().catch(() => {});
     setDocuments([]);
     setState("needs-connect");
@@ -144,18 +149,24 @@ export function useLibrary(owner: string) {
   /** Move to another location in the same source. The open document, if it lives here, is closed first: it belongs to the place being left. */
   const relocate = async (move: () => Promise<void>) => {
     setError("");
+    const leaving = active?.sourceId === provider.id ? active : null;
     try {
+      usableOrThrow(provider);
+      // Release first: once the provider points at the new place, the old lock can no longer be reached.
+      if (leaving) await release(provider, leaving.id, token.current, Date.now()).catch(() => {});
       await move();
-      if (active?.sourceId === provider.id) { await release(provider, active.id, token.current).catch(() => {}); setActive(null); }
+      if (leaving) setActive(null);
       await refresh(provider);
       setState("ready");
     } catch (problem) {
+      // Still in the old place (the picker was cancelled, or the move failed): hold the document again.
+      if (leaving) await acquire(provider, leaving.id, ownerRef.current, token.current, Date.now()).catch(() => {});
       if (!(problem instanceof DOMException && problem.name === "AbortError")) fail(problem);
     }
   };
   const changeLocation = () => relocate(async () => { await provider.changeLocation?.(context); });
   const createFolder = (name: string) => relocate(async () => {
-    if (!(await provider.resume(context))) await provider.connect(context);
+    await ready(provider);
     await provider.createFolder?.(name);
   });
 
@@ -164,20 +175,30 @@ export function useLibrary(owner: string) {
     setError("");
     const other = await acquire(provider, doc.id, ownerRef.current, token.current, Date.now());
     if (other) { await refresh(provider).catch(() => {}); return { blockedBy: other }; }
-    const body = await provider.read(doc.id);
-    if (active && (active.id !== doc.id || active.sourceId !== provider.id)) await release(sourceById(active.sourceId), active.id, token.current).catch(() => {});
+    const held = active?.sourceId === provider.id && active.id === doc.id;
+    const body = await provider.read(doc.id).catch(async (problem) => {
+      if (!held) await release(provider, doc.id, token.current, Date.now()).catch(() => {});
+      await refresh(provider).catch(() => {});
+      throw problem;
+    });
+    if (active && (active.id !== doc.id || active.sourceId !== provider.id)) await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
     setActive({ sourceId: provider.id, id: doc.id, name: doc.name, revision: body.revision });
     await refresh(provider).catch(() => {});
     return { payload: body.payload };
   };
 
   // A folder permission or a cloud session can lapse while the page is open; saves run from a click, so reconnecting is allowed.
-  const ready = async (target: SourceProvider) => { if (!(await target.resume(context))) await target.connect(context); };
+  const ready = async (target: SourceProvider) => { usableOrThrow(target); if (!(await target.resume(context))) await target.connect(context); };
 
-  const adopt = async (target: SourceProvider, written: { id: string; name: string; revision: string }, takeLock: boolean) => {
+  const adopt = async (target: SourceProvider, written: { id: string; name: string; revision: string; notice?: string }, takeLock: boolean) => {
     const saved = { sourceId: target.id, id: written.id, name: written.name, revision: written.revision };
+    if (takeLock) {
+      // The file is written; whether it is ours to keep editing depends on the lock. A failure here is reported, not swallowed.
+      const other = await acquire(target, written.id, ownerRef.current, token.current, Date.now());
+      if (other) { if (target.id === provider.id) await refresh(provider).catch(() => {}); throw new Error(`“${written.name}” was saved, but ${other.owner} opened it at the same moment, so it is not open here. Use Save as with another name to keep working.`); }
+    }
     setActive(saved);
-    if (takeLock) await acquire(target, written.id, ownerRef.current, token.current, Date.now()).catch(() => {});
+    if (written.notice) setError(written.notice);
     if (target.id === provider.id) { setState("ready"); await refresh(provider).catch(() => {}); }
     return saved;
   };
@@ -205,15 +226,23 @@ export function useLibrary(owner: string) {
       if (lockedByOther(existing.lock, token.current, Date.now())) throw new Error(`${existing.lock!.owner} has “${existing.name}” open, so it cannot be replaced. Choose another name.`);
       if (!confirmReplace(existing)) throw new DOMException("Cancelled", "AbortError");
     }
-    const written = await provider.write(existing?.id ?? null, name, payload, null);
-    if (active && !mine) await release(sourceById(active.sourceId), active.id, token.current).catch(() => {});
+    // Replacing a file: hold it before writing, so nobody can open it in between.
+    if (existing && !mine) {
+      const other = await acquire(provider, existing.id, ownerRef.current, token.current, Date.now());
+      if (other) throw new Error(`${other.owner} has “${existing.name}” open, so it cannot be replaced. Choose another name.`);
+    }
+    const written = await provider.write(existing?.id ?? null, name, payload, null).catch(async (problem) => {
+      if (existing && !mine) await release(provider, existing.id, token.current, Date.now()).catch(() => {});
+      throw problem;
+    });
+    if (active && !mine) await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
     return adopt(provider, written, true);
   };
 
   /** Stop editing the open document and free it for others. */
   const close = async () => {
     if (!active) return;
-    await release(sourceById(active.sourceId), active.id, token.current).catch(() => {});
+    await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
     setActive(null);
     if (state === "ready") await refresh(provider).catch(() => {});
   };
@@ -221,6 +250,8 @@ export function useLibrary(owner: string) {
   const remove = async (doc: DocumentRef) => {
     setError("");
     try {
+      const lock = await provider.readLock(doc.id);
+      if (lockedByOther(lock, token.current, Date.now())) { await refresh(provider).catch(() => {}); throw new Error(`${lock!.owner} has “${doc.name}” open, so it cannot be deleted.`); }
       await provider.remove(doc.id);
       if (active?.id === doc.id && active.sourceId === provider.id) setActive(null);
       await refresh(provider);

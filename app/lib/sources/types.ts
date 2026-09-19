@@ -77,10 +77,12 @@ export interface SourceProvider {
   read(id: string): Promise<DocumentBody>;
   /**
    * Create (id null) or replace a document. When `revision` is given and the
-   * stored document has moved on, reject with ConflictError instead of
-   * overwriting.
+   * stored document has moved on or is gone, reject with ConflictError instead
+   * of overwriting or recreating it. Do the check as late as the store allows.
+   * A store that cannot make it atomic may resolve with a `notice` telling the
+   * user what happened and how to recover.
    */
-  write(id: string | null, name: string, payload: unknown, revision: string | null): Promise<{ id: string; name: string; revision: string }>;
+  write(id: string | null, name: string, payload: unknown, revision: string | null): Promise<{ id: string; name: string; revision: string; notice?: string }>;
   remove(id: string): Promise<void>;
 
   /** Current lock, expired or not; callers decide with lockedByOther(). */

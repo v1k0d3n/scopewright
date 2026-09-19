@@ -77,9 +77,22 @@ async function readJson(handle: FileSystemFileHandle): Promise<{ data: unknown; 
   return { data: JSON.parse(await file.text()) as unknown, file };
 }
 
-async function writeJson(handle: FileSystemFileHandle, data: unknown) {
+/**
+ * Writes go to a temporary file that replaces the real one on close(). The
+ * File System Access API has no compare-and-swap, so `stillCurrent` is asked
+ * at the last possible moment, after the data is staged and just before the
+ * swap; if it says no, the write is abandoned and the file is untouched. That
+ * shrinks the window for two simultaneous saves to the swap itself.
+ */
+async function writeJson(handle: FileSystemFileHandle, data: unknown, stillCurrent?: () => Promise<boolean>) {
   const writable = await handle.createWritable();
-  await writable.write(JSON.stringify(data, null, 2));
+  try {
+    await writable.write(JSON.stringify(data, null, 2));
+    if (stillCurrent && !(await stillCurrent())) throw new ConflictError();
+  } catch (problem) {
+    await writable.abort().catch(() => {});
+    throw problem;
+  }
   await writable.close();
 }
 
@@ -157,12 +170,15 @@ export const localFolderSource: SourceProvider = {
       const taken: string[] = [];
       for await (const [existing] of dir().entries()) taken.push(existing);
       target = safeName(uniqueName(name, taken));
-    } else if (revision !== null) {
-      const current = await dir().getFileHandle(target).then((handle) => handle.getFile()).catch(() => null);
-      if (!current || revisionOf(current) !== revision) throw new ConflictError();
     }
-    const handle = await dir().getFileHandle(target, { create: true });
-    await writeJson(handle, payload);
+    const unchanged = async () => {
+      const current = await dir().getFileHandle(target).then((handle) => handle.getFile()).catch(() => null);
+      return Boolean(current && revisionOf(current) === revision);
+    };
+    // A missing file counts as changed: it was deleted elsewhere and must not be recreated.
+    if (id && revision !== null && !(await unchanged())) throw new ConflictError();
+    const handle = await dir().getFileHandle(target, { create: !id || revision === null });
+    await writeJson(handle, payload, id && revision !== null ? unchanged : undefined);
     return { id: target, name: target, revision: revisionOf(await handle.getFile()) };
   },
 

@@ -203,9 +203,18 @@ open or delete it. The lock is released when they start a new estimate, open
 another one, or disconnect. If a browser is simply closed, the lock expires by
 itself after ten minutes.
 
+Importing a file, like starting a new estimate, closes and unlocks the
+estimate you had open.
+
 The lock is a courtesy, not a guarantee. As a backstop, saving checks that the
 file has not changed since you opened it. If it has, nothing is overwritten
 and you are told; use **Save as…** to keep your version under another name.
+
+None of these places can check and write in one step, so two saves landing in
+the same instant is the one case that can slip through. The check is made as
+late as each place allows to make that unlikely, and on Google Drive, if it
+does happen, you are told and the other version is still in the file's
+version history.
 
 ## Managing the estimate catalog
 

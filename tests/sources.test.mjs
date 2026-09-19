@@ -16,9 +16,9 @@ test("a document is locked for one holder until they release it", async () => {
   const blocked = await acquire(provider, "a.json", "ben", "tab-2", 2000);
   assert.equal(blocked.owner, "ana");
   assert.equal(await acquire(provider, "a.json", "ana", "tab-1", 3000), null, "the holder can renew");
-  await release(provider, "a.json", "tab-2");
+  await release(provider, "a.json", "tab-2", 3500);
   assert.ok(await provider.readLock("a.json"), "someone else cannot release it");
-  await release(provider, "a.json", "tab-1");
+  await release(provider, "a.json", "tab-1", 3500);
   assert.equal(await acquire(provider, "a.json", "ben", "tab-2", 4000), null);
 });
 
@@ -56,7 +56,11 @@ test("file names are safe on any filesystem and never collide", () => {
 test("files that are not estimates stay out of the list", () => {
   assert.equal(describe("x", "x.json", { hello: "world" }, 0, null), null);
   assert.equal(describe("x", "x.json", [1, 2], 0, null), null);
-  const ref = describe("x", "x.json", { format: "scopewright-estimate", estimate: {}, summary: { customer: 7, title: "T", totalHours: "many" } }, 9, { owner: "ana" });
+  assert.equal(describe("x", "x.json", { format: "other", version: 1, estimate: {} }, 0, null), null, "an unknown format");
+  assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: 2, estimate: {} }, 0, null), null, "a future version");
+  assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: 1, estimate: [] }, 0, null), null, "an estimate that is not an object");
+  assert.ok(describe("x", "x.json", { format: "poc-estimate", version: 1, estimate: {} }, 0, null), "the legacy format still lists");
+  const ref = describe("x", "x.json", { format: "scopewright-estimate", version: 1, estimate: {}, summary: { customer: 7, title: "T", totalHours: "many" } }, 9, { owner: "ana" });
   assert.deepEqual(ref, { id: "x", name: "x.json", customer: "", title: "T", totalHours: null, updatedAt: 9, lock: null });
 });
 
@@ -83,4 +87,33 @@ test("a typed file name always ends in .json, exactly once", async () => {
   assert.equal(fileNameFromTyped(" acme-poc.JSON "), "acme-poc.json");
   assert.equal(fileNameFromTyped("a/b\\c.json"), "a b c.json");
   assert.throws(() => fileNameFromTyped(".json"), /Type a name/);
+});
+
+test("releasing never removes a lock that may have changed hands", async () => {
+  const { RELEASE_MARGIN_MS } = await import("../app/lib/sources/locks.ts");
+  const provider = memoryProvider();
+  await acquire(provider, "a.json", "ana", "tab-1", 0);
+  const expiry = LOCK_MINUTES * 60_000;
+  // Expired, or about to: someone else may be taking it right now, so leave it.
+  await release(provider, "a.json", "tab-1", expiry + 1);
+  assert.ok(await provider.readLock("a.json"), "an expired lock is left alone");
+  await release(provider, "a.json", "tab-1", expiry - RELEASE_MARGIN_MS + 1);
+  assert.ok(await provider.readLock("a.json"), "so is one inside the safety margin");
+  await release(provider, "a.json", "tab-1", expiry - RELEASE_MARGIN_MS - 1);
+  assert.equal(await provider.readLock("a.json"), null, "a comfortably live lock is released");
+});
+
+test("this browser: saving back to a document deleted elsewhere is a conflict, not a resurrection", async () => {
+  const store = new Map();
+  globalThis.window = { localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => void store.set(key, value), removeItem: (key) => void store.delete(key) } };
+  const { browserSource } = await import("../app/lib/sources/browser.ts");
+  const { ConflictError } = await import("../app/lib/sources/types.ts");
+  const payload = { format: "scopewright-estimate", version: 1, estimate: {} };
+  const first = await browserSource.write(null, "acme.json", payload, null);
+  assert.equal((await browserSource.write(first.id, "acme.json", payload, first.revision)).revision, "2");
+  await assert.rejects(browserSource.write(first.id, "acme.json", payload, first.revision), ConflictError, "a stale revision");
+  await browserSource.remove(first.id);
+  await assert.rejects(browserSource.write(first.id, "acme.json", payload, "2"), ConflictError, "a deleted document");
+  assert.deepEqual(await browserSource.list(), []);
+  delete globalThis.window;
 });

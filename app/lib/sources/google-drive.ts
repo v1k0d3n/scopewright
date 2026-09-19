@@ -27,6 +27,7 @@ const API = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 const FOLDER_KEY = "scopewright:google-drive-folder";
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_FILES = 5000;
 const FIELDS = "id,name,modifiedTime,headRevisionId,size,appProperties";
 
 type TokenResponse = { access_token?: string; expires_in?: number; error?: string };
@@ -156,8 +157,33 @@ function toRef(file: DriveFile): DocumentRef {
 }
 
 async function children(): Promise<DriveFile[]> {
-  const query = new URLSearchParams({ q: `'${where().id}' in parents and trashed = false and mimeType = 'application/json'`, fields: `files(${FIELDS})`, pageSize: "200", supportsAllDrives: "true", includeItemsFromAllDrives: "true" });
-  return ((await (await drive(`${API}?${query}`)).json()) as { files?: DriveFile[] }).files ?? [];
+  const found: DriveFile[] = [];
+  let pageToken = "";
+  // Every page: a name missed here would let Save as create a duplicate instead of replacing.
+  do {
+    const query = new URLSearchParams({ q: `'${where().id}' in parents and trashed = false and mimeType = 'application/json'`, fields: `nextPageToken,files(${FIELDS})`, pageSize: "200", supportsAllDrives: "true", includeItemsFromAllDrives: "true", ...(pageToken ? { pageToken } : {}) });
+    const page = (await (await drive(`${API}?${query}`)).json()) as { files?: DriveFile[]; nextPageToken?: string };
+    found.push(...(page.files ?? []));
+    pageToken = page.nextPageToken ?? "";
+  } while (pageToken && found.length < MAX_FILES);
+  return found;
+}
+
+/**
+ * Drive v3 has no conditional update (it ignores If-Match), so the revision
+ * check before an upload cannot be made atomic. What it does have is history:
+ * if someone else's revision landed between the one we read and the one we
+ * wrote, nothing is lost, and we can see it and say so.
+ */
+async function overwrote(id: string, readRevision: string, writtenRevision: string): Promise<boolean> {
+  try {
+    const list = ((await (await drive(`${API}/${safeId(id)}/revisions?fields=revisions(id)&pageSize=1000`)).json()) as { revisions?: { id: string }[] }).revisions ?? [];
+    const from = list.findIndex((revision) => revision.id === readRevision);
+    const to = list.findIndex((revision) => revision.id === writtenRevision);
+    return from >= 0 && to >= 0 && to - from > 1;
+  } catch {
+    return false;
+  }
 }
 
 const metadata = async (id: string) => (await (await drive(`${API}/${safeId(id)}?fields=${FIELDS}&supportsAllDrives=true`)).json()) as DriveFile;
@@ -232,7 +258,9 @@ export const googleDriveSource: SourceProvider = {
       if (revision !== null && (await metadata(id)).headRevisionId !== revision) throw new ConflictError();
       await drive(`${UPLOAD}/${safeId(id)}?uploadType=media&supportsAllDrives=true`, { method: "PATCH", headers: { "content-type": "application/json" }, body });
       const updated = (await (await drive(`${API}/${safeId(id)}?fields=${FIELDS}&supportsAllDrives=true`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ appProperties: summaryProperties(payload) }) })).json()) as DriveFile;
-      return { id, name: updated.name, revision: updated.headRevisionId ?? "" };
+      const written = updated.headRevisionId ?? "";
+      const notice = revision !== null && (await overwrote(id, revision, written)) ? `Someone else saved “${updated.name}” at almost the same moment, and your save went on top of theirs. Their version is not lost: open the file's version history in Google Drive to compare or restore it.` : undefined;
+      return { id, name: updated.name, revision: written, notice };
     }
     const finalName = uniqueName(name, (await children()).map((file) => file.name));
     const boundary = `scopewright-${crypto.randomUUID()}`;

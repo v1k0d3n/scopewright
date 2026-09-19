@@ -1,3 +1,4 @@
+import { isEstimateExport } from "../estimate.ts";
 import { parseLock } from "./locks.ts";
 import type { DocumentRef, LockInfo } from "./types.ts";
 
@@ -37,8 +38,8 @@ export function uniqueName(wanted: string, taken: Iterable<string>): string {
  * validation happens in parseEstimateExport when the document is opened.
  */
 export function describe(id: string, name: string, payload: unknown, updatedAt: number, lock: unknown): DocumentRef | null {
-  const d = payload as { format?: unknown; estimate?: unknown; summary?: { customer?: unknown; title?: unknown; totalHours?: unknown } } | null;
-  if (!d || typeof d !== "object" || typeof d.format !== "string" || !d.estimate || typeof d.estimate !== "object") return null;
+  if (!isEstimateExport(payload)) return null;
+  const d = payload as { summary?: { customer?: unknown; title?: unknown; totalHours?: unknown } };
   const text = (value: unknown) => (typeof value === "string" ? value.slice(0, 200) : "");
   const hours = d.summary?.totalHours;
   return { id, name, customer: text(d.summary?.customer), title: text(d.summary?.title), totalHours: typeof hours === "number" && Number.isFinite(hours) ? hours : null, updatedAt, lock: parseLock(lock) as LockInfo | null };

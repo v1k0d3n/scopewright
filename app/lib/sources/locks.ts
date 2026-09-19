@@ -29,7 +29,7 @@ export function lockedByOther(lock: LockInfo | null, token: string, now: number)
 }
 
 /** Take or renew the lock. Resolves to the other holder's lock if there is one, else null. */
-export async function acquire(provider: SourceProvider, id: string, owner: string, token: string, now: number): Promise<LockInfo | null> {
+export async function acquire(provider: Pick<SourceProvider, "readLock" | "writeLock">, id: string, owner: string, token: string, now: number): Promise<LockInfo | null> {
   const current = await provider.readLock(id);
   if (lockedByOther(current, token, now)) return current;
   await provider.writeLock(id, newLock(owner, token, now));
@@ -39,7 +39,18 @@ export async function acquire(provider: SourceProvider, id: string, owner: strin
   return lockedByOther(settled, token, now) ? settled : null;
 }
 
-export async function release(provider: SourceProvider, id: string, token: string): Promise<void> {
+/** How long before expiry a lock is treated as already gone when releasing it. */
+export const RELEASE_MARGIN_MS = 15_000;
+
+/**
+ * Give the lock up. None of the stores can delete conditionally, so the read
+ * and the delete are two steps. Someone else can only take the lock once ours
+ * has expired, so a lock that is ours and comfortably live cannot change hands
+ * between those steps and is safe to delete. One that has expired, or is about
+ * to, is left alone: it no longer blocks anyone, and deleting it could remove a
+ * lock somebody has just taken.
+ */
+export async function release(provider: Pick<SourceProvider, "readLock" | "writeLock">, id: string, token: string, now: number): Promise<void> {
   const current = await provider.readLock(id);
-  if (current && current.token === token) await provider.writeLock(id, null);
+  if (current && current.token === token && current.until - now > RELEASE_MARGIN_MS) await provider.writeLock(id, null);
 }

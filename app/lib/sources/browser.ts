@@ -52,6 +52,8 @@ export const browserSource: SourceProvider = {
   async write(id, name, payload, revision) {
     const library = load();
     const existing = id ? library[id] : undefined;
+    // Saving back to a document that was deleted elsewhere must not quietly bring it back.
+    if (id && !existing) throw new ConflictError();
     if (existing && revision !== null && String(existing.revision) !== revision) throw new ConflictError();
     const key = id ?? crypto.randomUUID();
     const next = (existing?.revision ?? 0) + 1;

@@ -172,6 +172,8 @@ export default function Home() {
         const missing = parsed.products.filter((id) => !catalog.products.some((product) => product.id === id));
         const label = `${parsed.customer || "Untitled customer"} — ${parsed.title || defaultTitle(preview)} (${preview.total}h)`;
         if (!window.confirm(`Load "${label}"? Your current draft will be replaced.${missing.length ? ` Note: ${missing.length} product(s) in the file no longer exist in the catalog and will be dropped.` : ""}`)) return;
+        // The import is a different estimate: let go of the open file first, or the next Save would write this one over it.
+        void library.close();
         setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)), updatedAt: Date.now() });
         setStep(1);
         setSavedAt(0);
