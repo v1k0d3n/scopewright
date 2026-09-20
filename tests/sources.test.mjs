@@ -40,6 +40,8 @@ test("lock files are untrusted: only the exact shape is accepted", () => {
   assert.equal(parseLock({ owner: "ana", token: "t" }), null);
   assert.equal(parseLock({ owner: "ana", token: "t", until: "soon" }), null);
   assert.equal(parseLock({ owner: "ana", token: "t", until: Infinity }), null);
+  assert.equal(parseLock({ owner: "ana", token: "", until: 5 }), null, "an empty token matches nobody, so it would lock everyone out");
+  assert.equal(parseLock({ owner: "  ", token: "t", until: 5 }), null, "a blank owner cannot be shown");
   const parsed = parseLock({ owner: "a".repeat(500), token: "t", until: 5, extra: "<script>" });
   assert.deepEqual(Object.keys(parsed), ["owner", "token", "until"]);
   assert.equal(parsed.owner.length, 120);

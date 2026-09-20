@@ -20,7 +20,7 @@ export function newLock(owner: string, token: string, now: number): LockInfo {
 /** A lock stored by anyone is untrusted input: accept only the exact shape. */
 export function parseLock(data: unknown): LockInfo | null {
   const d = data as Partial<LockInfo> | null;
-  if (!d || typeof d !== "object" || typeof d.owner !== "string" || typeof d.token !== "string" || typeof d.until !== "number" || !Number.isFinite(d.until)) return null;
+  if (!d || typeof d !== "object" || typeof d.owner !== "string" || typeof d.token !== "string" || !d.owner.trim() || !d.token.trim() || typeof d.until !== "number" || !Number.isFinite(d.until)) return null;
   return { owner: d.owner.slice(0, 120), token: d.token.slice(0, 120), until: d.until };
 }
 

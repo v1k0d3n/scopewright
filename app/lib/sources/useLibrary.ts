@@ -81,14 +81,20 @@ export function useLibrary(owner: string) {
   // Bumped on every source selection. Listing a folder or a drive takes a moment; a result that arrives after the
   // user has picked another source belongs to the old one and is dropped, or its rows would be shown, and acted on, under the new one.
   const selection = useRef(0);
+  // The source on screen right now. Operations hold on to the provider they started with; this is how they find out, when
+  // their I/O returns, whether the screen is still theirs to update.
+  const shown = useRef<SourceProvider>(sources[0]);
   const refresh = useCallback(async (from: SourceProvider) => {
     const at = selection.current;
     const found = await from.list();
-    if (at === selection.current) setDocuments(found.sort((a, b) => b.updatedAt - a.updatedAt));
+    if (at === selection.current && from === shown.current) setDocuments(found.sort((a, b) => b.updatedAt - a.updatedAt));
   }, []);
+  /** List state and errors are about the source on screen; an operation that finishes for another one keeps quiet. */
+  const settle = useCallback((from: SourceProvider, next: LibraryState) => { if (from === shown.current) setState(next); }, []);
 
   const switchTo = useCallback(async (next: SourceProvider, ctx: SourceContext) => {
     const mine = (selection.current += 1);
+    shown.current = next;
     setProvider(next);
     setError("");
     setDocuments([]);
@@ -147,7 +153,7 @@ export function useLibrary(owner: string) {
         if (other) setError(`${other.owner} now has “${active.name}” open. Your changes cannot be saved over theirs; export a copy if you need to keep them.`);
       } catch (problem) {
         // A missed renewal is retried on the next tick, but a lapsed session needs the user.
-        if (problem instanceof NotConnectedError) { setError(`${problem.message} Until then “${active.name}” is not held for you.`); if (selected) setState("needs-connect"); }
+        if (problem instanceof NotConnectedError) { setError(`${problem.message} Until then “${active.name}” is not held for you.`); settle(target, "needs-connect"); }
       }
     };
     void renew();
@@ -164,18 +170,18 @@ export function useLibrary(owner: string) {
       usableOrThrow(provider);
       await provider.connect(context);
       await refresh(provider);
-      setState("ready");
+      settle(provider, "ready");
     } catch (problem) {
-      // Closing the picker is not an error worth showing.
-      if (!(problem instanceof DOMException && problem.name === "AbortError")) fail(problem);
+      // Closing the picker is not an error worth showing, and neither is a failure on a source the user has left.
+      if (!(problem instanceof DOMException && problem.name === "AbortError") && provider === shown.current) fail(problem);
     }
   };
 
   const disconnect = async () => {
     if (active?.sourceId === provider.id) { await release(provider, active.id, token.current, Date.now()).catch(() => {}); letGo(); }
     await provider.disconnect().catch(() => {});
-    setDocuments([]);
-    setState("needs-connect");
+    if (provider === shown.current) setDocuments([]);
+    settle(provider, "needs-connect");
   };
 
   /** Move to another location in the same source. The open document, if it lives here, is closed first: it belongs to the place being left. */
@@ -189,7 +195,7 @@ export function useLibrary(owner: string) {
       await move();
       if (leaving) letGo();
       await refresh(provider);
-      setState("ready");
+      settle(provider, "ready");
     } catch (problem) {
       // Still in the old place (the picker was cancelled, or the move failed): hold the document again.
       if (leaving) await acquire(provider, leaving.id, ownerRef.current, token.current, Date.now()).catch(() => {});
@@ -240,7 +246,8 @@ export function useLibrary(owner: string) {
     }
     setActive(saved);
     if (written.notice) setError(written.notice);
-    if (target.id === provider.id) { setState("ready"); await refresh(provider).catch(() => {}); }
+    settle(target, "ready");
+    if (target === shown.current) await refresh(target).catch(() => {});
     return saved;
   };
 
