@@ -27,6 +27,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: scopewright-config
+            # Settings for estimate sources such as Google Drive (SOURCE_*).
+            # Optional: without this Secret the app starts and simply does not
+            # offer those sources. See docs/sources.md.
+            - secretRef:
+                name: scopewright-sources
+                optional: true
           volumeMounts:
             - name: data
               mountPath: /opt/app-root/data

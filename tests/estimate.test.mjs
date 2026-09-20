@@ -115,5 +115,6 @@ test("catalog out-of-scope items are chosen by id and sanitized", () => {
   assert.deepEqual(estimate.outOfScope, ["dr", "ghost"]);
   assert.equal(estimate.options.showHours, true, "older estimates default to showing hours");
   assert.match(scopeText(catalog, estimate, "X"), /OUT OF SCOPE\n- Disaster recovery design\n- Training\n/);
-  assert.deepEqual(mergeCatalog({ products: [], installation: {}, prerequisites: {}, groups: [], solutions: [] }, defaultCatalog).outOfScope, []);
+  // A catalog from before this section existed gets the app's default, which is none (the app ships with an empty catalog).
+  assert.deepEqual(mergeCatalog({ products: [], installation: {}, prerequisites: {}, groups: [], solutions: [] }, emptyCatalog).outOfScope, []);
 });

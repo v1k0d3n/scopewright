@@ -801,7 +801,7 @@
         {
           "id": "update-window",
           "label": "Maintenance window per site",
-          "placeholder": "e.g. Sundays 02:00\u201304:00 local",
+          "placeholder": "e.g. Sundays 02:00–04:00 local",
           "required": true
         }
       ],
@@ -1233,6 +1233,28 @@
           "core",
           "sentinel"
         ]
+      }
+    ],
+    "outOfScope": [
+      {
+        "id": "oos-production",
+        "label": "Production hardening, performance tuning, and capacity planning"
+      },
+      {
+        "id": "oos-migration",
+        "label": "Migration of existing production data or workloads"
+      },
+      {
+        "id": "oos-dr",
+        "label": "Disaster recovery design and failover testing"
+      },
+      {
+        "id": "oos-custom-dev",
+        "label": "Custom application or connector development"
+      },
+      {
+        "id": "oos-training",
+        "label": "Formal end-user or administrator training"
       }
     ]
   }

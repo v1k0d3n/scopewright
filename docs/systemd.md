@@ -61,6 +61,44 @@ to set it to `open`. Everyone who can reach the app can then read and write.
 Configure the authenticating proxy before making that workspace remotely
 available.
 
+### Optional: Google Drive as a save location
+
+Users can always save estimates in their browser or, in Chrome and Edge, in a
+local folder. To also offer Google Drive, create three values in your own
+Google Cloud project as described in [Estimate sources](sources.md), then
+uncomment the `secretGenerator` block in your overlay and fill them in:
+
+```yaml
+secretGenerator:
+  - name: scopewright-sources
+    literals:
+      - SOURCE_GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com
+      - SOURCE_GOOGLE_API_KEY=AIza...
+      - SOURCE_GOOGLE_PROJECT_NUMBER=1234567890
+generatorOptions:
+  disableNameSuffixHash: true
+```
+
+Kustomize writes a `Secret` into the rendered `scopewright.yaml`, and Podman
+loads it when the pod starts; nothing else needs to be created. The
+Deployment references the Secret as optional, so without it the app starts
+and simply does not offer Drive. After changing the values, render
+`scopewright.yaml` again and restart the service.
+
+The rendered file now holds these values, which is why the install step below
+writes it readable only by the service's user. They are not confidential (the app hands them
+to every signed-in browser, which is how Google's browser sign-in works), but
+they are specific to your deployment. Do not add the OAuth client *secret*;
+Scopewright does not use one.
+
+The Authorized JavaScript origin you register with Google must be the address
+people actually open, which for this target is your proxy's public URL, not
+`127.0.0.1:3000`.
+
+To limit which locations are offered at all, add `SOURCES` to the ConfigMap
+with an `op: add` patch on `/data/SOURCES`, for example
+`"local-folder, google-drive"`.
+
 Review the rendered manifests:
 
 ```bash
@@ -91,7 +129,8 @@ stops on errors and stages each file before replacing the installed copy:
 
   kubectl kustomize deploy/systemd/overlays/local > "$scopewright_stage/scopewright.yaml"
   install -d -m 0755 "$scopewright_units"
-  install -m 0644 "$scopewright_stage/scopewright.yaml" "$scopewright_units/scopewright.yaml.new"
+  # 0600: the rendered file holds your source settings when Google Drive is enabled.
+  install -m 0600 "$scopewright_stage/scopewright.yaml" "$scopewright_units/scopewright.yaml.new"
   install -m 0644 deploy/systemd/scopewright.kube "$scopewright_units/scopewright.kube.new"
   mv "$scopewright_units/scopewright.yaml.new" "$scopewright_units/scopewright.yaml"
   mv "$scopewright_units/scopewright.kube.new" "$scopewright_units/scopewright.kube"

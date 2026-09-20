@@ -40,6 +40,40 @@ Edit `deploy/openshift/overlays/local/kustomization.yaml`:
 
 `overlays/local` is git-ignored, so your values never reach the repository.
 
+### Optional: Google Drive as a save location
+
+Users can always save estimates in their browser or, in Chrome and Edge, in a
+local folder. To also offer Google Drive, create three values in your own
+Google Cloud project as described in [Estimate sources](sources.md), then
+give them to the deployment in a Secret named `scopewright-sources`:
+
+```bash
+oc -n scopewright create secret generic scopewright-sources \
+  --from-literal=SOURCE_GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com \
+  --from-literal=SOURCE_GOOGLE_API_KEY=AIza... \
+  --from-literal=SOURCE_GOOGLE_PROJECT_NUMBER=1234567890
+```
+
+Create the namespace first if this is a new installation
+(`oc new-project scopewright`), or uncomment the `secretGenerator` block in
+your overlay instead and let the build script apply it with everything else.
+The Deployment references the Secret as optional, so the app starts without
+it and simply does not offer Drive. After creating or changing the Secret on
+a running installation, restart the app:
+
+```bash
+oc -n scopewright rollout restart deployment/scopewright
+```
+
+These values are in a Secret to keep them out of the shared ConfigMap and out
+of git. They are not confidential: the app hands them to every signed-in
+browser, which is how Google's browser sign-in works. Do not add the OAuth
+client *secret*; Scopewright does not use one.
+
+To limit which locations are offered at all, add `SOURCES` to the
+`scopewright-config` ConfigMap, as shown commented out in the example
+overlay.
+
 ## 2. Build and deploy
 
 ```bash
@@ -58,8 +92,8 @@ you would rather build with podman or docker and push to a registry the
 cluster can pull from:
 
 ```bash
-podman build -t quay.io/you/scopewright:0.1.0 -f Containerfile .
-podman push quay.io/you/scopewright:0.1.0
+podman build -t quay.io/you/scopewright:0.2.0 -f Containerfile .
+podman push quay.io/you/scopewright:0.2.0
 ```
 
 then uncomment the Deployment patch in your overlay to point at that image
@@ -105,6 +139,7 @@ OpenShift deployment.
 |------|---------|
 | `deploy/base/deployment.yaml` | App container, data mount, and liveness check |
 | `deploy/base/configmap.yaml` | Shared `AUTH_MODE=proxy` and `AUTH_EDITORS` defaults |
+| `scopewright-sources` Secret (you create it) | Optional `SOURCE_*` settings for estimate sources such as Google Drive; referenced by `deploy/base/deployment.yaml` |
 | `deploy/base/pvc.yaml` | Persistent storage for the shared catalog and theme |
 | `deploy/openshift/base/deployment.yaml` | Patch binding the app to `127.0.0.1:3000`, adding the `oauth-proxy` sidecar, and configuring cluster rollouts |
 | `deploy/openshift/base/serviceaccount.yaml` | Registers the Route as the OAuth redirect target |

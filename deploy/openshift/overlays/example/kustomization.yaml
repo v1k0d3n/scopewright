@@ -23,15 +23,42 @@ patches:
       - op: replace
         path: /data/AUTH_EDITORS
         value: "alice, bob@example.com"
+  # Optional: narrow which estimate sources are offered ("browser" always is).
+  # - target:
+  #     kind: ConfigMap
+  #     name: scopewright-config
+  #   patch: |
+  #     - op: add
+  #       path: /data/SOURCES
+  #       value: "local-folder, google-drive"
   # Optional: run an image you built or pulled yourself instead of building on
   # the cluster. Point the Deployment at it (the BuildConfig then goes unused):
-  #   podman build -t quay.io/you/scopewright:0.1.0 -f Containerfile . && podman push quay.io/you/scopewright:0.1.0
+  #   podman build -t quay.io/you/scopewright:0.2.0 -f Containerfile . && podman push quay.io/you/scopewright:0.2.0
   # - target:
   #     kind: Deployment
   #     name: scopewright
   #   patch: |
   #     - op: replace
   #       path: /spec/template/spec/containers/0/image
-  #       value: quay.io/you/scopewright:0.1.0
+  #       value: quay.io/you/scopewright:0.2.0
   #     - op: remove
   #       path: /metadata/annotations/image.openshift.io~1triggers
+
+# Optional: enable the Google Drive source. Values come from your own Google
+# Cloud project (docs/sources.md). They live in a Secret so they stay out of
+# the shared ConfigMap and out of git, but note they are not confidential: the
+# app hands them to every signed-in browser, which is how Google's browser
+# sign-in works. Never put an OAuth client *secret* here; none is used.
+# Either uncomment this, or create the Secret yourself:
+#   oc -n scopewright create secret generic scopewright-sources \
+#     --from-literal=SOURCE_GOOGLE_CLIENT_ID=... \
+#     --from-literal=SOURCE_GOOGLE_API_KEY=... \
+#     --from-literal=SOURCE_GOOGLE_PROJECT_NUMBER=...
+# secretGenerator:
+#   - name: scopewright-sources
+#     literals:
+#       - SOURCE_GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com
+#       - SOURCE_GOOGLE_API_KEY=AIza...
+#       - SOURCE_GOOGLE_PROJECT_NUMBER=1234567890
+# generatorOptions:
+#   disableNameSuffixHash: true

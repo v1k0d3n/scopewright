@@ -181,6 +181,56 @@ Engagement step; the ones the architect ticks are printed in the scope
 document's "Out of scope" section, along with any free-text items added for
 that engagement.
 
+## Estimate files are not catalogs
+
+This guide is about **catalog** files (`"format": "scopewright-catalog"`).
+People also save and export **estimate** files
+(`"format": "scopewright-estimate"`), one per customer engagement. An
+assistant asked to build a catalog should never produce one, and should not
+copy customer details from one into a catalog. If you are handed one as
+context, this is its shape:
+
+```json
+{
+  "format": "scopewright-estimate",
+  "version": 1,
+  "exportedAt": "2026-09-19T12:00:00.000Z",
+  "summary": { "customer": "...", "title": "...", "products": ["..."], "totalHours": 96, "pendingPrerequisites": 2 },
+  "estimate": {
+    "customer": "...", "title": "...", "goal": "...",
+    "successCriteria": "one per line", "assumptions": "one per line",
+    "products": ["core"],
+    "environments": { "core": "existing" },
+    "selections": { "core:footprint": "ha" },
+    "details": { "core": [{ "id": "d1", "description": "Extra installation work", "hours": 2 }] },
+    "prerequisites": { "core:api-vip": { "value": "10.42.0.10", "status": "provided" } },
+    "customPrerequisites": { "core": [] },
+    "selectedTasks": ["<task id>"],
+    "outOfScope": ["<outOfScope item id>"],
+    "customOutOfScope": "free text, one per line",
+    "options": { "showHours": true },
+    "updatedAt": 1789840000000
+  }
+}
+```
+
+`products` holds only what the architect picked; required foundations are
+derived from the catalog. `environments` marks a product as already existing
+(`"existing"`), which removes its installation hours. `selections` and
+`prerequisites` are keyed `"<productId>:<question or prerequisite id>"`.
+
+An estimate refers to the catalog **by id**: products, questions and choices,
+prerequisites, tasks, and out-of-scope items. That is the practical reason
+ids must stay stable once a catalog is in use (see Conventions): renaming an
+id orphans it in every saved estimate. When an estimate is opened, ids that
+no longer exist in the catalog are dropped, the user is warned, and hours are
+recomputed from the current catalog; the hours stored in `summary` are only a
+convenience for listings.
+
+`outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0. Older
+files without them open normally and get the defaults: nothing out of scope,
+hours shown.
+
 ## Conventions
 
 - **ids** are lowercase kebab-case and stable: `core`, `edge-runtime`,

@@ -21,8 +21,22 @@ patches:
   #       path: /data/AUTH_MODE
   #       value: "open"
 
+# Optional: enable the Google Drive source. Values come from your own Google
+# Cloud project (docs/sources.md). The generated Secret is written into
+# scopewright.yaml and Podman loads it when the pod starts. They are kept out
+# of the ConfigMap and out of git, but are not confidential: the app hands
+# them to every signed-in browser. Never put an OAuth client *secret* here.
+# secretGenerator:
+#   - name: scopewright-sources
+#     literals:
+#       - SOURCE_GOOGLE_CLIENT_ID=1234567890-abc.apps.googleusercontent.com
+#       - SOURCE_GOOGLE_API_KEY=AIza...
+#       - SOURCE_GOOGLE_PROJECT_NUMBER=1234567890
+# generatorOptions:
+#   disableNameSuffixHash: true
+
 # Optional: use a prebuilt image instead of the local Containerfile build.
 # images:
 #   - name: localhost/scopewright
 #     newName: quay.io/you/scopewright
-#     newTag: "0.1.0"
+#     newTag: "0.2.0"
