@@ -12,7 +12,8 @@ const ACTIVE_KEY = "scopewright:active-document";
 const TOKEN_KEY = "scopewright:lock-token";
 
 /** The saved estimate this tab has open, if any. */
-export type ActiveDocument = { sourceId: string; id: string; name: string; revision: string };
+/** `location` is where the source pointed when the file was opened: an id such as a file name only means something in that place. */
+export type ActiveDocument = { sourceId: string; id: string; name: string; revision: string; location?: string };
 
 export type LibraryState = "loading" | "needs-connect" | "ready";
 
@@ -76,6 +77,16 @@ export function useLibrary(owner: string) {
 
   const setActive = useCallback((next: ActiveDocument | null) => { setActiveState(next); writeJson(ACTIVE_KEY, next, "tab"); }, []);
   const letGo = useCallback(() => { epoch.current += 1; setActive(null); }, [setActive]);
+
+  /**
+   * The folder a source points at is shared by every tab; which file is open is not. If another tab moved the source
+   * somewhere else, this tab's file name would now refer to a different place, so let it go rather than lock or write there.
+   */
+  const checkLocation = useCallback((from: SourceProvider, doc: ActiveDocument | null) => {
+    if (!doc || doc.sourceId !== from.id || doc.location === undefined || !from.location() || from.location() === doc.location) return;
+    letGo();
+    setError(`“${doc.name}” was open from ${doc.location}, but ${from.label.toLowerCase()} now points at ${from.location()}. It has been closed here; your draft is still in the builder.`);
+  }, [letGo]);
   const fail = (problem: unknown) => setError(problem instanceof Error ? problem.message : String(problem));
 
   // Bumped on every source selection. Listing a folder or a drive takes a moment; a result that arrives after the
@@ -134,10 +145,10 @@ export function useLibrary(owner: string) {
         const start = usable(wanted) ? wanted : sources[0];
         if (remembered && remembered.sourceId === start.id) setActiveState(remembered);
         else if (remembered) writeJson(ACTIVE_KEY, null, "tab");
-        void switchTo(start, ctx);
+        void switchTo(start, ctx).then(() => checkLocation(start, remembered));
       });
     return () => { cancelled = true; };
-  }, [switchTo]);
+  }, [switchTo, checkLocation]);
 
   // Hold the lock while a document is open. Losing it (someone took over after it lapsed) is reported, not hidden.
   useEffect(() => {
@@ -169,6 +180,7 @@ export function useLibrary(owner: string) {
     try {
       usableOrThrow(provider);
       await provider.connect(context);
+      checkLocation(provider, active);
       await refresh(provider);
       settle(provider, "ready");
     } catch (problem) {
@@ -209,8 +221,11 @@ export function useLibrary(owner: string) {
   });
 
   /** Resolves to the payload, or to the lock that blocks opening. */
-  const open = async (doc: DocumentRef): Promise<{ payload: unknown } | { blockedBy: LockInfo }> => {
+  const open = async (doc: DocumentRef): Promise<{ payload: unknown } | { blockedBy: LockInfo } | { stale: true }> => {
     setError("");
+    // The newest request wins: anything still in flight from before this click is now out of date, and so is this one if another follows.
+    const started = (epoch.current += 1);
+    const overtaken = async () => { await release(provider, doc.id, token.current, Date.now()).catch(() => {}); return { stale: true as const }; };
     const other = await acquire(provider, doc.id, ownerRef.current, token.current, Date.now());
     if (other) { await refresh(provider).catch(() => {}); return { blockedBy: other }; }
     const held = active?.sourceId === provider.id && active.id === doc.id;
@@ -220,8 +235,9 @@ export function useLibrary(owner: string) {
       throw problem;
     });
     if (active && (active.id !== doc.id || active.sourceId !== provider.id)) await release(sourceById(active.sourceId), active.id, token.current, Date.now()).catch(() => {});
-    epoch.current += 1;
-    setActive({ sourceId: provider.id, id: doc.id, name: doc.name, revision: body.revision });
+    // New estimate, Import or another Open happened while this file was loading: do not attach it, and do not keep its lock.
+    if (started !== epoch.current) return overtaken();
+    setActive({ sourceId: provider.id, id: doc.id, name: doc.name, revision: body.revision, location: provider.location() });
     await refresh(provider).catch(() => {});
     return { payload: body.payload };
   };
@@ -230,7 +246,7 @@ export function useLibrary(owner: string) {
   const ready = async (target: SourceProvider) => { usableOrThrow(target); if (!(await target.resume(context))) await target.connect(context); };
 
   const adopt = async (target: SourceProvider, written: { id: string; name: string; revision: string; notice?: string }, takeLock: boolean, started: number) => {
-    const saved = { sourceId: target.id, id: written.id, name: written.name, revision: written.revision };
+    const saved = { sourceId: target.id, id: written.id, name: written.name, revision: written.revision, location: target.location() };
     // The user moved on (New estimate, Import, Open, ...) while this write was in flight. The file is saved, which is what
     // they asked for, but it is no longer the open document: do not re-attach it to whatever is in the builder now, and do not hold it.
     if (started !== epoch.current) {

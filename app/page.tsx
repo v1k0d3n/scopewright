@@ -103,7 +103,8 @@ export default function Home() {
 
   const update = (patch: Partial<Estimate>) => { setEstimate({ ...estimate, ...patch, updatedAt: Date.now() }); setSavedAt(0); };
   const toggleProduct = (id: string) => update({ products: estimate.products.includes(id) ? estimate.products.filter((item) => item !== id) : [...estimate.products, id] });
-  const hasDraft = Boolean(estimate.customer || estimate.title || estimate.products.length);
+  // A blank estimate has never been stamped; every edit, to any field, stamps it. So this covers the goal, criteria, options and the rest, not just the headline fields.
+  const hasDraft = estimate.updatedAt > 0;
   const documentName = () => fileNameFor(estimate.customer, estimate.title || defaultTitle(breakdown));
   const describeProblem = (problem: unknown) => problem instanceof ConflictError ? `${problem.message} Nothing was overwritten. Use Save as to keep yours under another name.` : problem instanceof Error ? problem.message : String(problem);
   /**
@@ -120,7 +121,7 @@ export default function Home() {
       flash(`Saved “${saved.name}”.`);
       return true;
     } catch (problem) {
-      if (!(problem instanceof DOMException && problem.name === "AbortError")) flash(describeProblem(problem), 9000);
+      if (!(problem instanceof DOMException && problem.name === "AbortError")) { setSavedAt(0); flash(describeProblem(problem), 9000); }
       return false;
     }
   };
@@ -139,11 +140,12 @@ export default function Home() {
     }
   };
   const replaceDraft = (action: string) => !hasDraft || Boolean(savedAt) || window.confirm(`${action} Unsaved changes to the current draft will be lost.`);
-  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; await library.close(); setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); setView("estimate"); };
+  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; const closing = library.close(); setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); setView("estimate"); await closing; };
   const openDocument = async (doc: DocumentRef) => {
     if (!replaceDraft(`Open “${doc.name}”?`)) return;
     try {
       const result = await library.open(doc);
+      if ("stale" in result) return;
       if ("blockedBy" in result) { library.setError(`${result.blockedBy.owner} has “${doc.name}” open. It unlocks when they close it, or automatically at ${new Date(result.blockedBy.until).toLocaleTimeString(undefined, { timeStyle: "short" })}.`); return; }
       const parsed = parseEstimateExport(result.payload, emptyEstimate());
       if (!parsed) { await library.close(); library.setError(`“${doc.name}” is not a Scopewright estimate.`); return; }
@@ -179,12 +181,14 @@ export default function Home() {
         const label = `${parsed.customer || "Untitled customer"} — ${parsed.title || defaultTitle(preview)} (${preview.total}h)`;
         if (!window.confirm(`Load "${label}"? Your current draft will be replaced.${missing.length ? ` Note: ${missing.length} product(s) in the file no longer exist in the catalog and will be dropped.` : ""}`)) return;
         // The import is a different estimate: let go of the open file first, or the next Save would write this one over it.
-        // Wait for it: releasing a lock in a folder or in Drive takes a moment, and a Save in that moment would still see the old file as open.
-        await library.close();
+        // close() detaches the open file at once and then releases its lock, which can take a moment in a folder or in Drive.
+        // Install the import straight away, so nothing typed during that moment is replaced afterwards, and wait for the release last.
+        const closing = library.close();
         setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)), updatedAt: Date.now() });
         setStep(1);
         setSavedAt(0);
         flash("Estimate imported. Review each step; hours reflect the current catalog.");
+        await closing;
       } catch {
         flash("Import failed: choose a POC estimate JSON export.");
       }
