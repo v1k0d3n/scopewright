@@ -1,10 +1,13 @@
 # Scopewright
 
 Scopewright is a web workspace for scoping, estimating, and documenting
-proof-of-concept engagements. A solutions architect picks the products a
-customer wants to prove, answers installation questions that each carry hours, records what
-the customer must provide, selects deliverables, and gets a live estimate and
-a customer-facing scope document ready to sign. The estimate is in hours:
+proof-of-concept engagements. A solutions architect names the engagement and
+what it must prove, picks the products, answers installation questions that
+each carry hours, records what the customer must provide, selects
+deliverables, and gets a live estimate and a customer-facing scope document
+ready to sign. Estimates are saved as files where the architect chooses (this
+browser, a local folder, or Google Drive), so several can be in flight at
+once and none of them is stored on the Scopewright server. The estimate is in hours:
 the solutions architect's investment in the customer's success, whether or
 not the POC is paid.
 
@@ -17,11 +20,15 @@ and imported as files. `packs/solstice` is a complete fictitious vendor to
 start from.
 
 - **[User guide](docs/guide.md)**: the estimate workflow step by step, the
-  scope document, catalog management, branding, and import/export.
+  scope document and its options, saving and reopening estimates, catalog
+  management, branding, and import/export.
 - **[Authoring a catalog](docs/authoring.md)**: the model, the file format,
   and conventions, written so that an AI assistant can build a catalog from
   your product documentation. Want help building an Estimate Catalog? Point
   your AI agent at that page.
+- **[Estimate sources](docs/sources.md)**: where saved estimates live, how
+  to enable Google Drive for a deployment, how locking works, and how to add
+  a source.
 - **[Deploying on OpenShift](docs/openshift.md)**: the reference deployment
   with login through the cluster's identity providers.
 - **[Deploying with systemd](docs/systemd.md)**: a rootless Podman `.kube`
@@ -32,18 +39,23 @@ start from.
 ```
 Estimate catalog (Manage)             New estimate (Workspace)          Scope document
 ─────────────────────────             ────────────────────────          ──────────────
-Products + portfolios           ──►   1. Products                  ─┐
+Out of scope items              ──►   1. Engagement                  ─┐
+  things your team excludes             (customer, goal, success      │
+                                         criteria, assumptions,       │
+                                         out of scope)                │
+Products + portfolios           ──►   2. Products                    ─┤
   base work package hours               (solution cards, foundations) │
   required foundations                                                │
 Solutions                       ──►                                   │
-Installation decisions          ──►   2. Installation details        ─┼──►  every decision with its hours,
+Installation decisions          ──►   3. Installation details        ─┼──►  goal, products, every decision,
   question → choices → hours            (one drop-down per question)  │     prerequisites with status,
-Prerequisites per product       ──►   3. Prerequisites               ─┤     numbered deliverables,
-  label, example, required              (value + status per item)     │     effort summary, success
-Deliverable groups              ──►   4. Deliverables                ─┤     criteria, assumptions,
-  tied to a product                     (only groups for the          │     sign-off lines, brand
-  tasks → phase → hours                  products in the engagement)  │
-                                      5. Review                      ─┘
+Prerequisites per product       ──►   4. Prerequisites               ─┤     numbered deliverables, out of
+  label, example, required              (value + status per item)     │     scope, effort summary, success
+Deliverable groups              ──►   5. Deliverables                ─┤     criteria, assumptions, sign-off
+  tied to a product                     (only groups for the          │     lines, brand. Hours can be
+  tasks → phase → hours                  products in the engagement)  │     hidden for a scope-only copy.
+                                      6. Review                      ─┘
+Saved estimates (Workspace): save locations, what is saved there, open one back into the builder
 Settings (Manage): identity, logo, colors, fonts → the app and every document
 ```
 
@@ -58,8 +70,15 @@ Settings (Manage): identity, logo, colors, fonts → the app and every document
   pre-populated per product and tracked with a value and status.
 - **Deliverables** are grouped tasks with a delivery phase and hours, offered
   only when their product is in the engagement.
-- **The scope document** is generated from all of the above plus the goal,
-  success criteria, and assumptions, and prints to PDF.
+- **Out of scope** items are things your team commonly excludes. They are
+  offered as checkboxes in the Engagement step, next to free text for
+  anything specific to the engagement.
+- **The scope document** is generated from all of the above and prints to
+  PDF. Its **Show hours** option removes every hour figure and the effort
+  summary, for discussing scope and prerequisites without effort.
+- **Saved estimates** are files in a place the architect chooses. The
+  builder's **Estimate** menu has New, Import, Export, Save, and Save as; an
+  estimate that someone has open is locked for everyone else.
 
 The hour math lives in `app/lib/estimate.ts` and is covered by `tests/`,
 which use `packs/solstice/catalog.json` as their reference catalog.
@@ -72,11 +91,18 @@ which use `packs/solstice/catalog.json` as their reference catalog.
   targets mount persistent storage there, so every visitor sees the same
   catalog and brand and edits survive restarts. The sidebar shows the sync
   state; if the API is unreachable the app falls back to this browser only.
-- **Each person's working estimate is private** to their browser. Use
-  Export / Import on the New estimate page to hand a finished estimate to a
-  colleague or to reload one later when the customer amends the scope. The
-  file is versioned JSON; hours are recomputed against the current catalog on
-  import.
+- **Estimates never reach the server.** The estimate being built is a draft
+  in the browser. **Save as** writes it as a versioned JSON file to a
+  *source* the architect picks: this browser, a local folder (Chrome or
+  Edge), or Google Drive when the deployment enables it. Files go straight
+  from the browser to that place, so customer names stay out of the shared
+  workspace. An open estimate is held with an advisory lock, and every save
+  checks that the file has not changed underneath it. See
+  [Estimate sources](docs/sources.md).
+- **Export / Import** in the same menu downloads or loads a single estimate
+  file, to attach to a deal or hand to someone outside the team. Hours are
+  recomputed against the current catalog whenever an estimate is opened or
+  imported.
 - **Themes and catalogs are files.** Settings exports and imports a theme
   pack (`.zip` with `theme.json`, logo, and favicon; see
   `app/lib/theme-pack.ts`) and the catalog (`.json`).
@@ -101,9 +127,6 @@ headers; `app/lib/identity.ts` reads them. Everything is configuration:
 | `AUTH_EDITOR_GROUP` | A group whose members may write | unset |
 | `AUTH_LOGOUT_URL` | Sign-out link shown to signed-in users | unset |
 | `AUTH_DEV_USER` | In open mode, a name to show as signed in locally | unset |
-| `SOURCES` | Comma-separated places users may save estimates (`local-folder`, ...). `browser` is always offered. | all |
-| `SOURCE_GOOGLE_CLIENT_ID`, `SOURCE_GOOGLE_API_KEY`, `SOURCE_GOOGLE_PROJECT_NUMBER` | Enable the Google Drive source. Public values from your own Google Cloud project: an OAuth web client whose JavaScript origins include this site, an API key restricted to the Picker API and this site, and the project number. No client secret is used. | unset: Drive is not offered |
-| `SOURCE_<NAME>` | A public setting handed to the source providers in the browser. Never a secret: every visitor can read it. | unset |
 
 Viewers see the catalog and settings read-only; the API answers writes from
 them with 403. Read requests do not require identity headers, so the proxy
@@ -111,6 +134,25 @@ must authenticate every remote request and replace client-supplied identity
 headers. OpenShift binds the app to localhost inside the pod; the systemd
 target publishes only on host localhost. Local users who can reach that
 port can forge identity headers, so the systemd host must be trusted.
+
+## Estimate sources
+
+Which save locations a deployment offers is configuration too. The full
+guide, including the Google Cloud setup, is [docs/sources.md](docs/sources.md).
+
+| Variable | Meaning | Default |
+|----------|---------|---------|
+| `SOURCES` | Comma-separated sources to offer: `local-folder`, `google-drive`. `browser` is always offered. | every configured source |
+| `SOURCE_GOOGLE_CLIENT_ID`, `SOURCE_GOOGLE_API_KEY`, `SOURCE_GOOGLE_PROJECT_NUMBER` | Enable Google Drive, from your own Google Cloud project. All three are required. No OAuth client secret is used. | unset: Drive is not offered |
+| `SOURCE_<NAME>` | A setting handed to the sources in the browser. | unset |
+
+In the deployments, `SOURCES` lives in the `scopewright-config` ConfigMap and
+the `SOURCE_*` values in the optional `scopewright-sources` Secret. They are
+kept in a Secret to stay out of the shared ConfigMap and out of git, not
+because they are confidential: the app hands them to every signed-in browser,
+which is how browser-side sign-in works. The server refuses to publish a
+`SOURCE_*` variable whose name contains `SECRET`, `PASSWORD`, `PRIVATE`, or
+`TOKEN`.
 
 ## Development
 
@@ -128,7 +170,7 @@ base-image updates weekly.
 ```bash
 npm install
 npm run dev      # http://localhost:3000, open mode, no login
-npm test         # estimate engine, theme pack, and identity tests
+npm test         # estimate engine, theme pack, identity, and estimate source tests
 npm run check    # lint + type-check + tests + production build
 npm run build && npm start   # the production server, as the container runs it
 ```
@@ -147,7 +189,9 @@ Two targets share Kubernetes manifests in `deploy/base`:
   Quadlet on `127.0.0.1:3000`, behind an existing authenticating proxy.
 
 Each target has an example Kustomize overlay; copy it to the git-ignored
-`overlays/local` directory for your values.
+`overlays/local` directory for your values. Both read optional source
+settings, such as the Google Drive values, from a `scopewright-sources`
+Secret; the app starts without it.
 
 ## Estimate, catalog, and theme files
 
@@ -156,15 +200,19 @@ All three are versioned JSON (the theme inside a zip) with a `format` field:
 
 ## Layout
 
-- `docs/` — user guide, deployment guides, and screenshots
+- `docs/` — user guide, source and deployment guides, and screenshots
 - `packs/` — importable example content (theme, catalog, sample estimate)
-- `deploy/base/` — shared app Deployment, configuration, and persistent storage
+- `deploy/base/` — shared app Deployment, configuration, the optional
+  sources Secret reference, and persistent storage
 - `deploy/openshift/` — OpenShift additions, an example overlay, and the build script
 - `deploy/systemd/` — Podman adjustments, an example overlay, and the `.kube` Quadlet
 
 - `app/lib/` — data model (`types.ts`), built-in themes and the empty
   default catalog (`defaults.ts`), estimate engine (`estimate.ts`), theme variables
-  (`theme.ts`), localStorage hook (`storage.ts`)
+  (`theme.ts`), browser storage hooks (`storage.ts`)
+- `app/lib/sources/` — where saved estimates live: the provider interface
+  (`types.ts`), the registry, one file per source, shared locking
+  (`locks.ts`), and the hook the app uses (`useLibrary.ts`)
 - `app/components/` — one component per screen or workflow step
 - `app/page.tsx` — navigation shell and state wiring
 - `app/globals.css` — the single stylesheet; every color and font is a CSS

@@ -11,15 +11,16 @@ Contents
 3. [The scope document](#the-scope-document)
 4. [Weekly updates](#weekly-updates)
 5. [Saving, exporting, and importing estimates](#saving-exporting-and-importing-estimates)
-6. [Managing the estimate catalog](#managing-the-estimate-catalog)
-7. [Branding and themes](#branding-and-themes)
-8. [Loading the Solstice example](#loading-the-solstice-example)
-9. [Editors and viewers](#editors-and-viewers)
+6. [Saved estimates](#saved-estimates)
+7. [Managing the estimate catalog](#managing-the-estimate-catalog)
+8. [Branding and themes](#branding-and-themes)
+9. [Loading the Solstice example](#loading-the-solstice-example)
+10. [Editors and viewers](#editors-and-viewers)
 
 ## The workspace
 
 The sidebar has two sections. **Workspace** is day-to-day use: New estimate,
-Scope documents, and Weekly updates. **Manage** is setup: the Estimate catalog
+Scope documents, Weekly updates, and Saved estimates. **Manage** is setup: the Estimate catalog
 (what your team delivers and the hours each piece takes) and Settings (how the workspace
 looks). The bottom of the sidebar shows who is signed in and the sync state
 of the shared catalog and brand, for example "Shared workspace · synced" or
@@ -29,8 +30,11 @@ Two kinds of data live in Scopewright:
 
 - **Shared**: the catalog and the brand. Everyone who opens the workspace
   sees the same ones; only editors can change them.
-- **Private**: the estimate you are working on. It stays in your browser
-  until you export it as a file.
+- **Yours**: your estimates. The one you are building is a draft in your
+  browser, and you save it as a file wherever you choose: this browser, a
+  folder on your computer, or Google Drive if your deployment offers it.
+  Estimates are never stored on the Scopewright server, so customer names
+  stay out of the shared workspace.
 
 ## Building an estimate
 
@@ -40,6 +44,8 @@ equivalent working days, a planning range of ±20 percent, and a line per
 product and deliverable group.
 
 ### 1. Engagement
+
+<!-- screenshot needed: img/000-estimate-engagement.png (the Engagement step, with an out-of-scope item ticked) -->
 
 Who the engagement is for and what it must prove: customer name, engagement
 title, the POC goal, **success criteria** and **assumptions** (one per
@@ -137,6 +143,8 @@ never sends mail itself.
 
 ## Saving, exporting, and importing estimates
 
+<!-- screenshot needed: img/008-estimate-menu.png (the Estimate menu open, showing the Saved/Unsaved status and the "Saved as ..." line under the title) -->
+
 Everything that happens to the estimate as a file is in one place: the
 **Estimate** menu at the top of the New estimate page. Beside it you can see
 whether the estimate is saved or has unsaved changes, and the line under the
@@ -157,10 +165,14 @@ title names the file it is saved as.
   asking, the way saving works anywhere else; it does not pile up copies. A
   file that someone else has open cannot be replaced.
 
+<!-- screenshot needed: img/009-save-as.png (the Save as dialog) -->
+
 Your work in progress is also kept as a draft in this browser as you type, so
 a refresh does not lose it.
 
 ## Saved estimates
+
+<!-- screenshot needed: img/030-saved-estimates.png (source cards, a list with one estimate "Open here" and one "Locked by ...") -->
 
 **Saved estimates** in the sidebar is where you set up save locations, see
 what is saved in each, and open an estimate back into the builder. It is how
@@ -174,7 +186,6 @@ builder's Estimate menu. The locations:
   or Edge; other browsers cannot open folders, and Import and Export remain
   the way to move files there. The browser asks for permission to the folder,
   and may ask again after a restart.
-
 - **Google Drive**, when your deployment has set it up, keeps each estimate as
   a JSON file in a Drive folder you choose. You sign in to Google in Google's
   own window; Scopewright never sees your password. It asks only for access to
@@ -195,6 +206,13 @@ then on **Save** writes back to that file.
 Files go straight from your browser to the place you chose. They are never
 sent to or stored on the Scopewright server, so customer names stay out of
 the shared workspace.
+
+Each browser tab has its own open estimate, so you can work on two at once
+in two tabs. The estimate that is open in a tab cannot be deleted from the
+list; start a new estimate or open another one first.
+
+Which locations appear is up to whoever runs your Scopewright. Setting up
+Google Drive for a deployment is covered in [Estimate sources](sources.md).
 
 ### Locking
 
@@ -276,6 +294,8 @@ Deliverables step. **Offer all** and **Offer none** at the top switch every
 task at once, and the same button on each group does it for that group alone. Numbering carries through to the scope document.
 
 ### Out of scope
+
+<!-- screenshot needed: img/015-catalog-out-of-scope.png -->
 
 A simple list of things your team commonly excludes from an engagement. They
 appear as checkboxes in the Engagement step.

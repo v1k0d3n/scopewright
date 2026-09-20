@@ -60,6 +60,18 @@ def check_common(resources):
     for source in web.get("envFrom", []):
         if "configMapRef" in source:
             config.update(resources[("ConfigMap", source["configMapRef"]["name"])]["data"])
+    # Source settings (Google Drive and the like) come from a Secret the deployer may or may not create.
+    secret_refs = [source["secretRef"] for source in web.get("envFrom", []) if "secretRef" in source]
+    require(secret_refs == [{"name": "scopewright-sources", "optional": True}],
+            "source settings must come from the optional scopewright-sources Secret")
+    require(not any(key.startswith("SOURCE_") for key in config),
+            "SOURCE_* settings belong in the scopewright-sources Secret, not the ConfigMap")
+    for (kind, name), secret in resources.items():
+        if kind == "Secret" and name == "scopewright-sources":
+            keys = set(secret.get("data", {})) | set(secret.get("stringData", {}))
+            require(all(key.startswith("SOURCE_") for key in keys), "scopewright-sources may only hold SOURCE_* settings")
+            require(not any(re.search("SECRET|PASSWORD|PRIVATE|TOKEN", key, re.IGNORECASE) for key in keys),
+                    "scopewright-sources is published to browsers and must not hold real secrets")
     config.update({entry["name"]: entry["value"] for entry in web.get("env", []) if "value" in entry})
     require(config.get("AUTH_MODE") == "proxy", "deployment must require proxy identity for writes")
 
@@ -120,7 +132,7 @@ def check_openshift(resources, port):
 
 
 def check_systemd(resources, claim_name, image_uid):
-    require({kind for kind, _ in resources} <= {"Deployment", "ConfigMap", "PersistentVolumeClaim"},
+    require({kind for kind, _ in resources} <= {"Deployment", "ConfigMap", "PersistentVolumeClaim", "Secret"},
             "systemd output contains a cluster-only resource")
     deployment, pod, web = app(resources)
     require("strategy" not in deployment["spec"], "Podman does not implement Deployment rollout strategies")

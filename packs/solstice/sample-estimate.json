@@ -107,7 +107,7 @@
         "status": "provided"
       },
       "vision:cameras": {
-        "value": "10 Axis P3265 dome cameras, RTSP, dock doors 1\u201310",
+        "value": "10 Axis P3265 dome cameras, RTSP, dock doors 1–10",
         "status": "provided"
       },
       "vision:labels": {
@@ -131,11 +131,11 @@
         "status": "pending"
       },
       "fleet:update-window": {
-        "value": "Sundays 02:00\u201304:00 local",
+        "value": "Sundays 02:00–04:00 local",
         "status": "provided"
       },
       "insight:gpu": {
-        "value": "2 \u00d7 NVIDIA L4 on Core workers",
+        "value": "2 × NVIDIA L4 on Core workers",
         "status": "provided"
       },
       "insight:data-owner": {
@@ -184,6 +184,15 @@
     ],
     "assumptions": "Harbor & Vale provides VMware capacity, network access, and camera credentials before kickoff.\nThe three pilot sites have a technician available for gateway installation.\nSample footage for custom training is delivered by the end of week one.\nEstimate covers Solstice delivery effort only; calendar duration depends on site access and change windows.",
     "successCriteria": "Blocked dock-door events are detected at all three sites within two seconds, with fewer than one false alert per site per day.\nForklift near-miss alerts reach the operations channel through Conductor with the camera clip attached.\nEvery event is queryable in Lakehouse dashboards within one minute of occurring.\nA configuration change and an over-the-air update roll to all three sites from Fleet Manager with staged canary and rollback.",
+    "outOfScope": [
+      "oos-production",
+      "oos-migration",
+      "oos-dr"
+    ],
+    "customOutOfScope": "Integration with the legacy Harbor & Vale data warehouse",
+    "options": {
+      "showHours": true
+    },
     "updatedAt": 0
   }
 }
