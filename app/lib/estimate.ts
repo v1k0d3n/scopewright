@@ -264,10 +264,14 @@ export function estimateExport(catalog: Catalog, estimate: Estimate) {
   };
 }
 
+/** True for a file this version can open: a known format, version 1, carrying an estimate object. */
+export function isEstimateExport(data: unknown): data is { format: string; version: 1; estimate: object } {
+  const d = data as { format?: unknown; version?: unknown; estimate?: unknown } | null;
+  return Boolean(d && typeof d === "object" && typeof d.format === "string" && (d.format === ESTIMATE_FORMAT || LEGACY_ESTIMATE_FORMATS.includes(d.format)) && d.version === 1 && d.estimate && typeof d.estimate === "object" && !Array.isArray(d.estimate));
+}
+
 export function parseEstimateExport(data: unknown, initial: Estimate): Estimate | null {
-  const d = data as { format?: string; version?: number; estimate?: unknown } | null;
-  if (!d || (d.format !== ESTIMATE_FORMAT && !LEGACY_ESTIMATE_FORMATS.includes(d.format ?? "")) || d.version !== 1 || !d.estimate || typeof d.estimate !== "object") return null;
-  return mergeEstimate(d.estimate, initial);
+  return isEstimateExport(data) ? mergeEstimate(data.estimate, initial) : null;
 }
 
 

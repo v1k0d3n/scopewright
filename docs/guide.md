@@ -137,22 +137,84 @@ never sends mail itself.
 
 ## Saving, exporting, and importing estimates
 
-The New estimate page has four buttons:
+Everything that happens to the estimate as a file is in one place: the
+**Estimate** menu at the top of the New estimate page. Beside it you can see
+whether the estimate is saved or has unsaved changes, and the line under the
+title names the file it is saved as.
 
-- **New estimate** clears the draft after confirming.
-- **Save draft** stores the current estimate in your browser (it is also
-  saved automatically as you work).
-- **Export** writes the estimate as a versioned JSON file named after the
-  customer and date. Use it to hand an estimate to a colleague, keep a copy
-  with the deal, or preserve the agreed scope before the customer asks for
-  changes.
-- **Import** loads such a file after showing what it contains. Hours are
-  recomputed against the current catalog, so if hours changed since the
-  export, the numbers reflect today's catalog. Products that no longer exist
-  in the catalog are dropped with a warning.
+- **New estimate** starts from blank, after confirming if there are unsaved
+  changes. A file you had open is closed and unlocked.
+- **Import…** loads an exported file after showing what it contains. Hours are
+  recomputed against the current catalog, so the numbers reflect today's
+  catalog. Products that no longer exist in the catalog are dropped with a
+  warning.
+- **Export** downloads the estimate as a versioned JSON file named after the
+  customer and date: a copy to attach to the deal or hand to someone.
+- **Save** writes the estimate back to the file it came from. For an estimate
+  that has never been saved, it opens Save as.
+- **Save as…** asks where (one of your save locations) and under what file
+  name. Saving under a name that already exists replaces that file, after
+  asking, the way saving works anywhere else; it does not pile up copies. A
+  file that someone else has open cannot be replaced.
 
-Because estimates are private to a browser, exporting is also how you move
-one between machines.
+Your work in progress is also kept as a draft in this browser as you type, so
+a refresh does not lose it.
+
+## Saved estimates
+
+**Saved estimates** in the sidebar is where you set up save locations, see
+what is saved in each, and open an estimate back into the builder. It is how
+you keep more than one estimate going at once. Saving itself happens in the
+builder's Estimate menu. The locations:
+
+- **This browser** keeps them in this browser only. Nothing to set up, private
+  to you, and gone if you clear site data.
+- **Local folder** keeps each estimate as a JSON file in a folder you choose.
+  Choose a synced or network folder and a team can share it. It needs Chrome
+  or Edge; other browsers cannot open folders, and Import and Export remain
+  the way to move files there. The browser asks for permission to the folder,
+  and may ask again after a restart.
+
+- **Google Drive**, when your deployment has set it up, keeps each estimate as
+  a JSON file in a Drive folder you choose. You sign in to Google in Google's
+  own window; Scopewright never sees your password. It asks only for access to
+  files it creates or you pick, not the rest of your Drive. Share the folder
+  in Drive to work with a team. The session lasts about an hour; reconnecting
+  is one click while you are signed in to Google. **Delete** moves a file to
+  the Drive trash.
+
+**Change folder** picks a different folder. For a local folder, create new
+folders in the dialog your computer shows. Google's folder chooser cannot
+create folders, so Google Drive also has **New folder…**, which creates one
+inside the current folder and switches to it. Either way an open estimate is
+closed first, since it belongs to the folder you are leaving.
+
+**Open** loads an estimate into the builder and marks it "Open here". From
+then on **Save** writes back to that file.
+
+Files go straight from your browser to the place you chose. They are never
+sent to or stored on the Scopewright server, so customer names stay out of
+the shared workspace.
+
+### Locking
+
+An estimate that someone has open is locked: others see who has it and cannot
+open or delete it. The lock is released when they start a new estimate, open
+another one, or disconnect. If a browser is simply closed, the lock expires by
+itself after ten minutes.
+
+Importing a file, like starting a new estimate, closes and unlocks the
+estimate you had open.
+
+The lock is a courtesy, not a guarantee. As a backstop, saving checks that the
+file has not changed since you opened it. If it has, nothing is overwritten
+and you are told; use **Save as…** to keep your version under another name.
+
+None of these places can check and write in one step, so two saves landing in
+the same instant is the one case that can slip through. The check is made as
+late as each place allows to make that unlikely, and on Google Drive, if it
+does happen, you are told and the other version is still in the file's
+version history.
 
 ## Managing the estimate catalog
 
