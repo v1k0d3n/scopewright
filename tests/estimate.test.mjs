@@ -134,7 +134,7 @@ test("deleting products takes their questions, prerequisites, groups, and refere
 test("deleting questions and prerequisites is scoped to their product", () => {
   const [field] = defaultCatalog.installation.core;
   const [prereq] = defaultCatalog.prerequisites.core;
-  const next = removeFromCatalog(defaultCatalog, { fields: [`core:${field.id}`], prerequisites: [`core:${prereq.id}`] });
+  const next = removeFromCatalog(defaultCatalog, { fields: [{ productId: "core", itemId: field.id }], prerequisites: [{ productId: "core", itemId: prereq.id }] });
   assert.equal(next.installation.core.length, defaultCatalog.installation.core.length - 1);
   assert.equal(next.prerequisites.core.length, defaultCatalog.prerequisites.core.length - 1);
   assert.deepEqual(next.installation.edge, defaultCatalog.installation.edge);
@@ -147,4 +147,13 @@ test("deleting solutions, groups, and out-of-scope items removes only those", ()
   assert.equal(next.groups.some((group) => group.id === "engagement"), false);
   assert.equal(next.groups.length, defaultCatalog.groups.length - 1);
   assert.equal(next.outOfScope.length, Math.max(0, defaultCatalog.outOfScope.length - 1));
+});
+
+test("deleting a question is exact even when ids contain a colon", () => {
+  const field = (id) => ({ id, label: id, choices: [{ id: "one", label: "One", hours: 0 }] });
+  const catalog = { ...emptyCatalog, products: [{ id: "a", name: "A", short: "A", portfolio: "P", mark: "A", hours: 0 }, { id: "a:b", name: "AB", short: "AB", portfolio: "P", mark: "AB", hours: 0 }], installation: { a: [field("b:c")], "a:b": [field("c")] } };
+  // Joined with ":", both of these would be "a:b:c".
+  const next = removeFromCatalog(catalog, { fields: [{ productId: "a:b", itemId: "c" }] });
+  assert.deepEqual(next.installation["a:b"], []);
+  assert.deepEqual(next.installation.a.map((item) => item.id), ["b:c"]);
 });

@@ -15,6 +15,9 @@ export function resolveProducts(selected: string[], products: Product[]): string
   return ordered;
 }
 
+/** Products A–Z by short name, then full name: the order everyone sees them in, whatever order the catalog stores them in. */
+export const byProductName = (a: Product, b: Product) => a.short.localeCompare(b.short, undefined, { sensitivity: "base", numeric: true }) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+
 export const selectionKey = (productId: string, fieldId: string) => `${productId}:${fieldId}`;
 
 /** The chosen answer for a field, falling back to the first choice. */
@@ -214,8 +217,10 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
   return { products, installation, prerequisites, groups, solutions, outOfScope };
 }
 
-/** What to delete from a catalog. Questions and prerequisites are keyed `productId:itemId`, since their ids repeat across products. */
-export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; fields?: string[]; prerequisites?: string[] };
+/** A question or prerequisite: its id is only unique within its product. */
+export type ProductItem = { productId: string; itemId: string };
+/** What to delete from a catalog. */
+export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
 
 /** Delete items by id. A deleted product takes its questions, prerequisites, and deliverable groups with it, and drops out of foundations and solutions. */
 export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Catalog {
@@ -223,13 +228,12 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
   const solutions = new Set(removal.solutions);
   const groups = new Set(removal.groups);
   const outOfScope = new Set(removal.outOfScope);
-  const fields = new Set(removal.fields);
-  const prereqs = new Set(removal.prerequisites);
-  const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: Set<string>) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.has(selectionKey(productId, item.id)))]));
+  // Ids may contain ":", so pairs are compared as pairs, never as a joined string.
+  const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: ProductItem[] = []) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.some((pair) => pair.productId === productId && pair.itemId === item.id))]));
   return {
     products: catalog.products.filter((product) => !products.has(product.id)).map((product) => ({ ...product, requires: (product.requires ?? []).filter((dep) => !products.has(dep)) })),
-    installation: perProduct(catalog.installation, fields),
-    prerequisites: perProduct(catalog.prerequisites, prereqs),
+    installation: perProduct(catalog.installation, removal.fields),
+    prerequisites: perProduct(catalog.prerequisites, removal.prerequisites),
     groups: catalog.groups.filter((group) => !groups.has(group.id) && !products.has(group.productId)),
     solutions: catalog.solutions.filter((solution) => !solutions.has(solution.id)).map((solution) => ({ ...solution, products: solution.products.filter((id) => !products.has(id)) })),
     outOfScope: catalog.outOfScope.filter((item) => !outOfScope.has(item.id)),

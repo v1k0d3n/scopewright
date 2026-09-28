@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { groupHours, removeFromCatalog, selectionKey } from "../lib/estimate";
-import type { CatalogRemoval } from "../lib/estimate";
+import { byProductName, groupHours, removeFromCatalog } from "../lib/estimate";
+import type { ProductItem } from "../lib/estimate";
 import { phases } from "../lib/types";
 import type { Catalog, DeliverableGroup, DeliverableTask, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -11,11 +11,10 @@ type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void };
 type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions" | "outofscope";
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const byName = (a: Product, b: Product) => a.short.localeCompare(b.short, undefined, { sensitivity: "base", numeric: true }) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
-/** Which part of the catalog each tab's selection deletes from. */
-const removalField: Record<Tab, keyof CatalogRemoval> = { products: "products", solutions: "solutions", installation: "fields", prerequisites: "prerequisites", deliverables: "groups", outofscope: "outOfScope" };
+/** A checkbox key for a question or prerequisite. JSON keeps it unambiguous, since ids may contain ":". */
+const itemKey = (productId: string, itemId: string) => JSON.stringify([productId, itemId]);
 
 /** What a checkbox on each tab selects, and what deleting the selection is called. */
 const nouns: Record<Tab, [string, string]> = { products: ["product", "products"], solutions: ["solution", "solutions"], installation: ["question", "questions"], prerequisites: ["prerequisite", "prerequisites"], deliverables: ["deliverable group", "deliverable groups"], outofscope: ["out-of-scope item", "out-of-scope items"] };
@@ -30,8 +29,8 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
 
   // Alphabetical, but only re-sorted when products are added or removed, so a card doesn't jump away while its name is being typed.
   const idsKey = products.map((product) => product.id).join("\n");
-  const [order, setOrder] = useState(() => ({ key: idsKey, ids: [...products].sort(byName).map((product) => product.id) }));
-  if (order.key !== idsKey) setOrder({ key: idsKey, ids: [...products].sort(byName).map((product) => product.id) });
+  const [order, setOrder] = useState(() => ({ key: idsKey, ids: [...products].sort(byProductName).map((product) => product.id) }));
+  if (order.key !== idsKey) setOrder({ key: idsKey, ids: [...products].sort(byProductName).map((product) => product.id) });
   const sorted = order.ids.map((id) => products.find((product) => product.id === id)).filter((product): product is Product => Boolean(product));
 
   const updateProduct = (id: string, changes: Partial<Product>) => patch({ products: products.map((product) => product.id === id ? { ...product, ...changes } : product) });
@@ -48,11 +47,11 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   const check = (key: string, label: string) => <input type="checkbox" className="row-check" aria-label={`Select ${label || "untitled"}`} checked={selected.has(key)} onChange={(event) => toggle(key, event.target.checked)} />;
 
   /** Every row the current tab can select, with the name the confirmation shows. */
-  const rows: { key: string; label: string }[] =
+  const rows: { key: string; label: string; pair?: ProductItem }[] =
     tab === "products" ? sorted.map((product) => ({ key: product.id, label: product.short || product.name }))
     : tab === "solutions" ? catalog.solutions.map((solution) => ({ key: solution.id, label: solution.title }))
-    : tab === "installation" ? sorted.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => ({ key: selectionKey(product.id, field.id), label: `${product.short}: ${field.label}` })))
-    : tab === "prerequisites" ? sorted.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => ({ key: selectionKey(product.id, item.id), label: `${product.short}: ${item.label}` })))
+    : tab === "installation" ? sorted.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => ({ key: itemKey(product.id, field.id), label: `${product.short}: ${field.label}`, pair: { productId: product.id, itemId: field.id } })))
+    : tab === "prerequisites" ? sorted.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => ({ key: itemKey(product.id, item.id), label: `${product.short}: ${item.label}`, pair: { productId: product.id, itemId: item.id } })))
     : tab === "deliverables" ? catalog.groups.map((group) => ({ key: group.id, label: group.name }))
     : catalog.outOfScope.map((item) => ({ key: item.id, label: item.label }));
   const chosen = rows.filter((row) => selected.has(row.key));
@@ -60,24 +59,34 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
 
   const deleteSelected = () => {
     const keys = chosen.map((row) => row.key);
-    setCatalog(removeFromCatalog(catalog, { [removalField[tab]]: keys }));
+    const pairs = chosen.flatMap((row) => row.pair ? [row.pair] : []);
+    setCatalog(removeFromCatalog(catalog,
+      tab === "products" ? { products: keys }
+      : tab === "solutions" ? { solutions: keys }
+      : tab === "installation" ? { fields: pairs }
+      : tab === "prerequisites" ? { prerequisites: pairs }
+      : tab === "deliverables" ? { groups: keys }
+      : { outOfScope: keys }));
     setSelected(new Set());
     setConfirming(false);
   };
 
-  /** What else goes when products or groups are deleted, spelled out before it happens. */
-  const consequences = () => {
+  /** Everything else a delete touches, item by item, so it can be checked before it happens. */
+  const consequences = (): { heading: string; items: string[] }[] => {
     const ids = new Set(chosen.map((row) => row.key));
+    const short = (id: string) => products.find((product) => product.id === id)?.short || id;
     if (tab === "products") {
-      const questions = [...ids].reduce((sum, id) => sum + (catalog.installation[id] ?? []).length, 0);
-      const prereqs = [...ids].reduce((sum, id) => sum + (catalog.prerequisites[id] ?? []).length, 0);
-      const groups = catalog.groups.filter((group) => ids.has(group.productId)).length;
-      const solutions = catalog.solutions.filter((solution) => solution.products.some((id) => ids.has(id))).length;
-      return `This also deletes their ${plural(questions, "installation question")}, ${plural(prereqs, "prerequisite")}, and ${plural(groups, "deliverable group")}${solutions ? `, and removes them from ${plural(solutions, "solution")}` : ""}.`;
+      const doomed = sorted.filter((product) => ids.has(product.id));
+      return [
+        { heading: "Installation questions deleted", items: doomed.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => `${product.short}: ${field.label}`)) },
+        { heading: "Prerequisites deleted", items: doomed.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => `${product.short}: ${item.label}`)) },
+        { heading: "Deliverable groups deleted", items: catalog.groups.filter((group) => ids.has(group.productId)).map((group) => `${group.name} (${plural(group.tasks.length, "task")})`) },
+        { heading: "Solutions that lose these products", items: catalog.solutions.filter((solution) => solution.products.some((id) => ids.has(id))).map((solution) => `${solution.title || "Untitled"}: drops ${solution.products.filter((id) => ids.has(id)).map(short).join(", ")}`) },
+        { heading: "Products that no longer require them", items: sorted.filter((product) => !ids.has(product.id) && (product.requires ?? []).some((id) => ids.has(id))).map((product) => `${product.short}: drops ${(product.requires ?? []).filter((id) => ids.has(id)).map(short).join(", ")}`) },
+      ].filter((section) => section.items.length);
     }
-    if (tab === "deliverables") return `This also deletes their ${plural(catalog.groups.filter((group) => ids.has(group.id)).reduce((sum, group) => sum + group.tasks.length, 0), "task")}.`;
-    if (tab === "installation") return "Estimates that already answered these questions lose those answers.";
-    return "";
+    if (tab === "deliverables") return [{ heading: "Tasks deleted", items: catalog.groups.filter((group) => ids.has(group.id)).flatMap((group) => group.tasks.map((task) => `${group.name}: ${task.name}`)) }].filter((section) => section.items.length);
+    return [];
   };
 
   const setFields = (productId: string, fields: InstallationField[]) => patch({ installation: { ...catalog.installation, [productId]: fields } });
@@ -110,7 +119,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
     </div>
   );
   /** How many of one product's questions or prerequisites are ticked, shown on its collapsed card. */
-  const selectedIn = (productId: string) => { const prefix = selectionKey(productId, ""); const count = chosen.filter((row) => row.key.startsWith(prefix)).length; return count ? ` · ${count} selected` : ""; };
+  const selectedIn = (productId: string) => { const count = chosen.filter((row) => row.pair?.productId === productId).length; return count ? ` · ${count} selected` : ""; };
 
   return (
     <div className="designer">
@@ -198,7 +207,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
                     {fields.map((field, index) => (
                       <section key={field.id}>
                         <header>
-                          {check(selectionKey(product.id, field.id), field.label)}
+                          {check(itemKey(product.id, field.id), field.label)}
                           <input aria-label="Question" value={field.label} onChange={(event) => updateField(product.id, field.id, { label: event.target.value })} />
                           <div className="row-actions">
                             <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setFields(product.id, move(fields, index, index - 1))}>↑</button>
@@ -239,7 +248,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
                     {items.length > 0 && <div className="prereq-head"><span></span><span>Prerequisite</span><span>Example value</span><span>Help text</span><span>Required</span><span></span></div>}
                     {items.map((item, index) => (
                       <div key={item.id} className="prereq-edit">
-                        {check(selectionKey(product.id, item.id), item.label)}
+                        {check(itemKey(product.id, item.id), item.label)}
                         <input aria-label="Prerequisite" value={item.label} onChange={(event) => updatePrereq(product.id, item.id, { label: event.target.value })} />
                         <input aria-label="Example value" placeholder="e.g. 192.168.10.5" value={item.placeholder ?? ""} onChange={(event) => updatePrereq(product.id, item.id, { placeholder: event.target.value })} />
                         <input aria-label="Help text" placeholder="Optional guidance" value={item.help ?? ""} onChange={(event) => updatePrereq(product.id, item.id, { help: event.target.value })} />
@@ -323,11 +332,16 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
 
       {confirming && chosen.length > 0 && (
         <ConfirmDialog title={`Delete ${plural(chosen.length, one, many)}?`} confirmLabel={`Delete ${plural(chosen.length, one, many)}`} onCancel={() => setConfirming(false)} onConfirm={deleteSelected}>
-          <ul className="confirm-list">
-            {chosen.slice(0, 8).map((row) => <li key={row.key}>{row.label || "Untitled"}</li>)}
-            {chosen.length > 8 && <li>…and {chosen.length - 8} more</li>}
-          </ul>
-          {consequences() && <p className="modal-note">{consequences()}</p>}
+          <div className="confirm-list">
+            <ul>{chosen.map((row) => <li key={row.key}>{row.label || "Untitled"}</li>)}</ul>
+            {consequences().map((section) => (
+              <section key={section.heading}>
+                <h3>{section.heading} ({section.items.length})</h3>
+                <ul>{section.items.map((item, index) => <li key={index}>{item || "Untitled"}</li>)}</ul>
+              </section>
+            ))}
+          </div>
+          {tab === "installation" && <p className="modal-note">Estimates that already answered these questions lose those answers.</p>}
           <p className="modal-warning">This changes the shared catalog for everyone and cannot be undone.</p>
         </ConfirmDialog>
       )}

@@ -593,8 +593,12 @@ button.destructive-outline:hover:not(:disabled) { background: #fbeaea; }
 .modal-warning { margin: 0; padding: 12px 14px; font-size: 13px; line-height: 1.45; background: #fbeaea; color: #7a1a15; border-left: 4px solid #b3261e; border-radius: 5px; }
 .modal-warning b { display: block; margin-bottom: 2px; letter-spacing: .02em; }
 .confirm-dialog .modal-note { margin: 0; }
-.confirm-list { margin: 0; padding: 10px 12px 10px 28px; max-height: 200px; overflow: auto; font-size: 13px; border: 1px solid var(--line-soft); border-radius: 5px; }
+.confirm-list { max-height: 300px; overflow: auto; padding: 10px 12px; font-size: 13px; border: 1px solid var(--line-soft); border-radius: 5px; }
+.confirm-list ul { margin: 0; padding-left: 18px; }
 .confirm-list li + li { margin-top: 3px; }
+.confirm-list section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.confirm-list h3 { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.confirm-list section li { color: var(--muted); font-size: 12px; }
 .modal-actions .modal-aside { margin-right: auto; }
 @media (max-width: 720px) {
   .modal-actions { flex-wrap: wrap; }

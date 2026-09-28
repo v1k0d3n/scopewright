@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "../lib/useDialogFocus";
 
 type Props = {
   title: string;
@@ -14,11 +15,13 @@ type Props = {
   onCancel: () => void;
 };
 
-/** A destructive action, asked about once, in words. Escape or a click outside cancels. */
+/** A destructive action, asked about once, in words. Escape or a click outside cancels; focus stays inside until it closes. */
 export function ConfirmDialog({ title, children, confirmLabel, typeToConfirm, aside, onConfirm, onCancel }: Props) {
   const [typed, setTyped] = useState("");
   const field = useRef<HTMLInputElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLFormElement>(null);
+  useDialogFocus(dialog);
   // Start on the safe choice: the typed word when one is asked for, otherwise Cancel.
   useEffect(() => { (field.current ?? cancel.current)?.focus(); }, []);
   useEffect(() => {
@@ -29,7 +32,7 @@ export function ConfirmDialog({ title, children, confirmLabel, typeToConfirm, as
   const ready = !typeToConfirm || typed.trim() === typeToConfirm;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
-      <form className="modal confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onSubmit={(event) => { event.preventDefault(); if (ready) onConfirm(); }}>
+      <form ref={dialog} className="modal confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onSubmit={(event) => { event.preventDefault(); if (ready) onConfirm(); }}>
         <h2 id="confirm-title">{title}</h2>
         {children}
         {typeToConfirm && (

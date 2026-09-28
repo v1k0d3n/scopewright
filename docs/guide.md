@@ -313,7 +313,8 @@ solutions. The catalog is shared, so the change applies to everyone.
 The small **×** beside an installation choice or a deliverable task removes
 just that line from the question or group you are editing. The **↑** and **↓**
 buttons set the order where the order shows up in an estimate or the scope
-document. Products are always listed alphabetically.
+document. Products are always listed alphabetically, here and in the Products
+step of New Estimate (where portfolios are alphabetical too).
 
 **+ Add product** opens a new product at the top of the list. It stays out of
 the catalog until you choose **Save product**, so nobody else sees a
