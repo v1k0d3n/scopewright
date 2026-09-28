@@ -300,8 +300,28 @@ task at once, and the same button on each group does it for that group alone. Nu
 A simple list of things your team commonly excludes from an engagement. They
 appear as checkboxes in the Engagement step.
 
-**Reset catalog** on the Products tab returns to an empty catalog. Catalog
-export and import live in Settings (see below).
+### Deleting catalog items
+
+Every tab deletes the same way. Tick the checkbox beside each product,
+solution, question, prerequisite, deliverable group, or out-of-scope item you
+want gone (or tick **Select all** in the bar above the list), then choose
+**Delete selected**. A confirmation lists what will be deleted, and what goes
+with it: deleting a product also deletes its installation questions,
+prerequisites, and deliverable groups, and removes it from foundations and
+solutions. The catalog is shared, so the change applies to everyone.
+
+The small **×** beside an installation choice or a deliverable task removes
+just that line from the question or group you are editing. The **↑** and **↓**
+buttons set the order where the order shows up in an estimate or the scope
+document. Products are always listed alphabetically, here and in the Products
+step of New Estimate (where portfolios are alphabetical too).
+
+**+ Add product** opens a new product at the top of the list. It stays out of
+the catalog until you choose **Save product**, so nobody else sees a
+half-finished entry; **Cancel** discards it.
+
+Catalog export, import, and **Delete catalog** (which empties the whole
+catalog, after you type `DELETE` to confirm) live in Settings (see below).
 
 ## Branding and themes
 
@@ -322,8 +342,13 @@ Settings applies to the whole app and to every scope document, for everyone.
 - **Theme pack**: export everything on this page as one `.zip` (a
   `theme.json` plus the logo and favicon files), or import one. This is how a
   design team hands over a brand, and how a theme is kept in version control.
+  **Reset theme** returns everything on this page to the built-in defaults
+  for everyone; it asks you to type `RESET` first and offers to export a
+  backup. The catalog is not touched.
 - **Estimate catalog**: export the shared catalog as `.json`, or import one to
-  replace it.
+  replace it. **Delete catalog** empties the shared catalog for everyone; it
+  asks you to type `DELETE` first and offers to export a backup, which you can
+  import again later.
 
 Theme packs can also be built from a directory with
 `npm run pack:theme -- packs/<name>`.

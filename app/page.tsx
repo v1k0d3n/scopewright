@@ -195,7 +195,6 @@ export default function Home() {
     };
     reader.readAsText(file);
   };
-  const resetCatalog = () => { if (window.confirm("Reset the catalog to the built-in defaults? Your custom products, questions, and deliverables will be removed.")) setCatalog(defaultCatalog); };
 
   const current = steps[step - 1];
   const title = views.find((item) => item.id === view)?.label ?? "";
@@ -272,7 +271,7 @@ export default function Home() {
         {view === "updates" && <WeeklyUpdate estimate={estimate} branding={branding} />}
         {savingAs && <SaveAs library={library} suggested={library.active?.name ?? documentName()} onSave={saveAs} onCancel={() => setSavingAs(false)} onManage={() => { setSavingAs(false); setView("library"); }} />}
         {view === "library" && <Library library={library} now={now} onOpen={openDocument} onRefresh={() => { setNow(Date.now()); void library.reload(); }} />}
-        {view === "catalog" && <ReadOnlyGate readOnly={readOnly}><CatalogManager catalog={catalog} setCatalog={setCatalog} onReset={resetCatalog} /></ReadOnlyGate>}
+        {view === "catalog" && <ReadOnlyGate readOnly={readOnly}><CatalogManager catalog={catalog} setCatalog={setCatalog} /></ReadOnlyGate>}
         {view === "settings" && <ReadOnlyGate readOnly={readOnly}><Settings branding={branding} setBranding={setBranding} catalog={catalog} setCatalog={setCatalog} /></ReadOnlyGate>}
       </section>
     </main>

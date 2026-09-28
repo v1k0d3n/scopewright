@@ -1,9 +1,12 @@
 "use client";
 
+import { byProductName } from "../lib/estimate";
 import type { Product, SolutionTemplate } from "../lib/types";
 
 export function ProductChooser({ products, selected, templates, onToggle, onTemplate }: { products: Product[]; selected: string[]; templates: SolutionTemplate[]; onToggle: (id: string) => void; onTemplate: (ids: string[]) => void }) {
-  const portfolios = Array.from(new Set(products.map((product) => product.portfolio)));
+  // Portfolios and the products in each are listed A–Z, matching Estimate catalog.
+  const portfolios = Array.from(new Set(products.map((product) => product.portfolio))).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
+  const sorted = [...products].sort(byProductName);
   if (!products.length) return <div className="empty-state"><span>＋</span><b>No products in the catalog yet</b><p>Open Estimate catalog → Products to add the products and services your team delivers, or import a catalog from Settings.</p></div>;
   // Only offer solutions whose products all still exist in the catalog.
   const usable = templates.filter((template) => template.products.length > 0 && template.products.every((id) => products.some((product) => product.id === id)));
@@ -28,7 +31,7 @@ export function ProductChooser({ products, selected, templates, onToggle, onTemp
           <section key={portfolio}>
             <h3>{portfolio}</h3>
             <div className="product-grid">
-              {products.filter((product) => product.portfolio === portfolio).map((product) => {
+              {sorted.filter((product) => product.portfolio === portfolio).map((product) => {
                 const on = selected.includes(product.id);
                 const requires = (product.requires ?? []).map((id) => products.find((item) => item.id === id)?.short).filter(Boolean);
                 return (

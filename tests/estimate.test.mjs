@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, resolveProducts, scopeText } from "../app/lib/estimate.ts";
+import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, removeFromCatalog, resolveProducts, scopeText } from "../app/lib/estimate.ts";
 
 /** The fictitious Solstice pack is the reference catalog; the app itself ships empty. */
 const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };
@@ -117,4 +117,43 @@ test("catalog out-of-scope items are chosen by id and sanitized", () => {
   assert.match(scopeText(catalog, estimate, "X"), /OUT OF SCOPE\n- Disaster recovery design\n- Training\n/);
   // A catalog from before this section existed gets the app's default, which is none (the app ships with an empty catalog).
   assert.deepEqual(mergeCatalog({ products: [], installation: {}, prerequisites: {}, groups: [], solutions: [] }, emptyCatalog).outOfScope, []);
+});
+
+test("deleting products takes their questions, prerequisites, groups, and references with them", () => {
+  const next = removeFromCatalog(defaultCatalog, { products: ["edge", "fleet"] });
+  assert.deepEqual(next.products.map((product) => product.id).filter((id) => ["edge", "fleet"].includes(id)), []);
+  assert.equal(next.installation.edge, undefined);
+  assert.equal(next.prerequisites.fleet, undefined);
+  assert.deepEqual(next.groups.filter((group) => ["edge", "fleet"].includes(group.productId)), []);
+  assert.ok(next.groups.some((group) => group.productId === ""), "groups for any product stay");
+  assert.deepEqual(next.products.find((product) => product.id === "vision").requires, ["insight"], "foundations drop the deleted product");
+  assert.deepEqual(next.solutions.find((solution) => solution.id === "fleet").products, ["core", "conductor"], "solutions drop the deleted product but stay");
+  assert.equal(defaultCatalog.products.some((product) => product.id === "edge"), true, "the input is not changed");
+});
+
+test("deleting questions and prerequisites is scoped to their product", () => {
+  const [field] = defaultCatalog.installation.core;
+  const [prereq] = defaultCatalog.prerequisites.core;
+  const next = removeFromCatalog(defaultCatalog, { fields: [{ productId: "core", itemId: field.id }], prerequisites: [{ productId: "core", itemId: prereq.id }] });
+  assert.equal(next.installation.core.length, defaultCatalog.installation.core.length - 1);
+  assert.equal(next.prerequisites.core.length, defaultCatalog.prerequisites.core.length - 1);
+  assert.deepEqual(next.installation.edge, defaultCatalog.installation.edge);
+  assert.equal(next.products.length, defaultCatalog.products.length);
+});
+
+test("deleting solutions, groups, and out-of-scope items removes only those", () => {
+  const next = removeFromCatalog(defaultCatalog, { solutions: ["vision"], groups: ["engagement"], outOfScope: defaultCatalog.outOfScope.slice(0, 1).map((item) => item.id) });
+  assert.deepEqual(next.solutions.map((solution) => solution.id), ["streaming", "fleet", "zerotrust"]);
+  assert.equal(next.groups.some((group) => group.id === "engagement"), false);
+  assert.equal(next.groups.length, defaultCatalog.groups.length - 1);
+  assert.equal(next.outOfScope.length, Math.max(0, defaultCatalog.outOfScope.length - 1));
+});
+
+test("deleting a question is exact even when ids contain a colon", () => {
+  const field = (id) => ({ id, label: id, choices: [{ id: "one", label: "One", hours: 0 }] });
+  const catalog = { ...emptyCatalog, products: [{ id: "a", name: "A", short: "A", portfolio: "P", mark: "A", hours: 0 }, { id: "a:b", name: "AB", short: "AB", portfolio: "P", mark: "AB", hours: 0 }], installation: { a: [field("b:c")], "a:b": [field("c")] } };
+  // Joined with ":", both of these would be "a:b:c".
+  const next = removeFromCatalog(catalog, { fields: [{ productId: "a:b", itemId: "c" }] });
+  assert.deepEqual(next.installation["a:b"], []);
+  assert.deepEqual(next.installation.a.map((item) => item.id), ["b:c"]);
 });

@@ -1,35 +1,92 @@
 "use client";
 
 import { useState } from "react";
-import { groupHours } from "../lib/estimate";
+import { byProductName, groupHours, removeFromCatalog } from "../lib/estimate";
+import type { ProductItem } from "../lib/estimate";
 import { phases } from "../lib/types";
 import type { Catalog, DeliverableGroup, DeliverableTask, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
+import { ConfirmDialog } from "./ConfirmDialog";
 
-type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void; onReset: () => void };
+type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void };
 type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions" | "outofscope";
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
-export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
+/** A checkbox key for a question or prerequisite. JSON keeps it unambiguous, since ids may contain ":". */
+const itemKey = (productId: string, itemId: string) => JSON.stringify([productId, itemId]);
+
+/** What a checkbox on each tab selects, and what deleting the selection is called. */
+const nouns: Record<Tab, [string, string]> = { products: ["product", "products"], solutions: ["solution", "solutions"], installation: ["question", "questions"], prerequisites: ["prerequisite", "prerequisites"], deliverables: ["deliverable group", "deliverable groups"], outofscope: ["out-of-scope item", "out-of-scope items"] };
+
+export function CatalogManager({ catalog, setCatalog }: Props) {
   const [tab, setTab] = useState<Tab>("products");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [confirming, setConfirming] = useState(false);
+  const [draft, setDraft] = useState<Product | null>(null);
   const products = catalog.products;
   const patch = (next: Partial<Catalog>) => setCatalog({ ...catalog, ...next });
 
+  // Alphabetical, but only re-sorted when products are added or removed, so a card doesn't jump away while its name is being typed.
+  const idsKey = products.map((product) => product.id).join("\n");
+  const [order, setOrder] = useState(() => ({ key: idsKey, ids: [...products].sort(byProductName).map((product) => product.id) }));
+  if (order.key !== idsKey) setOrder({ key: idsKey, ids: [...products].sort(byProductName).map((product) => product.id) });
+  const sorted = order.ids.map((id) => products.find((product) => product.id === id)).filter((product): product is Product => Boolean(product));
+
   const updateProduct = (id: string, changes: Partial<Product>) => patch({ products: products.map((product) => product.id === id ? { ...product, ...changes } : product) });
-  const addProduct = () => patch({ products: [...products, { id: uid("product"), name: "New product", short: "New", portfolio: products[products.length - 1]?.portfolio ?? "Portfolio", mark: "NP", hours: 0 }] });
-  const removeProduct = (id: string) => {
-    if (!window.confirm("Delete this product, its installation questions, and its deliverable groups?")) return;
-    const { [id]: _dropped, ...installation } = catalog.installation;
-    const { [id]: _droppedPrereqs, ...prerequisites } = catalog.prerequisites;
-    void _dropped; void _droppedPrereqs;
-    setCatalog({
-      products: products.filter((product) => product.id !== id).map((product) => ({ ...product, requires: (product.requires ?? []).filter((dep) => dep !== id) })),
-      installation,
-      prerequisites,
-      groups: catalog.groups.filter((group) => group.productId !== id),
-      solutions: catalog.solutions.map((solution) => ({ ...solution, products: solution.products.filter((item) => item !== id) })),
-      outOfScope: catalog.outOfScope,
-    });
+  const draftReady = Boolean(draft?.name.trim() && draft.short.trim());
+  const saveDraft = () => {
+    if (!draft || !draftReady) return;
+    const short = draft.short.trim();
+    patch({ products: [...products, { ...draft, name: draft.name.trim(), short, portfolio: draft.portfolio.trim() || "Products", mark: draft.mark.trim() || short.replace(/\s+/g, "").slice(0, 3).toUpperCase() }] });
+    setDraft(null);
+  };
+
+  const switchTab = (next: Tab) => { setTab(next); setSelected(new Set()); };
+  const toggle = (key: string, on: boolean) => setSelected((current) => { const next = new Set(current); if (on) next.add(key); else next.delete(key); return next; });
+  const check = (key: string, label: string) => <input type="checkbox" className="row-check" aria-label={`Select ${label || "untitled"}`} checked={selected.has(key)} onChange={(event) => toggle(key, event.target.checked)} />;
+
+  /** Every row the current tab can select, with the name the confirmation shows. */
+  const rows: { key: string; label: string; pair?: ProductItem }[] =
+    tab === "products" ? sorted.map((product) => ({ key: product.id, label: product.short || product.name }))
+    : tab === "solutions" ? catalog.solutions.map((solution) => ({ key: solution.id, label: solution.title }))
+    : tab === "installation" ? sorted.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => ({ key: itemKey(product.id, field.id), label: `${product.short}: ${field.label}`, pair: { productId: product.id, itemId: field.id } })))
+    : tab === "prerequisites" ? sorted.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => ({ key: itemKey(product.id, item.id), label: `${product.short}: ${item.label}`, pair: { productId: product.id, itemId: item.id } })))
+    : tab === "deliverables" ? catalog.groups.map((group) => ({ key: group.id, label: group.name }))
+    : catalog.outOfScope.map((item) => ({ key: item.id, label: item.label }));
+  const chosen = rows.filter((row) => selected.has(row.key));
+  const [one, many] = nouns[tab];
+
+  const deleteSelected = () => {
+    const keys = chosen.map((row) => row.key);
+    const pairs = chosen.flatMap((row) => row.pair ? [row.pair] : []);
+    setCatalog(removeFromCatalog(catalog,
+      tab === "products" ? { products: keys }
+      : tab === "solutions" ? { solutions: keys }
+      : tab === "installation" ? { fields: pairs }
+      : tab === "prerequisites" ? { prerequisites: pairs }
+      : tab === "deliverables" ? { groups: keys }
+      : { outOfScope: keys }));
+    setSelected(new Set());
+    setConfirming(false);
+  };
+
+  /** Everything else a delete touches, item by item, so it can be checked before it happens. */
+  const consequences = (): { heading: string; items: string[] }[] => {
+    const ids = new Set(chosen.map((row) => row.key));
+    const short = (id: string) => products.find((product) => product.id === id)?.short || id;
+    if (tab === "products") {
+      const doomed = sorted.filter((product) => ids.has(product.id));
+      return [
+        { heading: "Installation questions deleted", items: doomed.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => `${product.short}: ${field.label}`)) },
+        { heading: "Prerequisites deleted", items: doomed.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => `${product.short}: ${item.label}`)) },
+        { heading: "Deliverable groups deleted", items: catalog.groups.filter((group) => ids.has(group.productId)).map((group) => `${group.name} (${plural(group.tasks.length, "task")})`) },
+        { heading: "Solutions that lose these products", items: catalog.solutions.filter((solution) => solution.products.some((id) => ids.has(id))).map((solution) => `${solution.title || "Untitled"}: drops ${solution.products.filter((id) => ids.has(id)).map(short).join(", ")}`) },
+        { heading: "Products that no longer require them", items: sorted.filter((product) => !ids.has(product.id) && (product.requires ?? []).some((id) => ids.has(id))).map((product) => `${product.short}: drops ${(product.requires ?? []).filter((id) => ids.has(id)).map(short).join(", ")}`) },
+      ].filter((section) => section.items.length);
+    }
+    if (tab === "deliverables") return [{ heading: "Tasks deleted", items: catalog.groups.filter((group) => ids.has(group.id)).flatMap((group) => group.tasks.map((task) => `${group.name}: ${task.name}`)) }].filter((section) => section.items.length);
+    return [];
   };
 
   const setFields = (productId: string, fields: InstallationField[]) => patch({ installation: { ...catalog.installation, [productId]: fields } });
@@ -51,35 +108,47 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
   const offerAll = (enabled: boolean, groupId?: string) => setGroups(catalog.groups.map((group) => (!groupId || group.id === groupId) ? { ...group, tasks: group.tasks.map((task) => ({ ...task, enabled })) } : group));
   const addGroup = () => setGroups([...catalog.groups, { id: uid("group"), name: "New deliverable group", category: "Platform", productId: "", scopeNumber: String(catalog.groups.length + 1), tasks: [] }]);
 
+  const selectionBar = rows.length > 0 && (
+    <div className="selection-bar">
+      <label>
+        <input type="checkbox" aria-label={`Select all ${many}`} checked={chosen.length > 0 && chosen.length === rows.length} ref={(box) => { if (box) box.indeterminate = chosen.length > 0 && chosen.length < rows.length; }} onChange={(event) => setSelected(event.target.checked ? new Set(rows.map((row) => row.key)) : new Set())} />
+        <span>{chosen.length ? `${chosen.length} of ${plural(rows.length, one, many)} selected` : `Select ${many} to delete`}</span>
+      </label>
+      {chosen.length > 0 && <button type="button" className="link" onClick={() => setSelected(new Set())}>Clear</button>}
+      <button type="button" className="destructive-outline" disabled={!chosen.length} onClick={() => setConfirming(true)}>Delete selected{chosen.length ? ` (${chosen.length})` : ""}</button>
+    </div>
+  );
+  /** How many of one product's questions or prerequisites are ticked, shown on its collapsed card. */
+  const selectedIn = (productId: string) => { const count = chosen.filter((row) => row.pair?.productId === productId).length; return count ? ` · ${count} selected` : ""; };
+
   return (
     <div className="designer">
       <div className="designer-tabs" role="tablist">
         {([["products", "01", "Products"], ["solutions", "02", "Solutions"], ["installation", "03", "Installation Details"], ["prerequisites", "04", "Prerequisites"], ["deliverables", "05", "Deliverables"], ["outofscope", "06", "Out of Scope"]] as const).map(([id, number, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}><span>{number}</span> {label}</button>
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => switchTab(id)}><span>{number}</span> {label}</button>
         ))}
       </div>
 
       {tab === "products" && (
         <div className="content designer-content">
-          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Products and portfolios</h1><p>Products appear in the first step of New Estimate, grouped by portfolio. A required foundation is pulled into every estimate that needs it.</p></div><div className="actions"><button type="button" className="secondary" onClick={onReset}>Reset catalog</button><button type="button" className="primary" onClick={addProduct}>+ Add product</button></div></div>
+          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Products and portfolios</h1><p>Products appear in the first step of New Estimate, grouped by portfolio. A required foundation is pulled into every estimate that needs it.</p></div><div className="actions"><button type="button" className="primary" disabled={Boolean(draft)} onClick={() => setDraft({ id: uid("product"), name: "", short: "", portfolio: sorted[sorted.length - 1]?.portfolio ?? "", mark: "", hours: 0 })}>+ Add product</button></div></div>
+          {draft && (
+            <section className="product-draft" aria-label="New product">
+              <header><span><b>New product</b><small>Not in the catalog until you save it. Product name and short name are required.</small></span><div className="actions"><button type="button" className="secondary" onClick={() => setDraft(null)}>Cancel</button><button type="button" className="primary" disabled={!draftReady} onClick={saveDraft}>Save product</button></div></header>
+              <ProductFields product={draft} others={sorted} onChange={(changes) => setDraft({ ...draft, ...changes })} />
+            </section>
+          )}
+          {selectionBar}
           <div className="designer-list">
-            {products.map((product) => (
-              <details key={product.id}>
-                <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{product.portfolio} · {product.name}</small></span><em>{product.hours}h base · {(catalog.installation[product.id] ?? []).length} questions · {(catalog.prerequisites[product.id] ?? []).length} prerequisites · {catalog.groups.filter((group) => group.productId === product.id).length} groups</em></summary>
-                <div className="designer-fields">
-                  <label>Portfolio<input value={product.portfolio} onChange={(event) => updateProduct(product.id, { portfolio: event.target.value })} /></label>
-                  <label>Product name<input value={product.name} onChange={(event) => updateProduct(product.id, { name: event.target.value })} /></label>
-                  <label>Short name<input value={product.short} onChange={(event) => updateProduct(product.id, { short: event.target.value })} /></label>
-                  <label>Badge<input value={product.mark} maxLength={3} onChange={(event) => updateProduct(product.id, { mark: event.target.value.toUpperCase() })} /></label>
-                  <label>Base work package (hours)<input type="number" min="0" step="0.5" value={product.hours} onChange={(event) => updateProduct(product.id, { hours: Number(event.target.value) })} /></label>
-                  <label className="wide">Description<input value={product.description ?? ""} onChange={(event) => updateProduct(product.id, { description: event.target.value })} /></label>
-                  <fieldset className="wide product-picks"><legend>Required foundations · pulled into every estimate that includes {product.short}</legend>
-                    {products.filter((item) => item.id !== product.id).map((item) => <label key={item.id} className="pick"><input type="checkbox" checked={(product.requires ?? []).includes(item.id)} onChange={(event) => updateProduct(product.id, { requires: event.target.checked ? [...(product.requires ?? []), item.id] : (product.requires ?? []).filter((id) => id !== item.id) })} /><i>{item.mark}</i>{item.short}</label>)}
-                    {products.length < 2 && <small>Add another product to define a dependency.</small>}
-                  </fieldset>
-                  <button type="button" className="danger" onClick={() => removeProduct(product.id)}>Delete product</button>
-                </div>
-              </details>
+            {!sorted.length && !draft && <p className="panel-copy list-empty">No products yet. Add one, or import a catalog in Settings.</p>}
+            {sorted.map((product) => (
+              <div className="select-row" key={product.id}>
+                {check(product.id, product.short)}
+                <details>
+                  <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{product.portfolio} · {product.name}</small></span><em>{product.hours}h base · {(catalog.installation[product.id] ?? []).length} questions · {(catalog.prerequisites[product.id] ?? []).length} prerequisites · {catalog.groups.filter((group) => group.productId === product.id).length} groups</em></summary>
+                  <ProductFields product={product} others={sorted.filter((item) => item.id !== product.id)} onChange={(changes) => updateProduct(product.id, changes)} />
+                </details>
+              </div>
             ))}
           </div>
         </div>
@@ -96,25 +165,29 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
               </div>
             </div>
           )}
+          {selectionBar}
           <div className="designer-list">
             {catalog.solutions.length === 0 && <p className="panel-copy list-empty">No solutions yet. The Products step shows only the product list.</p>}
             {catalog.solutions.map((solution, index) => (
-              <details key={solution.id} open={index === catalog.solutions.length - 1 && solution.title === "New solution"}>
-                <summary><i>{index + 1}</i><span><b>{solution.title || "Untitled"}</b><small>{solution.label || "no tag"} · {solution.products.map((id) => products.find((product) => product.id === id)?.short ?? id).join(" + ") || "no products"}</small></span></summary>
-                <div className="designer-fields solution-fields">
-                  <label>Tag<input placeholder="POPULAR" value={solution.label} onChange={(event) => updateSolution(solution.id, { label: event.target.value.toUpperCase() })} /></label>
-                  <label>Title<input value={solution.title} onChange={(event) => updateSolution(solution.id, { title: event.target.value })} /></label>
-                  <label>Subtitle<input placeholder="What the customer gets" value={solution.subtitle} onChange={(event) => updateSolution(solution.id, { subtitle: event.target.value })} /></label>
-                  <fieldset className="wide product-picks"><legend>Products included in this solution</legend>
-                    {products.map((product) => <label key={product.id} className="pick"><input type="checkbox" checked={solution.products.includes(product.id)} onChange={(event) => updateSolution(solution.id, { products: event.target.checked ? [...solution.products, product.id] : solution.products.filter((id) => id !== product.id) })} /><i>{product.mark}</i>{product.short}</label>)}
-                  </fieldset>
-                  <div className="row-actions wide">
-                    <button type="button" className="secondary" aria-label="Move up" onClick={() => setSolutions(move(catalog.solutions, index, index - 1))}>↑ Move up</button>
-                    <button type="button" className="secondary" aria-label="Move down" onClick={() => setSolutions(move(catalog.solutions, index, index + 1))}>↓ Move down</button>
-                    <button type="button" className="danger" onClick={() => window.confirm(`Delete “${solution.title}”?`) && setSolutions(catalog.solutions.filter((item) => item.id !== solution.id))}>Delete solution</button>
+              <div className="select-row" key={solution.id}>
+                {check(solution.id, solution.title)}
+                <details open={index === catalog.solutions.length - 1 && solution.title === "New solution"}>
+                  <summary><i>{index + 1}</i><span><b>{solution.title || "Untitled"}</b><small>{solution.label || "no tag"} · {solution.products.map((id) => products.find((product) => product.id === id)?.short ?? id).join(" + ") || "no products"}</small></span></summary>
+                  <div className="designer-fields solution-fields">
+                    <label>Tag<input placeholder="POPULAR" value={solution.label} onChange={(event) => updateSolution(solution.id, { label: event.target.value.toUpperCase() })} /></label>
+                    <label>Title<input value={solution.title} onChange={(event) => updateSolution(solution.id, { title: event.target.value })} /></label>
+                    <label>Subtitle<input placeholder="What the customer gets" value={solution.subtitle} onChange={(event) => updateSolution(solution.id, { subtitle: event.target.value })} /></label>
+                    <fieldset className="wide product-picks"><legend>Products included in this solution</legend>
+                      {sorted.map((product) => <label key={product.id} className="pick"><input type="checkbox" checked={solution.products.includes(product.id)} onChange={(event) => updateSolution(solution.id, { products: event.target.checked ? [...solution.products, product.id] : solution.products.filter((id) => id !== product.id) })} /><i>{product.mark}</i>{product.short}</label>)}
+                    </fieldset>
+                    <div className="row-actions wide">
+                      <span className="order-label">Order in the Products step</span>
+                      <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setSolutions(move(catalog.solutions, index, index - 1))}>↑</button>
+                      <button type="button" className="icon" aria-label="Move down" disabled={index === catalog.solutions.length - 1} onClick={() => setSolutions(move(catalog.solutions, index, index + 1))}>↓</button>
+                    </div>
                   </div>
-                </div>
-              </details>
+                </details>
+              </div>
             ))}
           </div>
         </div>
@@ -123,21 +196,22 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
       {tab === "installation" && (
         <div className="content designer-content">
           <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Installation decisions</h1><p>Each question becomes a drop-down in the Installation Details step. The chosen answer adds its hours to the estimate and is printed in the scope document.</p></div></div>
+          {selectionBar}
           <div className="designer-list">
-            {products.map((product) => {
+            {sorted.map((product) => {
               const fields = catalog.installation[product.id] ?? [];
               return (
                 <details key={product.id}>
-                  <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{fields.length} question{fields.length === 1 ? "" : "s"} · {fields.reduce((sum, field) => sum + field.choices.length, 0)} choices</small></span></summary>
+                  <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{fields.length} question{fields.length === 1 ? "" : "s"} · {fields.reduce((sum, field) => sum + field.choices.length, 0)} choices{selectedIn(product.id)}</small></span></summary>
                   <div className="field-builder">
                     {fields.map((field, index) => (
                       <section key={field.id}>
                         <header>
+                          {check(itemKey(product.id, field.id), field.label)}
                           <input aria-label="Question" value={field.label} onChange={(event) => updateField(product.id, field.id, { label: event.target.value })} />
                           <div className="row-actions">
-                            <button type="button" aria-label="Move up" onClick={() => setFields(product.id, move(fields, index, index - 1))}>↑</button>
-                            <button type="button" aria-label="Move down" onClick={() => setFields(product.id, move(fields, index, index + 1))}>↓</button>
-                            <button type="button" className="danger" onClick={() => setFields(product.id, fields.filter((item) => item.id !== field.id))}>Remove</button>
+                            <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setFields(product.id, move(fields, index, index - 1))}>↑</button>
+                            <button type="button" className="icon" aria-label="Move down" disabled={index === fields.length - 1} onClick={() => setFields(product.id, move(fields, index, index + 1))}>↓</button>
                           </div>
                         </header>
                         <input className="help" placeholder="Optional help text shown under the question" value={field.help ?? ""} onChange={(event) => updateField(product.id, field.id, { help: event.target.value })} />
@@ -145,7 +219,7 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
                           <div key={choice.id} className="choice-row">
                             <input aria-label="Choice" value={choice.label} onChange={(event) => updateChoice(product.id, field, choice.id, { label: event.target.value })} />
                             <label><input type="number" min="0" step="0.5" value={choice.hours} onChange={(event) => updateChoice(product.id, field, choice.id, { hours: Number(event.target.value) })} /><span>h</span></label>
-                            <button type="button" aria-label="Remove choice" onClick={() => updateField(product.id, field.id, { choices: field.choices.filter((item) => item.id !== choice.id) })}>−</button>
+                            <button type="button" className="icon" aria-label="Remove choice" title="Remove choice" disabled={field.choices.length === 1} onClick={() => updateField(product.id, field.id, { choices: field.choices.filter((item) => item.id !== choice.id) })}>×</button>
                           </div>
                         ))}
                         <button type="button" className="add-task" onClick={() => updateField(product.id, field.id, { choices: [...field.choices, { id: uid("choice"), label: "New option", hours: 0 }] })}>+ Add choice</button>
@@ -163,24 +237,25 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
       {tab === "prerequisites" && (
         <div className="content designer-content">
           <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Prerequisites</h1><p>What the customer must provide before each product can be deployed. These pre-populate the Prerequisites step for every estimate that includes the product, and the SA can add engagement-specific ones there.</p></div></div>
+          {selectionBar}
           <div className="designer-list">
-            {products.map((product) => {
+            {sorted.map((product) => {
               const items = catalog.prerequisites[product.id] ?? [];
               return (
                 <details key={product.id}>
-                  <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{items.length} prerequisite{items.length === 1 ? "" : "s"} · {items.filter((item) => item.required).length} required</small></span></summary>
+                  <summary><i>{product.mark}</i><span><b>{product.short}</b><small>{items.length} prerequisite{items.length === 1 ? "" : "s"} · {items.filter((item) => item.required).length} required{selectedIn(product.id)}</small></span></summary>
                   <div className="field-builder">
-                    {items.length > 0 && <div className="prereq-head"><span>Prerequisite</span><span>Example value</span><span>Help text</span><span>Required</span><span></span></div>}
+                    {items.length > 0 && <div className="prereq-head"><span></span><span>Prerequisite</span><span>Example value</span><span>Help text</span><span>Required</span><span></span></div>}
                     {items.map((item, index) => (
                       <div key={item.id} className="prereq-edit">
+                        {check(itemKey(product.id, item.id), item.label)}
                         <input aria-label="Prerequisite" value={item.label} onChange={(event) => updatePrereq(product.id, item.id, { label: event.target.value })} />
                         <input aria-label="Example value" placeholder="e.g. 192.168.10.5" value={item.placeholder ?? ""} onChange={(event) => updatePrereq(product.id, item.id, { placeholder: event.target.value })} />
                         <input aria-label="Help text" placeholder="Optional guidance" value={item.help ?? ""} onChange={(event) => updatePrereq(product.id, item.id, { help: event.target.value })} />
                         <label className="workflow-toggle"><input type="checkbox" checked={item.required} onChange={(event) => updatePrereq(product.id, item.id, { required: event.target.checked })} /><span>Required</span></label>
                         <div className="row-actions">
-                          <button type="button" aria-label="Move up" onClick={() => setPrereqs(product.id, move(items, index, index - 1))}>↑</button>
-                          <button type="button" aria-label="Move down" onClick={() => setPrereqs(product.id, move(items, index, index + 1))}>↓</button>
-                          <button type="button" aria-label="Remove prerequisite" onClick={() => setPrereqs(product.id, items.filter((line) => line.id !== item.id))}>−</button>
+                          <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setPrereqs(product.id, move(items, index, index - 1))}>↑</button>
+                          <button type="button" className="icon" aria-label="Move down" disabled={index === items.length - 1} onClick={() => setPrereqs(product.id, move(items, index, index + 1))}>↓</button>
                         </div>
                       </div>
                     ))}
@@ -196,15 +271,16 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
       {tab === "outofscope" && (
         <div className="content designer-content">
           <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Out of scope</h1><p>Things your team commonly excludes from an engagement. They appear as checkboxes in the Engagement step, and the ones an SA ticks are printed in the scope document. SAs can always add engagement-specific items there too.</p></div><button type="button" className="primary" onClick={() => patch({ outOfScope: [...catalog.outOfScope, { id: uid("oos"), label: "" }] })}>+ Add item</button></div>
+          {selectionBar}
           <div className="designer-list oos-list">
             {catalog.outOfScope.length === 0 && <p className="panel-copy list-empty">No common out-of-scope items yet.</p>}
             {catalog.outOfScope.map((item, index) => (
               <div className="oos-edit" key={item.id}>
+                {check(item.id, item.label)}
                 <input aria-label="Out-of-scope item" placeholder="e.g. Production hardening and performance tuning" value={item.label} onChange={(event) => patch({ outOfScope: catalog.outOfScope.map((entry) => entry.id === item.id ? { ...entry, label: event.target.value } : entry) })} />
                 <div className="row-actions">
-                  <button type="button" aria-label="Move up" onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index - 1) })}>↑</button>
-                  <button type="button" aria-label="Move down" onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index + 1) })}>↓</button>
-                  <button type="button" aria-label="Remove item" onClick={() => patch({ outOfScope: catalog.outOfScope.filter((entry) => entry.id !== item.id) })}>−</button>
+                  <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index - 1) })}>↑</button>
+                  <button type="button" className="icon" aria-label="Move down" disabled={index === catalog.outOfScope.length - 1} onClick={() => patch({ outOfScope: move(catalog.outOfScope, index, index + 1) })}>↓</button>
                 </div>
               </div>
             ))}
@@ -215,41 +291,79 @@ export function CatalogManager({ catalog, setCatalog, onReset }: Props) {
       {tab === "deliverables" && (
         <div className="content designer-content">
           <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Deliverable workflows</h1><p>Group tasks by the product they belong to. Only groups tied to a product in the engagement, or to no product, are offered in the Deliverables step.</p></div><div className="actions"><button type="button" className="secondary" onClick={() => offerAll(true)}>Offer all</button><button type="button" className="secondary" onClick={() => offerAll(false)}>Offer none</button><button type="button" className="primary" onClick={addGroup}>+ Add group</button></div></div>
+          {selectionBar}
           <div className="catalog-groups">
             {catalog.groups.map((group, index) => (
-              <details key={group.id} open={index === 0}>
-                <summary><span><b>{group.scopeNumber && `${group.scopeNumber} · `}{group.name}</b><small>{group.category} · {products.find((product) => product.id === group.productId)?.short ?? "Any product"} · {group.tasks.length} tasks</small></span><em>{group.tasks.filter((task) => task.enabled).length} offered</em><strong>{groupHours(group)}h</strong></summary>
-                <div className="catalog-group-body">
-                  <div className="group-settings">
-                    <label>Section no.<input placeholder="2" value={group.scopeNumber ?? ""} onChange={(event) => updateGroup(group.id, { scopeNumber: event.target.value })} /></label>
-                    <label>Group name<input value={group.name} onChange={(event) => updateGroup(group.id, { name: event.target.value })} /></label>
-                    <label>Category<input value={group.category} onChange={(event) => updateGroup(group.id, { category: event.target.value })} /></label>
-                    <label>Product<select value={group.productId} onChange={(event) => updateGroup(group.id, { productId: event.target.value })}><option value="">Any product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.short}</option>)}</select></label>
-                    <div className="row-actions">
-                      <button type="button" className="offer-toggle" disabled={!group.tasks.length} onClick={() => offerAll(!group.tasks.every((task) => task.enabled), group.id)}>{group.tasks.length && group.tasks.every((task) => task.enabled) ? "Offer none" : "Offer all"}</button>
-                      <button type="button" aria-label="Move group up" onClick={() => setGroups(move(catalog.groups, index, index - 1))}>↑</button>
-                      <button type="button" aria-label="Move group down" onClick={() => setGroups(move(catalog.groups, index, index + 1))}>↓</button>
-                      <button type="button" className="danger" onClick={() => window.confirm(`Delete “${group.name}” and its tasks?`) && setGroups(catalog.groups.filter((item) => item.id !== group.id))}>Delete</button>
+              <div className="select-row" key={group.id}>
+                {check(group.id, group.name)}
+                <details open={index === 0}>
+                  <summary><span><b>{group.scopeNumber && `${group.scopeNumber} · `}{group.name}</b><small>{group.category} · {products.find((product) => product.id === group.productId)?.short ?? "Any product"} · {group.tasks.length} tasks</small></span><em>{group.tasks.filter((task) => task.enabled).length} offered</em><strong>{groupHours(group)}h</strong></summary>
+                  <div className="catalog-group-body">
+                    <div className="group-settings">
+                      <label>Section no.<input placeholder="2" value={group.scopeNumber ?? ""} onChange={(event) => updateGroup(group.id, { scopeNumber: event.target.value })} /></label>
+                      <label>Group name<input value={group.name} onChange={(event) => updateGroup(group.id, { name: event.target.value })} /></label>
+                      <label>Category<input value={group.category} onChange={(event) => updateGroup(group.id, { category: event.target.value })} /></label>
+                      <label>Product<select value={group.productId} onChange={(event) => updateGroup(group.id, { productId: event.target.value })}><option value="">Any product</option>{sorted.map((product) => <option key={product.id} value={product.id}>{product.short}</option>)}</select></label>
+                      <div className="row-actions">
+                        <button type="button" className="offer-toggle" disabled={!group.tasks.length} onClick={() => offerAll(!group.tasks.every((task) => task.enabled), group.id)}>{group.tasks.length && group.tasks.every((task) => task.enabled) ? "Offer none" : "Offer all"}</button>
+                        <button type="button" className="icon" aria-label="Move group up" disabled={index === 0} onClick={() => setGroups(move(catalog.groups, index, index - 1))}>↑</button>
+                        <button type="button" className="icon" aria-label="Move group down" disabled={index === catalog.groups.length - 1} onClick={() => setGroups(move(catalog.groups, index, index + 1))}>↓</button>
+                      </div>
                     </div>
+                    <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow</span><span></span></div>
+                    {group.tasks.map((task) => (
+                      <div className="catalog-task" key={task.id}>
+                        <input className="scope-number" placeholder="2.1" value={task.scopeNumber ?? ""} onChange={(event) => updateTask(group.id, task.id, { scopeNumber: event.target.value })} />
+                        <input aria-label="Task" value={task.name} onChange={(event) => updateTask(group.id, task.id, { name: event.target.value })} />
+                        <select value={task.phase} onChange={(event) => updateTask(group.id, task.id, { phase: event.target.value as Phase })}>{phases.map((phase) => <option key={phase}>{phase}</option>)}</select>
+                        <label><input type="number" min="0" step="0.5" value={task.hours} onChange={(event) => updateTask(group.id, task.id, { hours: Number(event.target.value) })} /><span>h</span></label>
+                        <label className="workflow-toggle"><input type="checkbox" checked={task.enabled} onChange={(event) => updateTask(group.id, task.id, { enabled: event.target.checked })} /><span>Offer</span></label>
+                        <button type="button" className="icon" aria-label="Remove task" title="Remove task" onClick={() => updateGroup(group.id, { tasks: group.tasks.filter((item) => item.id !== task.id) })}>×</button>
+                      </div>
+                    ))}
+                    <button type="button" className="add-task" onClick={() => updateGroup(group.id, { tasks: [...group.tasks, { id: uid("task"), name: "New task", phase: "Deployment", hours: 1, enabled: true, scopeNumber: `${group.scopeNumber || ""}${group.scopeNumber ? "." : ""}${group.tasks.length + 1}` }] })}>+ Add task to group</button>
                   </div>
-                  <div className="catalog-task-head"><span>Item no.</span><span>Task</span><span>Delivery phase</span><span>Effort</span><span>Workflow</span><span></span></div>
-                  {group.tasks.map((task) => (
-                    <div className="catalog-task" key={task.id}>
-                      <input className="scope-number" placeholder="2.1" value={task.scopeNumber ?? ""} onChange={(event) => updateTask(group.id, task.id, { scopeNumber: event.target.value })} />
-                      <input aria-label="Task" value={task.name} onChange={(event) => updateTask(group.id, task.id, { name: event.target.value })} />
-                      <select value={task.phase} onChange={(event) => updateTask(group.id, task.id, { phase: event.target.value as Phase })}>{phases.map((phase) => <option key={phase}>{phase}</option>)}</select>
-                      <label><input type="number" min="0" step="0.5" value={task.hours} onChange={(event) => updateTask(group.id, task.id, { hours: Number(event.target.value) })} /><span>h</span></label>
-                      <label className="workflow-toggle"><input type="checkbox" checked={task.enabled} onChange={(event) => updateTask(group.id, task.id, { enabled: event.target.checked })} /><span>Offer</span></label>
-                      <button type="button" aria-label="Remove task" onClick={() => updateGroup(group.id, { tasks: group.tasks.filter((item) => item.id !== task.id) })}>−</button>
-                    </div>
-                  ))}
-                  <button type="button" className="add-task" onClick={() => updateGroup(group.id, { tasks: [...group.tasks, { id: uid("task"), name: "New task", phase: "Deployment", hours: 1, enabled: true, scopeNumber: `${group.scopeNumber || ""}${group.scopeNumber ? "." : ""}${group.tasks.length + 1}` }] })}>+ Add task to group</button>
-                </div>
-              </details>
+                </details>
+              </div>
             ))}
           </div>
         </div>
       )}
+
+      {confirming && chosen.length > 0 && (
+        <ConfirmDialog title={`Delete ${plural(chosen.length, one, many)}?`} confirmLabel={`Delete ${plural(chosen.length, one, many)}`} onCancel={() => setConfirming(false)} onConfirm={deleteSelected}>
+          <div className="confirm-list">
+            <ul>{chosen.map((row) => <li key={row.key}>{row.label || "Untitled"}</li>)}</ul>
+            {consequences().map((section) => (
+              <section key={section.heading}>
+                <h3>{section.heading} ({section.items.length})</h3>
+                <ul>{section.items.map((item, index) => <li key={index}>{item || "Untitled"}</li>)}</ul>
+              </section>
+            ))}
+          </div>
+          {tab === "installation" && <p className="modal-note">Estimates that already answered these questions lose those answers.</p>}
+          <p className="modal-warning">This changes the shared catalog for everyone and cannot be undone.</p>
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+/** The editable fields of one product, shared by a saved product and a new, unsaved one. */
+function ProductFields({ product, others, onChange }: { product: Product; others: Product[]; onChange: (changes: Partial<Product>) => void }) {
+  const requires = product.requires ?? [];
+  return (
+    <div className="designer-fields">
+      <label>Portfolio<input value={product.portfolio} onChange={(event) => onChange({ portfolio: event.target.value })} /></label>
+      <label>Product name<input value={product.name} onChange={(event) => onChange({ name: event.target.value })} /></label>
+      <label>Short name<input value={product.short} onChange={(event) => onChange({ short: event.target.value })} /></label>
+      <label>Badge<input value={product.mark} maxLength={3} onChange={(event) => onChange({ mark: event.target.value.toUpperCase() })} /></label>
+      <label>Base work package (hours)<input type="number" min="0" step="0.5" value={product.hours} onChange={(event) => onChange({ hours: Number(event.target.value) })} /></label>
+      <label className="wide">Description<input value={product.description ?? ""} onChange={(event) => onChange({ description: event.target.value })} /></label>
+      <fieldset className="wide product-picks"><legend>Required foundations · pulled into every estimate that includes {product.short || "this product"}</legend>
+        {others.map((item) => <label key={item.id} className="pick"><input type="checkbox" checked={requires.includes(item.id)} onChange={(event) => onChange({ requires: event.target.checked ? [...requires, item.id] : requires.filter((id) => id !== item.id) })} /><i>{item.mark}</i>{item.short}</label>)}
+        {!others.length && <small>Add another product to define a dependency.</small>}
+      </fieldset>
     </div>
   );
 }
