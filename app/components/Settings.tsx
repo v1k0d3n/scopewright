@@ -6,6 +6,7 @@ import { CATALOG_FORMAT, isCatalog, mergeCatalog } from "../lib/estimate";
 import { activeTheme, isBuiltIn, mergeBranding } from "../lib/theme";
 import { buildThemePack, MAX_PACK_BYTES, parseThemePack } from "../lib/theme-pack";
 import type { Branding, Catalog } from "../lib/types";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const uid = () => `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -28,6 +29,8 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
   const faviconInput = useRef<HTMLInputElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const themeInput = useRef<HTMLInputElement>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [resettingTheme, setResettingTheme] = useState(false);
   const [message, setMessage] = useState("");
   const flash = (text: string) => { setMessage(text); setTimeout(() => setMessage(""), Math.min(12_000, 2_500 + text.length * 40)); };
   const patch = (changes: Partial<Branding>) => setBranding({ ...branding, ...changes });
@@ -65,6 +68,9 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
   const stamp = () => new Date().toISOString().slice(0, 10);
   /** Same format the catalog page used to write, so earlier exports still import. */
   const exportCatalog = () => { download(`scopewright-catalog-${stamp()}.json`, { format: CATALOG_FORMAT, version: 1, exportedAt: new Date().toISOString(), catalog }); flash("Catalog exported."); };
+  const catalogEmpty = !catalog.products.length && !catalog.groups.length && !catalog.solutions.length && !catalog.outOfScope.length;
+  const resetTheme = () => { setBranding(defaultBranding); setResettingTheme(false); flash("Theme reset."); };
+  const deleteCatalog = () => { setCatalog(defaultCatalog); setDeleting(false); flash("Catalog deleted."); };
   const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "theme";
   const exportTheme = () => { download(`${slug(branding.orgName)}-theme-${stamp()}.zip`, buildThemePack(branding)); flash("Theme exported."); };
   const importTheme = (file: File | undefined) => {
@@ -99,7 +105,7 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
 
   return (
     <div className="content settings">
-      <div className="title-row"><div><span className="eyebrow">SETTINGS</span><h1>Brand the workspace</h1><p>Colors, typography, and identity apply to the whole app and to every scope document you print.</p></div><div className="actions">{message && <span className="flash">{message}</span>}<button type="button" className="secondary" onClick={() => setBranding(defaultBranding)}>Reset to defaults</button></div></div>
+      <div className="title-row"><div><span className="eyebrow">SETTINGS</span><h1>Brand the workspace</h1><p>Colors, typography, and identity apply to the whole app and to every scope document you print.</p></div><div className="actions">{message && <span className="flash">{message}</span>}</div></div>
       <div className="settings-grid">
         <section className="panel">
           <h3>Identity</h3>
@@ -186,7 +192,15 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
           <div className="transfer-list">
             <div><span><b>Export theme</b><small>{branding.orgName || "Untitled"} · colors, fonts, identity, logo, favicon</small></span><button type="button" className="secondary" onClick={exportTheme}>Export .zip</button></div>
             <div><span><b>Import theme</b><small>A theme pack exported from this page</small></span><button type="button" className="primary" onClick={() => themeInput.current?.click()}>Import .zip</button></div>
+            <div className="transfer-danger"><span><b>Reset theme</b><small>Return all branding to the built-in defaults</small></span><button type="button" className="destructive-outline" onClick={() => setResettingTheme(true)}>Reset…</button></div>
           </div>
+          {resettingTheme && (
+            <ConfirmDialog title="Reset the entire theme?" confirmLabel="Reset theme" typeToConfirm="RESET" onCancel={() => setResettingTheme(false)} onConfirm={resetTheme}
+              aside={<button type="button" className="secondary modal-aside" onClick={exportTheme}>Export .zip first</button>}>
+              <p className="modal-warning"><b>WARNING: this cannot be undone.</b> The organization and workspace names, tagline, initials, logo, favicon, colors, saved color schemes, fonts, and scope document settings all return to the built-in defaults for everyone who uses this workspace.</p>
+              <p className="modal-note">Make sure you have a current backup before you continue. <b>Export .zip first</b> saves one, and <b>Import .zip</b> restores it later. The estimate catalog is not affected.</p>
+            </ConfirmDialog>
+          )}
           <input ref={themeInput} type="file" accept="application/zip,.zip" hidden onChange={(event) => { importTheme(event.target.files?.[0]); event.target.value = ""; }} />
         </section>
 
@@ -196,8 +210,17 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
           <div className="transfer-list">
             <div><span><b>Export catalog</b><small>{catalog.products.length} products · {catalog.groups.length} deliverable groups</small></span><button type="button" className="secondary" onClick={exportCatalog}>Export .json</button></div>
             <div><span><b>Import catalog</b><small>Replaces the shared catalog</small></span><button type="button" className="primary" onClick={() => importInput.current?.click()}>Import .json</button></div>
+            <div className="transfer-danger"><span><b>Delete catalog</b><small>Delete all catalog data</small></span><button type="button" className="destructive-outline" disabled={catalogEmpty} onClick={() => setDeleting(true)}>Delete…</button></div>
           </div>
           <input ref={importInput} type="file" accept="application/json,.json" hidden onChange={(event) => { importCatalog(event.target.files?.[0]); event.target.value = ""; }} />
+          {deleting && (
+            <ConfirmDialog title="Delete the entire catalog?" confirmLabel="Delete catalog" typeToConfirm="DELETE" onCancel={() => setDeleting(false)} onConfirm={deleteCatalog}
+              aside={<button type="button" className="secondary modal-aside" onClick={exportCatalog}>Export .json first</button>}>
+              <p className="modal-warning"><b>WARNING: this cannot be undone.</b> Every product, solution, installation question, prerequisite, deliverable group, and out-of-scope item is deleted for everyone who uses this workspace.</p>
+              <p className="modal-note">Make sure you have a current backup before you continue. <b>Export .json first</b> saves one, and <b>Import .json</b> restores it later.</p>
+              <p className="modal-note">Deletes {catalog.products.length} products, {catalog.solutions.length} solutions, {catalog.groups.length} deliverable groups, and {catalog.outOfScope.length} out-of-scope items.</p>
+            </ConfirmDialog>
+          )}
         </section>
       </div>
     </div>

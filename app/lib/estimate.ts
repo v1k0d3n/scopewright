@@ -214,6 +214,28 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
   return { products, installation, prerequisites, groups, solutions, outOfScope };
 }
 
+/** What to delete from a catalog. Questions and prerequisites are keyed `productId:itemId`, since their ids repeat across products. */
+export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; fields?: string[]; prerequisites?: string[] };
+
+/** Delete items by id. A deleted product takes its questions, prerequisites, and deliverable groups with it, and drops out of foundations and solutions. */
+export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Catalog {
+  const products = new Set(removal.products);
+  const solutions = new Set(removal.solutions);
+  const groups = new Set(removal.groups);
+  const outOfScope = new Set(removal.outOfScope);
+  const fields = new Set(removal.fields);
+  const prereqs = new Set(removal.prerequisites);
+  const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: Set<string>) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.has(selectionKey(productId, item.id)))]));
+  return {
+    products: catalog.products.filter((product) => !products.has(product.id)).map((product) => ({ ...product, requires: (product.requires ?? []).filter((dep) => !products.has(dep)) })),
+    installation: perProduct(catalog.installation, fields),
+    prerequisites: perProduct(catalog.prerequisites, prereqs),
+    groups: catalog.groups.filter((group) => !groups.has(group.id) && !products.has(group.productId)),
+    solutions: catalog.solutions.filter((solution) => !solutions.has(solution.id)).map((solution) => ({ ...solution, products: solution.products.filter((id) => !products.has(id)) })),
+    outOfScope: catalog.outOfScope.filter((item) => !outOfScope.has(item.id)),
+  };
+}
+
 export const isCatalog = (value: unknown): value is Catalog => {
   const c = value as Partial<Catalog> | undefined;
   return Boolean(c && Array.isArray(c.products) && c.installation && typeof c.installation === "object" && Array.isArray(c.groups));
