@@ -172,19 +172,20 @@ jobs:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
-      - name: Push
+      # Push only the commit tag first. latest and release tags are added once
+      # the digest is signed and attested, so they never name an image that
+      # lacks its verification material.
+      - name: Push the commit tag
         id: push
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          for tag in $TAGS; do
-            docker tag scopewright:ci "$tag"
-            docker push "$tag"
-          done
+          staging=$(printf '%s\n' "$TAGS" | grep ':sha-')
+          docker tag scopewright:ci "$staging"
+          docker push "$staging"
           # Ask the registry, so signing and attestation name what it stored.
-          digest=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')
+          digest=$(docker buildx imagetools inspect "$staging" --format '{{.Manifest.Digest}}')
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "Pushed $IMAGE@$digest" >> "$GITHUB_STEP_SUMMARY"
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign
         run: cosign sign --yes "$IMAGE@${{ steps.push.outputs.digest }}"
@@ -193,3 +194,15 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+      - name: Promote latest and release tags
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          for tag in $(printf '%s\n' "$TAGS" | grep -v ':sha-'); do
+            docker tag scopewright:ci "$tag"
+            docker push "$tag"
+            # Every tag must name the digest that was signed.
+            test "$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" = "$DIGEST"
+          done
+          echo "Published $IMAGE@$DIGEST as: $TAGS" >> "$GITHUB_STEP_SUMMARY"
