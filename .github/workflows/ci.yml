@@ -109,9 +109,10 @@ jobs:
           cache: npm
       - run: npm ci
       # Runtime dependencies gate the build at moderate and above; the full
-      # tree (build tooling included) is reported but only fails on high.
+      # tree (build tooling included) fails on high, apart from the reviewed,
+      # expiring exceptions in scripts/audit-exceptions.json.
       - run: npm audit --omit=dev --audit-level=moderate
-      - run: npm audit --audit-level=high
+      - run: node scripts/check-audit.mjs
 
   codeql:
     name: CodeQL
