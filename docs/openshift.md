@@ -85,11 +85,26 @@ first run, uploads the working tree as a binary build, waits for the rollout,
 and prints the URL. Re-run it to deploy a new version; the volume and the
 secret persist.
 
-### Using your own image instead of the cluster build
+### Using a published image instead of the cluster build
 
-The build script uploads the source and builds the image on the cluster. If
-you would rather build with podman or docker and push to a registry the
-cluster can pull from:
+The build script uploads the source and builds the image on the cluster.
+Instead, you can run the image CI publishes to
+[`quay.io/bjozsa-redhat/scopewright`](https://quay.io/repository/bjozsa-redhat/scopewright)
+after every check passes: `latest` follows `main`, release tags publish
+`0.2.0`-style (and `v0.2.0`) tags, and every push gets `sha-<commit>`. Images
+are linux/amd64, signed with cosign (keyless), and carry a build provenance
+attestation. Prefer a release tag, or pin the digest. To check where an image
+came from:
+
+```bash
+cosign verify quay.io/bjozsa-redhat/scopewright:0.2.0 \
+  --certificate-identity-regexp '^https://github.com/v1k0d3n/scopewright/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+gh attestation verify oci://quay.io/bjozsa-redhat/scopewright:0.2.0 -R v1k0d3n/scopewright
+```
+
+Or build with podman or docker and push to a registry the cluster can pull
+from:
 
 ```bash
 podman build -t quay.io/you/scopewright:0.2.0 -f Containerfile .

@@ -114,8 +114,10 @@ podman build -t localhost/scopewright:latest -f Containerfile .
 ```
 
 The overlay uses that image with `imagePullPolicy: IfNotPresent`. To use a
-registry image, change the image in your local overlay and pull it as the
-same user before starting the service.
+registry image, such as the published `quay.io/bjozsa-redhat/scopewright`
+(see [OpenShift](openshift.md#using-a-published-image-instead-of-the-cluster-build)),
+change the image in your local overlay and pull it as the same user before
+starting the service.
 
 Install the rendered YAML beside the Quadlet. The following Bash subshell
 stops on errors and stages each file before replacing the installed copy:

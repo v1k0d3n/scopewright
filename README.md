@@ -164,8 +164,11 @@ proxy modes; a container build from the `Containerfile`; deployment rendering
 and configuration checks; `npm audit`
 (runtime dependencies gate at moderate, the whole tree at high); and CodeQL
 security and quality analysis (on public repositories, where GitHub provides
-code scanning). Dependabot proposes npm, GitHub Actions, and
-base-image updates weekly.
+code scanning). When all of that passes on `main` or a `v*` tag, the tested
+image is pushed to `quay.io/bjozsa-redhat/scopewright`, signed, and attested
+(see [OpenShift](docs/openshift.md#using-a-published-image-instead-of-the-cluster-build)).
+Actions and base images are pinned by digest; Dependabot proposes npm,
+GitHub Actions, and base-image updates weekly.
 
 ```bash
 npm install

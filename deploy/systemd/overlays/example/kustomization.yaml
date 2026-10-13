@@ -35,8 +35,8 @@ patches:
 # generatorOptions:
 #   disableNameSuffixHash: true
 
-# Optional: use a prebuilt image instead of the local Containerfile build.
+# Optional: use the published image instead of the local Containerfile build.
 # images:
 #   - name: localhost/scopewright
-#     newName: quay.io/you/scopewright
+#     newName: quay.io/bjozsa-redhat/scopewright
 #     newTag: "0.2.0"
