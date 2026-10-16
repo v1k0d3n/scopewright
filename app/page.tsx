@@ -61,8 +61,8 @@ export default function Home() {
   const [savingAs, setSavingAs] = useState(false);
   /** An opened or imported estimate that no longer matches the catalog. */
   const [attention, setAttention] = useState<{ name: string; changes: CatalogChanges } | null>(null);
-  /** Products dropped from the opened or imported estimate because the catalog no longer has them; shown in Review until it is saved. */
-  const [dropped, setDropped] = useState<string[]>([]);
+  /** Products dropped from the opened or imported estimate because the catalog no longer has them; shown in Review until it is saved. Kept with the tab's draft, so a refresh does not lose it. */
+  const [dropped, setDropped] = usePersistentState<string[]>("dropped-products", [], (stored) => (Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : []), "tab");
   // The newest estimate, readable after an await: a save that finishes late must not vouch for edits made while it ran.
   const latest = useRef(estimate);
   useEffect(() => { latest.current = estimate; }, [estimate]);
