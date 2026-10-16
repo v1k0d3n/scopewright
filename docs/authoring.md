@@ -157,7 +157,7 @@ All five sections are required (use `[]` or `{}` when empty). Field by field:
 | `category` | string | yes | Free text: Storage, Network, Security, Engagement, ... |
 | `productId` | product id or `""` | yes | The product this group belongs to; `""` means every engagement. |
 | `scopeNumber` | string | no | Section number in the scope document, e.g. `"2"`. |
-| `tasks[]` | array | yes | `{ "id", "name", "phase", "hours", "enabled", "scopeNumber"? }`; `phase` is one of the five phases; `enabled: true` offers the task in estimates. |
+| `tasks[]` | array | yes | `{ "id", "name", "phase", "hours", "enabled", "scopeNumber"? }`; `phase` is one of the five phases; `enabled: true` offers the task in estimates (turning it off does not remove it from estimates that already selected it). |
 
 ### `solutions[]`
 
@@ -222,10 +222,18 @@ derived from the catalog. `environments` marks a product as already existing
 An estimate refers to the catalog **by id**: products, questions and choices,
 prerequisites, tasks, and out-of-scope items. That is the practical reason
 ids must stay stable once a catalog is in use (see Conventions): renaming an
-id orphans it in every saved estimate. When an estimate is opened, ids that
-no longer exist in the catalog are dropped, the user is warned, and hours are
+id orphans it in every saved estimate. When an estimate is opened, hours are
 recomputed from the current catalog; the hours stored in `summary` are only a
-convenience for listings.
+convenience for listings. Ids that no longer resolve are handled as follows:
+
+- A **product** that no longer exists is dropped, and the user is warned.
+- A **choice** that no longer exists leaves its question unanswered: no hours
+  are counted, the scope document prints "To be decided", and the user is
+  asked to choose again. It is never replaced by another choice.
+- A **task** with `enabled: false` stays in estimates that already selected
+  it; `enabled` only controls what is offered.
+- A **task**, **prerequisite**, or **out-of-scope item** that no longer
+  exists is left out.
 
 `outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0. Older
 files without them open normally and get the defaults: nothing out of scope,

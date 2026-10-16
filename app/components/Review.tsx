@@ -1,9 +1,10 @@
 "use client";
 
+import { TO_BE_DECIDED } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Estimate } from "../lib/types";
 
-export function Review({ estimate, breakdown, onEditEngagement }: { estimate: Estimate; breakdown: EstimateBreakdown; onEditEngagement: () => void }) {
+export function Review({ estimate, breakdown, onEditEngagement, onEditInstallation }: { estimate: Estimate; breakdown: EstimateBreakdown; onEditEngagement: () => void; onEditInstallation: () => void }) {
   return (
     <div className="review">
       <div className="review-summary">
@@ -12,6 +13,13 @@ export function Review({ estimate, breakdown, onEditEngagement }: { estimate: Es
         <div className="wide"><span>Goal</span><p className={estimate.goal ? "" : "placeholder-copy"}>{estimate.goal || "No goal written yet."}</p></div>
         <button type="button" className="link" onClick={onEditEngagement}>Edit engagement details →</button>
       </div>
+      {breakdown.unansweredQuestions > 0 && (
+        <div className="notice notice-error">
+          <b>{breakdown.unansweredQuestions} installation question{breakdown.unansweredQuestions === 1 ? " needs" : "s need"} a new answer</b>
+          <span>The catalog no longer offers the answer saved with this estimate: {breakdown.products.flatMap((item) => item.unanswered.map((field) => `${item.product.short}: ${field.label}`)).join(" · ")}. The scope document shows “{TO_BE_DECIDED}” until you choose.</span>
+          <button type="button" className="link" onClick={onEditInstallation}>Choose answers in Installation →</button>
+        </div>
+      )}
       {breakdown.prerequisites.length > 0 && (
         <div className={`notice ${breakdown.pendingPrerequisites ? "" : "notice-ok"}`}>
           <b>{breakdown.pendingPrerequisites ? `${breakdown.pendingPrerequisites} required prerequisite${breakdown.pendingPrerequisites === 1 ? "" : "s"} still pending` : "All required prerequisites provided"}</b>
@@ -24,7 +32,7 @@ export function Review({ estimate, breakdown, onEditEngagement }: { estimate: Es
           {breakdown.products.map((item) => (
             <tr key={item.product.id} className="product-row">
               <td><b>{item.product.name}</b>{item.foundation && <small>Required foundation</small>}</td>
-              <td>{item.existing ? "Existing environment" : item.decisions.length ? item.decisions.map((decision) => decision.choice.label).join(" · ") : "New deployment"}</td>
+              <td>{item.existing ? "Existing environment" : item.decisions.length || item.unanswered.length ? [...item.decisions.map((decision) => decision.choice.label), ...item.unanswered.map((field) => `${field.label}: ${TO_BE_DECIDED.toLowerCase()}`)].join(" · ") : "New deployment"}</td>
               <td>{item.hours}h</td>
             </tr>
           ))}

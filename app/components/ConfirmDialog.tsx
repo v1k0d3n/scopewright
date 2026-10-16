@@ -7,6 +7,9 @@ type Props = {
   title: string;
   children: React.ReactNode;
   confirmLabel: string;
+  /** "primary" for a dialog that leads somewhere rather than destroying something. */
+  tone?: "destructive" | "primary";
+  cancelLabel?: string;
   /** When set, the confirm button stays disabled until this exact word is typed. */
   typeToConfirm?: string;
   /** An extra, non-closing action shown beside Cancel, such as exporting a backup first. */
@@ -15,8 +18,8 @@ type Props = {
   onCancel: () => void;
 };
 
-/** A destructive action, asked about once, in words. Escape or a click outside cancels; focus stays inside until it closes. */
-export function ConfirmDialog({ title, children, confirmLabel, typeToConfirm, aside, onConfirm, onCancel }: Props) {
+/** A destructive action (or, with tone "primary", a choice), asked about once, in words. Escape or a click outside cancels; focus stays inside until it closes. */
+export function ConfirmDialog({ title, children, confirmLabel, tone = "destructive", cancelLabel = "Cancel", typeToConfirm, aside, onConfirm, onCancel }: Props) {
   const [typed, setTyped] = useState("");
   const field = useRef<HTMLInputElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -42,8 +45,8 @@ export function ConfirmDialog({ title, children, confirmLabel, typeToConfirm, as
         )}
         <div className="modal-actions">
           {aside}
-          <button ref={cancel} type="button" className="secondary" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="destructive" disabled={!ready}>{confirmLabel}</button>
+          <button ref={cancel} type="button" className="secondary" onClick={onCancel}>{cancelLabel}</button>
+          <button type="submit" className={tone} disabled={!ready}>{confirmLabel}</button>
         </div>
       </form>
     </div>
