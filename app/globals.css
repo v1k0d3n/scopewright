@@ -283,7 +283,7 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .phase-body label { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; cursor: pointer; }
 .phase-body label strong { font-size: 12px; font-weight: 600; }
 .item-number { display: inline-block; min-width: 42px; color: var(--muted); font-style: normal; font-variant-numeric: tabular-nums; }
-.retired-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #b35c00; background: #fdf1e3; }
+.retired-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #a35300; background: #fdf1e3; }
 
 /* Step 6: review */
 .review-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
