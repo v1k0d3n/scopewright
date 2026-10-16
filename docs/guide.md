@@ -200,8 +200,10 @@ needs attention** dialog lists what changed, section by section:
   needs doing unless you want to remove them.
 
 **Review installation details** (or **Review products**) takes you to the
-step to fix; **Not now** closes the dialog, and the same warnings stay in the
-steps and on the Review page. Nothing is written to the file until you save.
+step to fix; **Not now** closes the dialog, and the warnings stay: unanswered
+questions in Installation details and on the Review page, and products that
+were left out on the Review page until you save. Nothing is written to the
+file until you save.
 If the only change is a kept deliverable, a short notice says so instead.
 
 The scope document always reflects the current catalog: an option that was

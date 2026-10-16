@@ -61,10 +61,12 @@ export default function Home() {
   const [savingAs, setSavingAs] = useState(false);
   /** An opened or imported estimate that no longer matches the catalog. */
   const [attention, setAttention] = useState<{ name: string; changes: CatalogChanges } | null>(null);
+  /** Products dropped from the opened or imported estimate because the catalog no longer has them; shown in Review until it is saved. */
+  const [dropped, setDropped] = useState<string[]>([]);
   // The newest estimate, readable after an await: a save that finishes late must not vouch for edits made while it ran.
   const latest = useRef(estimate);
   useEffect(() => { latest.current = estimate; }, [estimate]);
-  const markSaved = (written: Estimate) => { if (latest.current.updatedAt === written.updatedAt) setSavedAt(Date.now()); };
+  const markSaved = (written: Estimate) => { if (latest.current.updatedAt === written.updatedAt) { setSavedAt(Date.now()); setDropped([]); } };
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => {
     fetch("/api/workspace/me", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setIdentity(value as Identity | null)).catch(() => setIdentity(null));
@@ -150,7 +152,7 @@ export default function Home() {
     }
   };
   const replaceDraft = (action: string) => !hasDraft || Boolean(savedAt) || window.confirm(`${action} Unsaved changes to the current draft will be lost.`);
-  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; const closing = library.close(); setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); setView("estimate"); await closing; };
+  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; const closing = library.close(); setEstimate(emptyEstimate()); setDropped([]); setStep(1); setSavedAt(0); setView("estimate"); await closing; };
   const openDocument = async (doc: DocumentRef) => {
     if (!replaceDraft(`Open “${doc.name}”?`)) return;
     try {
@@ -161,6 +163,7 @@ export default function Home() {
       if (!parsed) { await library.close(); library.setError(`“${doc.name}” is not a Scopewright estimate.`); return; }
       const changes = catalogChanges(catalog, parsed);
       setEstimate({ ...parsed, products: parsed.products.filter((id) => !changes.removedProducts.includes(id)) });
+      setDropped(changes.removedProducts);
       setStep(1);
       // Dropping products changes the estimate: show it as unsaved so the file is only rewritten on purpose.
       setSavedAt(changes.removedProducts.length ? 0 : Date.now());
@@ -195,6 +198,7 @@ export default function Home() {
         // Install the import straight away, so nothing typed during that moment is replaced afterwards, and wait for the release last.
         const closing = library.close();
         setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)), updatedAt: Date.now() });
+        setDropped(missing);
         setStep(1);
         setSavedAt(0);
         reportChanges(file.name, catalogChanges(catalog, parsed), "Estimate imported. Review each step; hours reflect the current catalog.");
@@ -267,7 +271,7 @@ export default function Home() {
                 {step === 3 && <InstallationDetails catalog={catalog} estimate={estimate} breakdown={breakdown.products} update={update} />}
                 {step === 4 && <Prerequisites estimate={estimate} breakdown={breakdown.prerequisites} update={update} />}
                 {step === 5 && <Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} />}
-                {step === 6 && <Review estimate={estimate} breakdown={breakdown} onEditEngagement={() => setStep(1)} onEditInstallation={() => setStep(3)} />}
+                {step === 6 && <Review estimate={estimate} breakdown={breakdown} dropped={dropped} onEditEngagement={() => setStep(1)} onEditInstallation={() => setStep(3)} />}
                 <div className="form-footer">
                   <button type="button" className="back" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>← Back</button>
                   {step < 6 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 5 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={async () => { if (await save()) setView("scope"); }}>Open scope document <span>→</span></button>}

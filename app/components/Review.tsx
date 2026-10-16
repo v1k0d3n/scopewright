@@ -4,7 +4,7 @@ import { TO_BE_DECIDED } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Estimate } from "../lib/types";
 
-export function Review({ estimate, breakdown, onEditEngagement, onEditInstallation }: { estimate: Estimate; breakdown: EstimateBreakdown; onEditEngagement: () => void; onEditInstallation: () => void }) {
+export function Review({ estimate, breakdown, dropped, onEditEngagement, onEditInstallation }: { estimate: Estimate; breakdown: EstimateBreakdown; dropped: string[]; onEditEngagement: () => void; onEditInstallation: () => void }) {
   return (
     <div className="review">
       <div className="review-summary">
@@ -13,6 +13,12 @@ export function Review({ estimate, breakdown, onEditEngagement, onEditInstallati
         <div className="wide"><span>Goal</span><p className={estimate.goal ? "" : "placeholder-copy"}>{estimate.goal || "No goal written yet."}</p></div>
         <button type="button" className="link" onClick={onEditEngagement}>Edit engagement details →</button>
       </div>
+      {dropped.length > 0 && (
+        <div className="notice notice-error">
+          <b>{dropped.length} product{dropped.length === 1 ? " was" : "s were"} left out because the catalog no longer has {dropped.length === 1 ? "it" : "them"}</b>
+          <span>{dropped.join(" · ")}. Saving writes the estimate without {dropped.length === 1 ? "it" : "them"}; until then the saved file still includes {dropped.length === 1 ? "it" : "them"}.</span>
+        </div>
+      )}
       {breakdown.unansweredQuestions > 0 && (
         <div className="notice notice-error">
           <b>{breakdown.unansweredQuestions} installation question{breakdown.unansweredQuestions === 1 ? " needs" : "s need"} a new answer</b>
