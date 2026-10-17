@@ -213,6 +213,7 @@ button.link { padding: 0; text-align: left; }
 .fields select { width: 100%; min-width: 0; }
 .fields label > span { font-size: 11px; font-weight: 700; color: var(--muted); }
 .fields label small { font-size: 11px; }
+.fields label small.needs-answer { color: #b35c00; font-weight: 600; }
 .fields select { height: 43px; padding: 0 12px; font-size: 13px; }
 .base-package { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: var(--radius-sm); font-size: 12px; }
 .base-package b { grid-row: 1 / 3; align-self: center; color: var(--brand); }
@@ -239,7 +240,7 @@ button.link { padding: 0; text-align: left; }
 .prereq-label small { font-size: 11px; line-height: 1.35; }
 .prereq-row input, .prereq-row select { min-width: 0; padding: 9px 10px; font-size: 13px; }
 select.status-provided, td.status-provided { color: var(--ok); font-weight: 600; }
-select.status-pending, td.status-pending { color: #b35c00; font-weight: 600; }
+select.status-pending, td.status-pending, b.status-pending { color: #b35c00; font-weight: 600; }
 select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft); }
 .notice-ok { background: #e9f4e6; border-left-color: var(--ok); }
 .notice-ok b { color: #1e4d16; }
@@ -282,6 +283,7 @@ select.status-not-applicable, td.status-not-applicable { color: var(--muted-soft
 .phase-body label { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; cursor: pointer; }
 .phase-body label strong { font-size: 12px; font-weight: 600; }
 .item-number { display: inline-block; min-width: 42px; color: var(--muted); font-style: normal; font-variant-numeric: tabular-nums; }
+.retired-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #a35300; background: #fdf1e3; }
 
 /* Step 6: review */
 .review-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
@@ -599,6 +601,7 @@ button.destructive-outline:hover:not(:disabled) { background: #fbeaea; }
 .confirm-list section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .confirm-list h3 { margin: 0 0 6px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .confirm-list section li { color: var(--muted); font-size: 12px; }
+.confirm-list > section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .modal-actions .modal-aside { margin-right: auto; }
 @media (max-width: 720px) {
   .modal-actions { flex-wrap: wrap; }

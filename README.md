@@ -102,7 +102,8 @@ which use `packs/solstice/catalog.json` as their reference catalog.
 - **Export / Import** in the same menu downloads or loads a single estimate
   file, to attach to a deal or hand to someone outside the team. Hours are
   recomputed against the current catalog whenever an estimate is opened or
-  imported.
+  imported. An answer that the catalog no longer offers is shown as "To be
+  decided" until it is chosen again, never swapped for another answer.
 - **Themes and catalogs are files.** Settings exports and imports a theme
   pack (`.zip` with `theme.json`, logo, and favicon; see
   `app/lib/theme-pack.ts`) and the catalog (`.json`).

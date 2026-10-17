@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { defaultTitle, outOfScopeLines, scopeText, statusLabel } from "../lib/estimate";
+import { TO_BE_DECIDED, defaultTitle, outOfScopeLines, scopeText, statusLabel } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
 
@@ -43,7 +43,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <div className="scope-source-note">
             <b>Generated from the estimate</b>
             <span>{breakdown.products.length} product{breakdown.products.length === 1 ? "" : "s"} in scope</span>
-            <span>{breakdown.products.reduce((sum, item) => sum + item.decisions.length, 0)} installation decisions</span>
+            <span>{breakdown.products.reduce((sum, item) => sum + item.decisions.length, 0)} installation decisions{breakdown.unansweredQuestions ? ` (${breakdown.unansweredQuestions} to be decided)` : ""}</span>
             <span>{breakdown.prerequisites.reduce((sum, item) => sum + item.items.length, 0)} prerequisites{breakdown.pendingPrerequisites ? ` (${breakdown.pendingPrerequisites} pending)` : ""}</span>
             <span>{breakdown.deliverables.reduce((sum, item) => sum + item.tasks.length, 0)} deliverables</span>
             <span>{excluded.length} out-of-scope item{excluded.length === 1 ? "" : "s"}</span>
@@ -77,6 +77,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
                 {item.existing && <li>Validate access to the existing environment. No installation effort.</li>}
                 {showHours && item.baseHours > 0 && <li>Base work package {hours(item.baseHours)}</li>}
                 {item.decisions.map((decision) => <li key={decision.field.id}>{decision.field.label}: <b>{decision.choice.label}</b> {hours(decision.choice.hours)}</li>)}
+                {item.unanswered.map((field) => <li key={field.id}>{field.label}: <b className="status-pending">{TO_BE_DECIDED}</b></li>)}
                 {(estimate.details[item.product.id] ?? []).filter((line) => line.description).map((line) => <li key={line.id}>{line.description} {hours(line.hours)}</li>)}
               </ul>
             </section>

@@ -77,6 +77,13 @@ A product's **base work package** (if it has one) is shown for transparency.
 **Other details** lets you add free-text work with hours for anything the
 catalog does not cover; it appears in the estimate and the scope document.
 
+A question you have not answered uses its first choice. If the answer saved
+with an estimate has since been removed from the catalog, the question is
+left **unanswered** rather than switched to another answer: its drop-down
+reads *Choose an answer…* with a note, the frame header counts what is left
+to answer, no hours are counted for it, and the scope document prints
+*To be decided* until you choose.
+
 ### 4. Prerequisites
 
 ![Prerequisites step](img/003-estimate-prerequisites.png)
@@ -100,6 +107,10 @@ everything offered; each phase has its own **Select phase** control and each
 group its own **Select all**. Deselect what the engagement does not need; the
 phase header totals the hours selected.
 
+A task that was selected before it was turned off in the catalog stays in the
+estimate, marked **No longer offered**, with its hours. Clear it if the
+engagement no longer needs it; once cleared, it is not offered again.
+
 ### 6. Review
 
 ![Review step](img/005-estimate-review.png)
@@ -107,8 +118,9 @@ phase header totals the hours selected.
 A summary of the engagement details with a link back to step 1, and the
 scope table: one row per product with its chosen decisions and hours, one per
 deliverable group, and the total. A banner shows how many required
-prerequisites are still pending. **Open scope document** saves the draft and
-moves on.
+prerequisites are still pending, and another lists any installation questions
+whose saved answer the catalog no longer offers, with a link back to
+Installation details. **Open scope document** saves the draft and moves on.
 
 ## The scope document
 
@@ -155,7 +167,7 @@ title names the file it is saved as.
 - **Import…** loads an exported file after showing what it contains. Hours are
   recomputed against the current catalog, so the numbers reflect today's
   catalog. Products that no longer exist in the catalog are dropped with a
-  warning.
+  warning (see [When the catalog has changed](#when-the-catalog-has-changed)).
 - **Export** downloads the estimate as a versioned JSON file named after the
   customer and date: a copy to attach to the deal or hand to someone.
 - **Save** writes the estimate back to the file it came from. For an estimate
@@ -169,6 +181,36 @@ title names the file it is saved as.
 
 Your work in progress is also kept as a draft in this browser as you type, so
 a refresh does not lose it.
+
+### When the catalog has changed
+
+An estimate refers to catalog items by id, and its hours, names, and wording
+are read from the current catalog every time it is opened or imported. When
+the catalog has changed in a way that affects the estimate, a **This estimate
+needs attention** dialog lists what changed, section by section:
+
+- **Installation details · choose a new answer**: questions whose saved
+  answer the catalog no longer offers. Until you choose, the question is
+  unanswered, no hours are counted for it, and the scope document prints
+  *To be decided*.
+- **Products · no longer in the catalog, left out**: products that were
+  removed from the catalog; they are dropped from the estimate.
+- **Deliverables · no longer offered, kept**: selected tasks that were turned
+  off in the catalog. They stay in the estimate with their hours; nothing
+  needs doing unless you want to remove them.
+
+**Review installation details** (or **Review products**) takes you to the
+step to fix; **Not now** closes the dialog, and the warnings stay: unanswered
+questions in Installation details and on the Review page, and products that
+were left out on the Review page until you save (including after a page
+refresh). Nothing is written to the
+file until you save.
+If the only change is a kept deliverable, a short notice says so instead.
+
+The scope document always reflects the current catalog: an option that was
+renamed prints its new name, and changed hours print the new hours. The
+original wording of a removed option is not kept in the estimate, so the PDF
+printed at the time remains the record of what was agreed.
 
 ## Saved estimates
 
@@ -201,7 +243,9 @@ inside the current folder and switches to it. Either way an open estimate is
 closed first, since it belongs to the folder you are leaving.
 
 **Open** loads an estimate into the builder and marks it "Open here". From
-then on **Save** writes back to that file.
+then on **Save** writes back to that file. If the catalog has changed since
+the estimate was saved, you are told what needs attention (see
+[When the catalog has changed](#when-the-catalog-has-changed)).
 
 Files go straight from your browser to the place you chose. They are never
 sent to or stored on the Scopewright server, so customer names stay out of
@@ -271,7 +315,9 @@ straight at the product list.
 Each product's decision tree. A **question** has optional help text and a
 list of **choices**, each with hours. Questions become drop-downs in the
 Installation details step; the chosen answer adds its hours and is printed in
-the scope document. Reorder questions with the arrows.
+the scope document. Reorder questions with the arrows. Removing a choice that
+saved estimates use leaves that question unanswered in those estimates, for
+the architect to answer again; it is never replaced by another choice.
 
 ### Prerequisites
 
@@ -289,8 +335,9 @@ engagement-specific ones there.
 Deliverable **groups** have a section number, a name, a category, and the
 product they belong to ("Any product" for engagement-wide work such as
 kickoff and readout). Each **task** has an item number, a delivery phase,
-hours, and an **Offer** toggle that controls whether it is shown in the
-Deliverables step. **Offer all** and **Offer none** at the top switch every
+hours, and an **Offer** toggle that controls whether it is offered in the
+Deliverables step. Turning a task off only stops it being offered: estimates
+that already selected it keep it, marked **No longer offered**. **Offer all** and **Offer none** at the top switch every
 task at once, and the same button on each group does it for that group alone. Numbering carries through to the scope document.
 
 ### Out of scope

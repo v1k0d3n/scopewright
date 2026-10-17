@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { availableGroups, calculate, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, removeFromCatalog, resolveProducts, scopeText } from "../app/lib/estimate.ts";
+import { availableGroups, calculate, catalogChanges, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, needsAttention, removeFromCatalog, resolveProducts, scopeText } from "../app/lib/estimate.ts";
 
 /** The fictitious Solstice pack is the reference catalog; the app itself ships empty. */
 const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };
@@ -42,6 +42,38 @@ test("deliverables are offered only for products in the engagement", () => {
   assert.ok(!ids.includes("vision-usecase"), "vision deliverables are not offered without Nova Vision");
   const disabled = availableGroups({ ...defaultCatalog, groups: [{ id: "g", name: "g", category: "c", productId: "", tasks: [{ id: "t", name: "t", phase: "Planning", hours: 1, enabled: false }] }] }, []);
   assert.deepEqual(disabled, []);
+});
+
+test("a task turned off in the catalog stays in estimates that already selected it (#45)", () => {
+  const group = defaultCatalog.groups.find((item) => item.tasks.some((task) => task.id === "core-monitor"));
+  const catalog = { ...defaultCatalog, groups: defaultCatalog.groups.map((item) => item.id === group.id ? { ...item, tasks: item.tasks.map((task) => task.id === "core-monitor" ? { ...task, enabled: false } : task) } : item) };
+  const offered = (keep) => availableGroups(catalog, ["core"], keep).flatMap((item) => item.tasks.map((task) => task.id));
+  assert.ok(!offered().includes("core-monitor"), "not offered to an estimate that has not selected it");
+  assert.ok(offered(["core-monitor"]).includes("core-monitor"), "still listed where it is selected, so it can be cleared");
+  const estimate = { ...emptyEstimate(), products: ["core"], selectedTasks: ["core-monitor"] };
+  assert.equal(calculate(catalog, estimate).deliverableHours, calculate(defaultCatalog, estimate).deliverableHours);
+  assert.match(scopeText(catalog, estimate, "Org"), /Enable monitoring, alerting, and log forwarding/);
+});
+
+test("an answer removed from the catalog is never replaced by a different one (#44)", () => {
+  const footprint = defaultCatalog.installation.core.find((field) => field.id === "footprint");
+  const zones = footprint.choices.find((choice) => choice.id === "zones");
+  const catalog = { ...defaultCatalog, installation: { ...defaultCatalog.installation, core: defaultCatalog.installation.core.map((field) => field.id === "footprint" ? { ...field, choices: field.choices.filter((choice) => choice.id !== "zones") } : field) } };
+  const estimate = { ...emptyEstimate(), products: ["core"], selections: { "core:footprint": "zones" } };
+  const before = calculate(defaultCatalog, estimate);
+  const after = calculate(catalog, estimate);
+  const core = after.products.find((item) => item.product.id === "core");
+  assert.deepEqual(core.unanswered.map((field) => field.id), ["footprint"]);
+  assert.ok(!core.decisions.some((decision) => decision.field.id === "footprint"), "no answer is substituted");
+  assert.equal(after.unansweredQuestions, 1);
+  assert.equal(before.total - after.total, zones.hours, "the removed answer's hours are not counted, and nothing else's are added");
+  assert.match(scopeText(catalog, estimate, "Org"), /- Control plane footprint: To be decided/);
+  // A question never answered still defaults to its first choice.
+  const fresh = calculate(catalog, { ...estimate, selections: {} }).products.find((item) => item.product.id === "core");
+  assert.equal(fresh.unanswered.length, 0);
+  assert.equal(fresh.decisions.find((decision) => decision.field.id === "footprint").choice.id, footprint.choices[0].id);
+  // An existing environment asks no installation questions, so nothing is unanswered.
+  assert.equal(calculate(catalog, { ...estimate, environments: { core: "existing" } }).unansweredQuestions, 0);
 });
 
 test("scope text carries every decision and its hours", () => {
@@ -156,4 +188,22 @@ test("deleting a question is exact even when ids contain a colon", () => {
   const next = removeFromCatalog(catalog, { fields: [{ productId: "a:b", itemId: "c" }] });
   assert.deepEqual(next.installation["a:b"], []);
   assert.deepEqual(next.installation.a.map((item) => item.id), ["b:c"]);
+});
+
+test("catalog changes report, by section, what an opened estimate needs", () => {
+  const unchanged = catalogChanges(defaultCatalog, { ...emptyEstimate(), products: ["core"], selections: { "core:footprint": "zones" }, selectedTasks: ["core-monitor"] });
+  assert.deepEqual(unchanged, { removedProducts: [], unanswered: [], retiredTasks: [] });
+  assert.equal(needsAttention(unchanged), false);
+  const catalog = {
+    ...defaultCatalog,
+    installation: { ...defaultCatalog.installation, core: defaultCatalog.installation.core.map((field) => field.id === "footprint" ? { ...field, choices: field.choices.filter((choice) => choice.id !== "zones") } : field) },
+    groups: defaultCatalog.groups.map((group) => ({ ...group, tasks: group.tasks.map((task) => task.id === "core-monitor" ? { ...task, enabled: false } : task) })),
+  };
+  const changes = catalogChanges(catalog, { ...emptyEstimate(), products: ["core", "gone"], selections: { "core:footprint": "zones" }, selectedTasks: ["core-monitor"] });
+  assert.deepEqual(changes.removedProducts, ["gone"]);
+  assert.deepEqual(changes.unanswered.map(({ product, field }) => `${product.id}:${field.id}`), ["core:footprint"]);
+  assert.deepEqual(changes.retiredTasks.map(({ task }) => task.id), ["core-monitor"]);
+  assert.equal(needsAttention(changes), true);
+  // A kept task alone is reported, but asks nothing of the architect.
+  assert.equal(needsAttention({ ...changes, removedProducts: [], unanswered: [] }), false);
 });

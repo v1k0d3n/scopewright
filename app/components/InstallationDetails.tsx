@@ -26,7 +26,7 @@ export function InstallationDetails({ catalog, estimate, breakdown, update }: Pr
                 <small>{product.portfolio}{item.foundation && " · Required foundation"}</small>
                 <b>{product.name}</b>
               </span>
-              <em>{item.existing ? "Existing" : `${item.hours}h`}</em>
+              <em className={item.unanswered.length ? "pending" : undefined}>{item.existing ? "Existing" : item.unanswered.length ? `${item.hours}h · ${item.unanswered.length} to answer` : `${item.hours}h`}</em>
             </header>
             <div className="environment-state">
               <span><b>Environment status</b><small>Assume a new deployment unless the customer already runs this platform.</small></span>
@@ -41,13 +41,16 @@ export function InstallationDetails({ catalog, estimate, breakdown, update }: Pr
               <div className="fields">
                 {product.hours > 0 && <div className="base-package"><span>Base work package</span><b>{product.hours}h</b><small>Set per product in the Estimate Catalog.</small></div>}
                 {fields.map((field) => {
-                  const current = estimate.selections[selectionKey(product.id, field.id)] ?? field.choices[0]?.id ?? "";
+                  const unanswered = item.unanswered.includes(field);
+                  const current = unanswered ? "" : estimate.selections[selectionKey(product.id, field.id)] || field.choices[0]?.id || "";
                   return (
                     <label key={field.id}>
                       <span>{field.label}</span>
-                      <select value={current} onChange={(event) => setChoice(product.id, field.id, event.target.value)}>
+                      <select value={current} className={unanswered ? "status-pending" : undefined} onChange={(event) => setChoice(product.id, field.id, event.target.value)}>
+                        {unanswered && <option value="" disabled>Choose an answer…</option>}
                         {field.choices.map((choice) => <option value={choice.id} key={choice.id}>{choice.label} · {choice.hours}h</option>)}
                       </select>
+                      {unanswered && <small className="needs-answer">The answer saved with this estimate is no longer offered in the catalog. Choose one.</small>}
                       {field.help && <small>{field.help}</small>}
                     </label>
                   );

@@ -12,10 +12,12 @@ import { Library } from "./components/Library";
 import { SaveAs } from "./components/SaveAs";
 import { EstimateCard, Review } from "./components/Review";
 import { ScopeDocument } from "./components/ScopeDocument";
+import { CatalogChangesDialog } from "./components/CatalogChangesDialog";
 import { Settings } from "./components/Settings";
 import { WeeklyUpdate } from "./components/WeeklyUpdate";
 import { defaultBranding, defaultCatalog, emptyEstimate } from "./lib/defaults";
-import { availableGroups, calculate, defaultTitle, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport } from "./lib/estimate";
+import { availableGroups, calculate, catalogChanges, defaultTitle, estimateExport, mergeCatalog, mergeEstimate, needsAttention, parseEstimateExport } from "./lib/estimate";
+import type { CatalogChanges } from "./lib/estimate";
 import { fileNameFor, fileNameFromTyped } from "./lib/sources/documents";
 import { ConflictError } from "./lib/sources/types";
 import type { DocumentRef } from "./lib/sources/types";
@@ -57,10 +59,14 @@ export default function Home() {
   const [savedAt, setSavedAt] = usePersistentState<number>("saved-at", 0, undefined, "tab");
   const [notice, setNotice] = useState("");
   const [savingAs, setSavingAs] = useState(false);
+  /** An opened or imported estimate that no longer matches the catalog. */
+  const [attention, setAttention] = useState<{ name: string; changes: CatalogChanges } | null>(null);
+  /** Products dropped from the opened or imported estimate because the catalog no longer has them; shown in Review until it is saved. Kept with the tab's draft, so a refresh does not lose it. */
+  const [dropped, setDropped] = usePersistentState<string[]>("dropped-products", [], (stored) => (Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : []), "tab");
   // The newest estimate, readable after an await: a save that finishes late must not vouch for edits made while it ran.
   const latest = useRef(estimate);
   useEffect(() => { latest.current = estimate; }, [estimate]);
-  const markSaved = (written: Estimate) => { if (latest.current.updatedAt === written.updatedAt) setSavedAt(Date.now()); };
+  const markSaved = (written: Estimate) => { if (latest.current.updatedAt === written.updatedAt) { setSavedAt(Date.now()); setDropped([]); } };
   const [identity, setIdentity] = useState<Identity | null>(null);
   useEffect(() => {
     fetch("/api/workspace/me", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((value) => setIdentity(value as Identity | null)).catch(() => setIdentity(null));
@@ -99,7 +105,13 @@ export default function Home() {
 
   const breakdown = useMemo(() => calculate(catalog, estimate), [catalog, estimate]);
   const productIds = breakdown.products.map((item) => item.product.id);
-  const groups = availableGroups(catalog, productIds);
+  const groups = availableGroups(catalog, productIds, estimate.selectedTasks);
+  /** After opening or importing: the attention dialog when something must be done, otherwise a short notice. */
+  const reportChanges = (name: string, changes: CatalogChanges, done: string) => {
+    if (needsAttention(changes)) { setAttention({ name, changes }); return; }
+    const kept = changes.retiredTasks.length;
+    flash(kept ? `${done} ${kept} selected deliverable${kept === 1 ? " is" : "s are"} no longer offered in the catalog and ${kept === 1 ? "was" : "were"} kept.` : done, kept ? 6000 : 3000);
+  };
 
   const update = (patch: Partial<Estimate>) => { setEstimate({ ...estimate, ...patch, updatedAt: Date.now() }); setSavedAt(0); };
   const toggleProduct = (id: string) => update({ products: estimate.products.includes(id) ? estimate.products.filter((item) => item !== id) : [...estimate.products, id] });
@@ -140,7 +152,7 @@ export default function Home() {
     }
   };
   const replaceDraft = (action: string) => !hasDraft || Boolean(savedAt) || window.confirm(`${action} Unsaved changes to the current draft will be lost.`);
-  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; const closing = library.close(); setEstimate(emptyEstimate()); setStep(1); setSavedAt(0); setView("estimate"); await closing; };
+  const startNew = async () => { if (!replaceDraft("Start a new estimate?")) return; const closing = library.close(); setEstimate(emptyEstimate()); setDropped([]); setStep(1); setSavedAt(0); setView("estimate"); await closing; };
   const openDocument = async (doc: DocumentRef) => {
     if (!replaceDraft(`Open “${doc.name}”?`)) return;
     try {
@@ -149,13 +161,14 @@ export default function Home() {
       if ("blockedBy" in result) { library.setError(`${result.blockedBy.owner} has “${doc.name}” open. It unlocks when they close it, or automatically at ${new Date(result.blockedBy.until).toLocaleTimeString(undefined, { timeStyle: "short" })}.`); return; }
       const parsed = parseEstimateExport(result.payload, emptyEstimate());
       if (!parsed) { await library.close(); library.setError(`“${doc.name}” is not a Scopewright estimate.`); return; }
-      const missing = parsed.products.filter((id) => !catalog.products.some((product) => product.id === id));
-      setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)) });
+      const changes = catalogChanges(catalog, parsed);
+      setEstimate({ ...parsed, products: parsed.products.filter((id) => !changes.removedProducts.includes(id)) });
+      setDropped(changes.removedProducts);
       setStep(1);
       // Dropping products changes the estimate: show it as unsaved so the file is only rewritten on purpose.
-      setSavedAt(missing.length ? 0 : Date.now());
+      setSavedAt(changes.removedProducts.length ? 0 : Date.now());
       setView("estimate");
-      flash(missing.length ? `Opened “${doc.name}”, but ${missing.length} product(s) in it no longer exist in the catalog and were dropped. The file is unchanged until you save.` : `Opened “${doc.name}”. Hours reflect the current catalog.`, missing.length ? 9000 : 3000);
+      reportChanges(doc.name, changes, `Opened “${doc.name}”. Hours reflect the current catalog.`);
     } catch (problem) {
       library.setError(problem instanceof Error ? problem.message : String(problem));
     }
@@ -185,9 +198,10 @@ export default function Home() {
         // Install the import straight away, so nothing typed during that moment is replaced afterwards, and wait for the release last.
         const closing = library.close();
         setEstimate({ ...parsed, products: parsed.products.filter((id) => !missing.includes(id)), updatedAt: Date.now() });
+        setDropped(missing);
         setStep(1);
         setSavedAt(0);
-        flash("Estimate imported. Review each step; hours reflect the current catalog.");
+        reportChanges(file.name, catalogChanges(catalog, parsed), "Estimate imported. Review each step; hours reflect the current catalog.");
         await closing;
       } catch {
         flash("Import failed: choose a POC estimate JSON export.");
@@ -257,7 +271,7 @@ export default function Home() {
                 {step === 3 && <InstallationDetails catalog={catalog} estimate={estimate} breakdown={breakdown.products} update={update} />}
                 {step === 4 && <Prerequisites estimate={estimate} breakdown={breakdown.prerequisites} update={update} />}
                 {step === 5 && <Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} />}
-                {step === 6 && <Review estimate={estimate} breakdown={breakdown} onEditEngagement={() => setStep(1)} />}
+                {step === 6 && <Review estimate={estimate} breakdown={breakdown} dropped={dropped} onEditEngagement={() => setStep(1)} onEditInstallation={() => setStep(3)} />}
                 <div className="form-footer">
                   <button type="button" className="back" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>← Back</button>
                   {step < 6 ? <button type="button" className="primary" onClick={() => setStep(step + 1)}>{step === 5 ? "Review estimate" : `Continue to ${steps[step].label.toLowerCase()}`} <span>→</span></button> : <button type="button" className="primary" onClick={async () => { if (await save()) setView("scope"); }}>Open scope document <span>→</span></button>}
@@ -269,6 +283,7 @@ export default function Home() {
         )}
         {view === "scope" && <ScopeDocument catalog={catalog} estimate={estimate} breakdown={breakdown} branding={branding} update={update} onEdit={() => { setView("estimate"); setStep(1); }} />}
         {view === "updates" && <WeeklyUpdate estimate={estimate} branding={branding} />}
+        {attention && <CatalogChangesDialog name={attention.name} changes={attention.changes} onClose={() => setAttention(null)} onReview={(target) => { setAttention(null); setView("estimate"); setStep(target); }} />}
         {savingAs && <SaveAs library={library} suggested={library.active?.name ?? documentName()} onSave={saveAs} onCancel={() => setSavingAs(false)} onManage={() => { setSavingAs(false); setView("library"); }} />}
         {view === "library" && <Library library={library} now={now} onOpen={openDocument} onRefresh={() => { setNow(Date.now()); void library.reload(); }} />}
         {view === "catalog" && <ReadOnlyGate readOnly={readOnly}><CatalogManager catalog={catalog} setCatalog={setCatalog} /></ReadOnlyGate>}

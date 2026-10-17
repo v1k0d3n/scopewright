@@ -48,7 +48,7 @@ export function Deliverables({ groups, products, selected, setSelected }: { grou
                   {group.tasks.map((task) => (
                     <label key={task.id}>
                       <input type="checkbox" checked={selected.includes(task.id)} onChange={() => toggle(task.id)} />
-                      <span>{task.scopeNumber && <em className="item-number">{task.scopeNumber}</em>}{task.name}</span>
+                      <span>{task.scopeNumber && <em className="item-number">{task.scopeNumber}</em>}{task.name}{!task.enabled && <small className="retired-tag" title="Turned off in the Estimate Catalog. It stays in this estimate until you clear it; once cleared, it is no longer offered.">No longer offered</small>}</span>
                       <strong>{task.hours}h</strong>
                     </label>
                   ))}

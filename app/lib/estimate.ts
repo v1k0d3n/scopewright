@@ -1,4 +1,4 @@
-import type { Catalog, DeliverableGroup, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
 import { phases, prerequisiteStatuses } from "./types.ts";
 import { bool, hours as num, id, list, objectOrNull, record, text } from "./sanitize.ts";
 
@@ -20,10 +20,15 @@ export const byProductName = (a: Product, b: Product) => a.short.localeCompare(b
 
 export const selectionKey = (productId: string, fieldId: string) => `${productId}:${fieldId}`;
 
-/** The chosen answer for a field, falling back to the first choice. */
+/**
+ * The chosen answer for a field. A field never answered defaults to its first
+ * choice; an answer the catalog no longer offers is undefined, never silently
+ * replaced by a different one.
+ */
 export function chosen(field: InstallationField, estimate: Estimate, productId: string): InstallationChoice | undefined {
   const id = estimate.selections[selectionKey(productId, field.id)];
-  return field.choices.find((choice) => choice.id === id) ?? field.choices[0];
+  if (!id) return field.choices[0];
+  return field.choices.find((choice) => choice.id === id);
 }
 
 export type ProductBreakdown = {
@@ -33,6 +38,8 @@ export type ProductBreakdown = {
   existing: boolean;
   baseHours: number;
   decisions: { field: InstallationField; choice: InstallationChoice }[];
+  /** Questions whose saved answer the catalog no longer offers; they need a new answer. */
+  unanswered: InstallationField[];
   decisionHours: number;
   detailHours: number;
   hours: number;
@@ -47,6 +54,8 @@ export type EstimateBreakdown = {
   products: ProductBreakdown[];
   prerequisites: PrerequisiteBreakdown[];
   pendingPrerequisites: number;
+  /** Installation questions across the engagement whose saved answer was removed from the catalog. */
+  unansweredQuestions: number;
   deliverables: DeliverableBreakdown[];
   installationHours: number;
   deliverableHours: number;
@@ -56,11 +65,14 @@ export type EstimateBreakdown = {
   high: number;
 };
 
-/** Groups offered in the Deliverables step: unscoped groups plus those tied to a product in the engagement. */
-export function availableGroups(catalog: Catalog, productIds: string[]): DeliverableGroup[] {
+/**
+ * Groups offered in the Deliverables step: unscoped groups plus those tied to a product in the engagement.
+ * A task turned off in the catalog is no longer offered, but stays wherever it is already selected (`keep`).
+ */
+export function availableGroups(catalog: Catalog, productIds: string[], keep: string[] = []): DeliverableGroup[] {
   return catalog.groups
     .filter((group) => !group.productId || productIds.includes(group.productId))
-    .map((group) => ({ ...group, tasks: group.tasks.filter((task) => task.enabled) }))
+    .map((group) => ({ ...group, tasks: group.tasks.filter((task) => task.enabled || keep.includes(task.id)) }))
     .filter((group) => group.tasks.length > 0);
 }
 
@@ -89,16 +101,18 @@ export function calculate(catalog: Catalog, estimate: Estimate): EstimateBreakdo
     const product = catalog.products.find((item) => item.id === id);
     if (!product) return [];
     const existing = estimate.environments[id] === "existing";
-    const decisions = existing ? [] : (catalog.installation[id] ?? []).flatMap((field) => {
+    const fields = existing ? [] : catalog.installation[id] ?? [];
+    const decisions = fields.flatMap((field) => {
       const choice = chosen(field, estimate, id);
       return choice ? [{ field, choice }] : [];
     });
+    const unanswered = fields.filter((field) => field.choices.length > 0 && !chosen(field, estimate, id));
     const baseHours = existing ? 0 : product.hours;
     const decisionHours = decisions.reduce((sum, item) => sum + (Number(item.choice.hours) || 0), 0);
     const detailHours = (estimate.details[id] ?? []).reduce((sum, line) => sum + (Number(line.hours) || 0), 0);
-    return [{ product, foundation: !estimate.products.includes(id), existing, baseHours, decisions, decisionHours, detailHours, hours: baseHours + decisionHours + detailHours }];
+    return [{ product, foundation: !estimate.products.includes(id), existing, baseHours, decisions, decisionHours, detailHours, unanswered, hours: baseHours + decisionHours + detailHours }];
   });
-  const deliverables: DeliverableBreakdown[] = availableGroups(catalog, ids)
+  const deliverables: DeliverableBreakdown[] = availableGroups(catalog, ids, estimate.selectedTasks)
     .map((group) => ({ group, tasks: group.tasks.filter((task) => estimate.selectedTasks.includes(task.id)) }))
     .filter((item) => item.tasks.length)
     .map((item) => ({ ...item, hours: item.tasks.reduce((sum, task) => sum + (Number(task.hours) || 0), 0) }));
@@ -110,6 +124,7 @@ export function calculate(catalog: Catalog, estimate: Estimate): EstimateBreakdo
     products,
     prerequisites,
     pendingPrerequisites: prerequisites.reduce((sum, item) => sum + item.pending, 0),
+    unansweredQuestions: products.reduce((sum, item) => sum + item.unanswered.length, 0),
     deliverables,
     installationHours,
     deliverableHours,
@@ -121,6 +136,29 @@ export function calculate(catalog: Catalog, estimate: Estimate): EstimateBreakdo
 }
 
 export const groupHours = (group: DeliverableGroup) => group.tasks.reduce((sum, task) => sum + (Number(task.hours) || 0), 0);
+
+/** Where a saved estimate no longer matches the catalog, reported when it is opened. */
+export type CatalogChanges = {
+  /** Product ids the estimate picked that the catalog no longer has; they are dropped when it is opened. */
+  removedProducts: string[];
+  /** Installation questions whose saved answer the catalog no longer offers. */
+  unanswered: { product: Product; field: InstallationField }[];
+  /** Selected tasks the catalog no longer offers; they stay in the estimate. */
+  retiredTasks: { group: DeliverableGroup; task: DeliverableTask }[];
+};
+
+export function catalogChanges(catalog: Catalog, estimate: Estimate): CatalogChanges {
+  const known = new Set(catalog.products.map((product) => product.id));
+  const breakdown = calculate(catalog, { ...estimate, products: estimate.products.filter((id) => known.has(id)) });
+  return {
+    removedProducts: estimate.products.filter((id) => !known.has(id)),
+    unanswered: breakdown.products.flatMap((item) => item.unanswered.map((field) => ({ product: item.product, field }))),
+    retiredTasks: breakdown.deliverables.flatMap((item) => item.tasks.filter((task) => !task.enabled).map((task) => ({ group: item.group, task }))),
+  };
+}
+
+/** True when the architect has something to do: a product was dropped or an answer must be chosen again. Kept tasks are only reported. */
+export const needsAttention = (changes: CatalogChanges) => changes.removedProducts.length > 0 || changes.unanswered.length > 0;
 
 /** Out-of-scope lines for an estimate: chosen catalog items (in catalog order) then the free-text ones. */
 export function outOfScopeLines(catalog: Catalog, estimate: Estimate): string[] {
@@ -148,6 +186,7 @@ export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string)
     if (item.existing) lines.push("- Existing environment validated; no installation effort.");
     if (item.baseHours && showHours) lines.push(`- Base work package${h(item.baseHours)}`);
     for (const decision of item.decisions) lines.push(`- ${decision.field.label}: ${decision.choice.label}${h(decision.choice.hours)}`);
+    for (const field of item.unanswered) lines.push(`- ${field.label}: ${TO_BE_DECIDED}`);
     for (const line of estimate.details[item.product.id] ?? []) if (line.description) lines.push(`- ${line.description}${h(line.hours)}`);
     lines.push("");
   }
@@ -170,6 +209,9 @@ export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string)
   lines.push(section("ASSUMPTIONS"), ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
   return lines.join("\n");
 }
+
+/** Printed in place of an installation answer the catalog no longer offers. */
+export const TO_BE_DECIDED = "To be decided";
 
 export const defaultTitle = (breakdown: EstimateBreakdown) => `${breakdown.products.map((item) => item.product.short).join(" + ") || "Product"} Proof of Concept`;
 
