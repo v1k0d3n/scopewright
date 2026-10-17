@@ -411,9 +411,10 @@ locked template cannot edit it (placeholders are still filled in). Without
 it, a template is a starting point that architects can adapt.
 Architects who pick a template get a copy of its wording, so editing,
 turning off, or deleting a template never changes an estimate that already
-uses it. After an edit, those estimates offer the new wording, and nothing
-changes unless the architect accepts it. Locking a template is also offered
-to estimates that edited their copy. **Delete template** asks for
+uses it. After an edit, estimates whose copy is unedited offer the new
+wording; an estimate whose architect edited their copy is offered the
+template only once it is locked. Nothing changes unless the architect
+accepts it. **Delete template** asks for
 confirmation first.
 
 #### Deliverable groups
