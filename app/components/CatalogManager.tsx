@@ -25,6 +25,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [draft, setDraft] = useState<Product | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<DocumentTemplate | null>(null);
+  const [newTemplate, setNewTemplate] = useState("");
   const products = catalog.products;
   const patch = (next: Partial<Catalog>) => setCatalog({ ...catalog, ...next });
 
@@ -105,7 +106,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   const templates = catalog.documentTemplates ?? [];
   const setTemplates = (documentTemplates: DocumentTemplate[]) => patch({ documentTemplates });
   const updateTemplate = (id: string, changes: Partial<DocumentTemplate>) => setTemplates(templates.map((item) => item.id === id ? { ...item, ...changes } : item));
-  const addTemplate = () => setTemplates([...templates, { id: uid("template"), name: "New template", introduction: "", closing: "", enabled: true, locked: false }]);
+  const addTemplate = () => { const id = uid("template"); setTemplates([...templates, { id, name: "New template", introduction: "", closing: "", enabled: true, locked: false }]); setNewTemplate(id); };
 
   const setGroups = (groups: DeliverableGroup[]) => patch({ groups });
   const updateGroup = (id: string, changes: Partial<DeliverableGroup>) => setGroups(catalog.groups.map((group) => group.id === id ? { ...group, ...changes } : group));
@@ -307,7 +308,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
               {templates.map((template, index) => {
                 const unknown = unknownPlaceholders(`${template.introduction}\n${template.closing}`);
                 return (
-                  <details key={template.id} open={template.name === "New template" && !template.introduction && !template.closing}>
+                  <details key={template.id} open={template.id === newTemplate || undefined}>
                     <summary><i>{index + 1}</i><span><b>{template.name || "Untitled"}</b><small>{template.description || [template.introduction && "Introduction", template.closing && "closing"].filter(Boolean).join(" and ") || "No wording yet"}</small></span><em className={template.enabled ? "" : "pending"}>{template.enabled ? "Offered" : "Not offered"}{template.locked ? " · Locked" : ""}</em></summary>
                     <div className="designer-fields template-fields">
                       <label>Name<input value={template.name} onChange={(event) => updateTemplate(template.id, { name: event.target.value })} /></label>

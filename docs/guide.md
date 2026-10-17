@@ -133,7 +133,8 @@ before replacing your text.
 Because the wording is copied, a later change to the template does not change
 this estimate. If the catalog's template now reads differently, or has been
 locked or unlocked, the panel says so and offers **Use the new wording**; nothing changes until you choose
-it. An estimate keeps its wording even if the template is turned off or
+it. Wording you edited is yours, so the only change offered for it is a
+template that has since been locked. An estimate keeps its wording even if the template is turned off or
 deleted.
 
 Deliverables are grouped by delivery phase (Planning, Prerequisites,
@@ -411,7 +412,8 @@ it, a template is a starting point that architects can adapt.
 Architects who pick a template get a copy of its wording, so editing,
 turning off, or deleting a template never changes an estimate that already
 uses it. After an edit, those estimates offer the new wording, and nothing
-changes unless the architect accepts it. **Delete template** asks for
+changes unless the architect accepts it. Locking a template is also offered
+to estimates that edited their copy. **Delete template** asks for
 confirmation first.
 
 #### Deliverable groups

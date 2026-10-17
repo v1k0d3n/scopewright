@@ -210,7 +210,9 @@ braces prints as typed, and `catalog:check` warns about it.
 
 Picking a template copies its wording into the estimate, so editing or
 deleting a template never changes an estimate that already uses it; an
-estimate using a template whose wording changed offers the new wording.
+estimate using a template whose wording changed offers the new wording
+(an estimate that edited its copy is offered only a template that has since
+been locked).
 Architects may edit their copy unless the template is `locked`; a locked
 template's copy is locked too, and its placeholders are still filled in.
 An assistant building a catalog from product documentation should leave

@@ -43,9 +43,9 @@ export function Framing({ catalog, framing, setFraming }: Props) {
         </label>
         {newer && (
           <div className="notice">
-            <b>The catalog has {newer.locked !== framing.locked && newer.introduction === framing.introduction && newer.closing === framing.closing ? (newer.locked ? "locked" : "unlocked") : "new wording for"} “{newer.name}”</b>
-            <span>This estimate keeps the wording it was given until you choose to update it.</span>
-            <button type="button" className="link" onClick={() => setFraming(framingFrom(newer))}>Use the new wording</button>
+            <b>The catalog has {newer.locked !== framing.locked ? (newer.locked ? "locked" : "unlocked") : "new wording for"} “{newer.name}”</b>
+            <span>{framing.edited ? "This estimate keeps its edited wording until you choose to use the locked wording instead." : "This estimate keeps the wording it was given until you choose to update it."}</span>
+            <button type="button" className="link" onClick={() => keep() && setFraming(framingFrom(newer))}>Use the new wording</button>
           </div>
         )}
         {framing.source !== "none" && (

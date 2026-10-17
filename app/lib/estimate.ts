@@ -249,11 +249,16 @@ export const noFraming: DocumentFraming = { source: "none", templateId: "", temp
 /** Copy a catalog template's wording into an estimate. */
 export const framingFrom = (template: DocumentTemplate): DocumentFraming => ({ source: "template", templateId: template.id, templateName: template.name, introduction: template.introduction, closing: template.closing, edited: false, locked: template.locked });
 
-/** The catalog's template, when it now reads differently from the estimate's unedited copy (or has been locked or unlocked since). */
+/**
+ * The catalog's template, when it now reads differently from the estimate's unedited copy (or has been locked or unlocked since).
+ * An edited copy is the architect's own, so only a template that has since been locked is offered to it.
+ */
 export function templateChanged(catalog: Catalog, framing: DocumentFraming): DocumentTemplate | null {
-  if (framing.source !== "template" || framing.edited) return null;
+  if (framing.source !== "template") return null;
   const template = (catalog.documentTemplates ?? []).find((item) => item.id === framing.templateId);
-  return template && (template.introduction !== framing.introduction || template.closing !== framing.closing || template.locked !== framing.locked) ? template : null;
+  if (!template) return null;
+  if (framing.edited) return template.locked ? template : null;
+  return template.introduction !== framing.introduction || template.closing !== framing.closing || template.locked !== framing.locked ? template : null;
 }
 
 /** Printed in place of an installation answer the catalog no longer offers. */

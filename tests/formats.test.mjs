@@ -134,6 +134,7 @@ test("locked wording is copied locked, never marked edited, and a change of lock
   assert.equal(mergeEstimate({ framing: { ...framing, edited: true } }, emptyEstimate()).framing.edited, false, "a locked copy cannot claim to be edited");
   assert.equal(mergeEstimate({ framing: { ...framing, source: "custom" } }, emptyEstimate()).framing.locked, false, "only a template's wording can be locked");
   assert.equal(templateChanged({ ...solstice, documentTemplates: [locked] }, framingFrom(template))?.locked, true, "locking a template is offered to estimates that use it");
+  assert.equal(templateChanged({ ...solstice, documentTemplates: [locked] }, { ...framingFrom(template), edited: true })?.locked, true, "even to estimates that edited their copy");
   assert.equal(mergeCatalog({ ...solstice, documentTemplates: [{ ...template, locked: undefined }] }, defaultCatalog).documentTemplates[0].locked, false, "unlocked unless the catalog says so");
 });
 
