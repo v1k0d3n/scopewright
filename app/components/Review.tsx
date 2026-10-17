@@ -11,6 +11,7 @@ export function Review({ estimate, breakdown, dropped, onEditEngagement, onEditI
         <div><span>Customer</span><b className={estimate.customer ? "" : "placeholder-copy"}>{estimate.customer || "Not set"}</b></div>
         <div><span>Engagement</span><b>{estimate.title || `${breakdown.products.map((item) => item.product.short).join(" + ") || "Product"} Proof of Concept`}</b></div>
         <div className="wide"><span>Goal</span><p className={estimate.goal ? "" : "placeholder-copy"}>{estimate.goal || "No goal written yet."}</p></div>
+        <div className="wide"><span>Introduction and closing</span><b className={estimate.framing.source === "none" ? "placeholder-copy" : ""}>{estimate.framing.source === "none" ? "None" : estimate.framing.source === "custom" ? "Written for this estimate" : `${estimate.framing.templateName}${estimate.framing.edited ? " (edited)" : ""}`}</b></div>
         <button type="button" className="link" onClick={onEditEngagement}>Edit engagement details →</button>
       </div>
       {dropped.length > 0 && (

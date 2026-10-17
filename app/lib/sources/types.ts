@@ -31,10 +31,12 @@ export type DocumentRef = {
   totalHours: number | null;
   updatedAt: number;
   lock: LockInfo | null;
+  /** Set when the file was written by a newer Scopewright: its format version. It opens view-only. */
+  newer?: number;
 };
 
 export type DocumentBody = {
-  /** The parsed file, unvalidated. Callers must pass it through parseEstimateExport. */
+  /** The parsed file, unvalidated. Callers must pass it through readEstimateFile. */
   payload: unknown;
   /** Opaque marker of the version that was read; handed back on write to detect someone else's change. */
   revision: string;

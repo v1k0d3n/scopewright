@@ -48,6 +48,8 @@ jobs:
           curl -sf http://localhost:3000/api/workspace/me | grep -q '"mode":"open"'
           curl -sf -X PUT -H 'content-type: application/json' -d '{"orgName":"CI"}' http://localhost:3000/api/workspace/branding | grep -q savedAt
           curl -sf http://localhost:3000/api/workspace/branding | grep -q '"orgName":"CI"'
+          # A catalog save must carry the current format version; anything else (a tab left open across an update) is refused.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'content-type: application/json' -d '{"products":[]}' http://localhost:3000/api/workspace/catalog)" = "409"
           # In proxy mode an anonymous write must be refused.
           kill %1; sleep 1
           AUTH_MODE=proxy PORT=3001 DATA_DIR="$RUNNER_TEMP/data" npm start > server2.log 2>&1 &

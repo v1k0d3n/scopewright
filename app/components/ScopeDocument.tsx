@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TO_BE_DECIDED, defaultTitle, outOfScopeLines, scopeText, statusLabel } from "../lib/estimate";
+import { TO_BE_DECIDED, defaultTitle, framedText, outOfScopeLines, placeholderValues, scopeText, statusLabel } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
 
@@ -23,6 +23,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
   const date = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   const showHours = estimate.options.showHours;
   const excluded = outOfScopeLines(catalog, estimate);
+  const framing = framedText(estimate, placeholderValues(estimate, breakdown, branding.orgName));
   // Sections are numbered as they are rendered, so hiding one never leaves a gap.
   let sectionNumber = 0;
   const heading = (name: string) => <h5>{++sectionNumber} / {name}</h5>;
@@ -47,6 +48,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
             <span>{breakdown.prerequisites.reduce((sum, item) => sum + item.items.length, 0)} prerequisites{breakdown.pendingPrerequisites ? ` (${breakdown.pendingPrerequisites} pending)` : ""}</span>
             <span>{breakdown.deliverables.reduce((sum, item) => sum + item.tasks.length, 0)} deliverables</span>
             <span>{excluded.length} out-of-scope item{excluded.length === 1 ? "" : "s"}</span>
+            <span>{estimate.framing.source === "none" ? "No introduction or closing" : estimate.framing.source === "custom" ? "Introduction and closing written for this estimate" : `Introduction and closing from “${estimate.framing.templateName}”${estimate.framing.edited ? " (edited)" : ""}`}</span>
             <button type="button" className="link" onClick={onEdit}>Edit the engagement in the Estimate Builder →</button>
           </div>
         </div>
@@ -60,6 +62,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <h2>{title}</h2>
           <h4>Prepared for {estimate.customer || "Customer name"} by {branding.orgName}{branding.workspaceName && ` · ${branding.workspaceName}`}</h4>
           <hr />
+          {framing.introduction.length > 0 && <div className="doc-framing">{framing.introduction.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           {heading("GOAL")}
           <p className={!estimate.goal ? "placeholder-copy" : ""}>{estimate.goal || "Add a concise POC goal in the Engagement step."}</p>
           {heading("PRODUCTS IN SCOPE")}
@@ -115,6 +118,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <ul>{list(estimate.successCriteria).map((line, index) => <li key={index}>{line}</li>)}</ul>
           {heading("ASSUMPTIONS")}
           <ul>{list(estimate.assumptions).map((line, index) => <li key={index}>{line}</li>)}</ul>
+          {framing.closing.length > 0 && <div className="doc-framing doc-closing">{framing.closing.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           <div className="signatures">
             <div><span>Customer</span></div>
             <div><span>Account team</span></div>

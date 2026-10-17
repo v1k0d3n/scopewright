@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { builtInThemes, defaultBranding, defaultCatalog, fontOptions } from "../lib/defaults";
-import { CATALOG_FORMAT, isCatalog, mergeCatalog } from "../lib/estimate";
+import { readCatalogFile } from "../lib/estimate";
+import { CATALOG_FORMAT, CATALOG_VERSION, WRITTEN_BY } from "../lib/formats";
 import { activeTheme, isBuiltIn, mergeBranding } from "../lib/theme";
 import { buildThemePack, MAX_PACK_BYTES, parseThemePack } from "../lib/theme-pack";
 import type { Branding, Catalog } from "../lib/types";
@@ -66,8 +67,8 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
     URL.revokeObjectURL(url);
   };
   const stamp = () => new Date().toISOString().slice(0, 10);
-  /** Same format the catalog page used to write, so earlier exports still import. */
-  const exportCatalog = () => { download(`scopewright-catalog-${stamp()}.json`, { format: CATALOG_FORMAT, version: 1, exportedAt: new Date().toISOString(), catalog }); flash("Catalog exported."); };
+  /** The catalog file format; docs/formats.md describes it. */
+  const exportCatalog = () => { download(`scopewright-catalog-${stamp()}.json`, { format: CATALOG_FORMAT, version: CATALOG_VERSION, writtenBy: WRITTEN_BY, exportedAt: new Date().toISOString(), catalog }); flash("Catalog exported."); };
   const catalogEmpty = !catalog.products.length && !catalog.groups.length && !catalog.solutions.length && !catalog.outOfScope.length;
   const resetTheme = () => { setBranding(defaultBranding); setResettingTheme(false); flash("Theme reset."); };
   const deleteCatalog = () => { setCatalog(defaultCatalog); setDeleting(false); flash("Catalog deleted."); };
@@ -90,9 +91,9 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result)) as { catalog?: unknown };
-        if (!isCatalog(data.catalog)) { flash('Not a Scopewright catalog: the file needs a top-level "catalog" object with products, installation, prerequisites, groups, and solutions. See docs/authoring.md, or run npm run catalog:check.'); return; }
-        const next = mergeCatalog(data.catalog, defaultCatalog);
+        const read = readCatalogFile(JSON.parse(String(reader.result)), defaultCatalog);
+        if ("problem" in read) { flash(read.problem); return; }
+        const next = read.catalog;
         if (!window.confirm(`Import ${next.products.length} products and ${next.groups.length} deliverable groups? This replaces the shared catalog for everyone.`)) return;
         setCatalog(next);
         flash("Catalog imported.");

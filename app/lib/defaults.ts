@@ -5,7 +5,7 @@ import type { Branding, Catalog, ColorScheme, Estimate } from "./types.ts";
  * own catalog from Settings, or start from one of the packs under packs/
  * (packs/red-hat is a complete example).
  */
-export const defaultCatalog: Catalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };
+export const defaultCatalog: Catalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [], documentTemplates: [] };
 
 export const emptyEstimate = (): Estimate => ({
   customer: "",
@@ -21,6 +21,7 @@ export const emptyEstimate = (): Estimate => ({
   outOfScope: [],
   customOutOfScope: "",
   options: { showHours: true },
+  framing: { source: "none", templateId: "", templateName: "", introduction: "", closing: "", edited: false, locked: false },
   assumptions: "Customer provides hardware, network access, and credentials before the engagement starts.\nEstimate covers delivery work only; calendar duration depends on customer readiness.",
   successCriteria: "Agreed installation and configuration activities are completed.\nSelected deliverables are tested and validated with the customer.\nResults, decisions, and follow-up actions are documented.",
   updatedAt: 0,

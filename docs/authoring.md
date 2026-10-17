@@ -18,19 +18,22 @@ explicitly, and a complete example is included.
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 1,
+  "version": 2,
   "catalog": {
     "products": [],
     "installation": {},
     "prerequisites": {},
     "groups": [],
     "solutions": [],
-    "outOfScope": []
+    "outOfScope": [],
+    "documentTemplates": []
   }
 }
 ```
 
-(`outOfScope` is optional; the other five sections are required.)
+(`outOfScope` and `documentTemplates` are optional; the other five sections
+are required. Files with `"version": 1` still import; see
+[formats.md](formats.md) for how versions work.)
 
 Check a file before importing it: `npm run catalog:check -- my-catalog.json`
 prints every problem in plain language and a summary of what the catalog
@@ -103,7 +106,7 @@ A catalog is one JSON file:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 1,
+  "version": 2,
   "catalog": {
     "products": [ ... ],
     "installation": { "<productId>": [ ... ] },
@@ -114,7 +117,11 @@ A catalog is one JSON file:
 }
 ```
 
-All five sections are required (use `[]` or `{}` when empty). Field by field:
+All five sections are required (use `[]` or `{}` when empty); `outOfScope`
+and `documentTemplates` may be added. `version` is the catalog format
+version, currently `2`; Scopewright refuses a file with a higher version
+than it understands rather than lose what it cannot read
+([formats.md](formats.md)). Field by field:
 
 ### `products[]`
 
@@ -181,6 +188,35 @@ Engagement step; the ones the architect ticks are printed in the scope
 document's "Out of scope" section, along with any free-text items added for
 that engagement.
 
+### `documentTemplates[]` (optional)
+
+| Field | Type | Required | Meaning |
+|-------|------|----------|---------|
+| `id` | string, unique | yes | |
+| `name` | string | yes | Shown in the Deliverables step's list. |
+| `description` | string | no | When to use it, e.g. "Explains that a successful proof of concept helps the customer make their decision". |
+| `introduction` | string | yes (may be `""`) | Printed after the title, before the numbered sections. |
+| `closing` | string | yes (may be `""`) | Printed after the last section, before the signatures. |
+| `enabled` | boolean | yes | `true` offers it in the Deliverables step. |
+| `locked` | boolean | no (default `false`) | `true` means estimates use the wording exactly as written: architects cannot edit it. |
+
+Introduction and closing wording for the scope document, for example the
+purpose of a proof of concept, worded the way your team has agreed. Separate paragraphs with
+a blank line (`\n\n` in JSON). These placeholders are filled in from each
+estimate when the document is printed: `{customer}`, `{title}`,
+`{products}` (the products the architect picked, as "A, B, and C"), and
+`{organization}` (the organization name in Settings). Anything else in
+braces prints as typed, and `catalog:check` warns about it.
+
+Picking a template copies its wording into the estimate, so editing or
+deleting a template never changes an estimate that already uses it; an
+estimate using a template whose wording changed offers the new wording.
+Architects may edit their copy unless the template is `locked`; a locked
+template's copy is locked too, and its placeholders are still filled in.
+An assistant building a catalog from product documentation should leave
+this section out: this wording usually comes from your own team, not from
+product documentation.
+
 ## Estimate files are not catalogs
 
 This guide is about **catalog** files (`"format": "scopewright-catalog"`).
@@ -193,7 +229,8 @@ context, this is its shape:
 ```json
 {
   "format": "scopewright-estimate",
-  "version": 1,
+  "version": 2,
+  "writtenBy": "Scopewright 0.3.0",
   "exportedAt": "2026-09-19T12:00:00.000Z",
   "summary": { "customer": "...", "title": "...", "products": ["..."], "totalHours": 96, "pendingPrerequisites": 2 },
   "estimate": {
@@ -209,6 +246,7 @@ context, this is its shape:
     "outOfScope": ["<outOfScope item id>"],
     "customOutOfScope": "free text, one per line",
     "options": { "showHours": true },
+    "framing": { "source": "template", "templateId": "<documentTemplates id>", "templateName": "...", "introduction": "...", "closing": "...", "edited": false, "locked": false },
     "updatedAt": 1789840000000
   }
 }
@@ -235,9 +273,14 @@ convenience for listings. Ids that no longer resolve are handled as follows:
 - A **task**, **prerequisite**, or **out-of-scope item** that no longer
   exists is left out.
 
-`outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0. Older
-files without them open normally and get the defaults: nothing out of scope,
-hours shown.
+`framing` holds the estimate's own copy of its introduction and closing
+(`source` is `"none"`, `"template"`, or `"custom"`). It is a copy, not a
+reference, so it prints the same whatever later happens to the template.
+
+`outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0, and
+`framing` in estimate format 2. Older files without them open normally and
+get the defaults: nothing out of scope, hours shown, no introduction or
+closing. [formats.md](formats.md) describes every version.
 
 ## Conventions
 
@@ -282,7 +325,7 @@ and tone. A minimal two-product excerpt:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 1,
+  "version": 2,
   "catalog": {
     "products": [
       { "id": "core", "name": "Solstice Core Platform", "short": "Core", "portfolio": "Platform", "mark": "SC", "hours": 0,
@@ -347,7 +390,8 @@ structure was invented instead of using the five sections.
 
 ## Checklist before importing
 
-- Valid JSON; `format` is `scopewright-catalog`, `version` is `1`.
+- Valid JSON; `format` is `scopewright-catalog`, `version` is `2` (or `1`
+  for a file without `documentTemplates`).
 - Every `requires`, `productId`, and solution product names an existing
   product id; no product requires itself or forms a cycle.
 - Every question has at least one choice; every choice and task has a
