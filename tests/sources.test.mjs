@@ -59,11 +59,18 @@ test("files that are not estimates stay out of the list", () => {
   assert.equal(describe("x", "x.json", { hello: "world" }, 0, null), null);
   assert.equal(describe("x", "x.json", [1, 2], 0, null), null);
   assert.equal(describe("x", "x.json", { format: "other", version: 1, estimate: {} }, 0, null), null, "an unknown format");
-  assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: 2, estimate: {} }, 0, null), null, "a future version");
+  assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: "2", estimate: {} }, 0, null), null, "a version that is not a number");
   assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: 1, estimate: [] }, 0, null), null, "an estimate that is not an object");
   assert.ok(describe("x", "x.json", { format: "poc-estimate", version: 1, estimate: {} }, 0, null), "the legacy format still lists");
   const ref = describe("x", "x.json", { format: "scopewright-estimate", version: 1, estimate: {}, summary: { customer: 7, title: "T", totalHours: "many" } }, 9, { owner: "ana" });
   assert.deepEqual(ref, { id: "x", name: "x.json", customer: "", title: "T", totalHours: null, updatedAt: 9, lock: null });
+});
+
+test("a file from a newer Scopewright is listed and marked, so it can be opened view-only", () => {
+  const ref = describe("x", "x.json", { format: "scopewright-estimate", version: 99, estimate: {}, summary: { customer: "C" } }, 0, null);
+  assert.equal(ref.newer, 99);
+  assert.equal(ref.customer, "C");
+  assert.equal(describe("x", "x.json", { format: "scopewright-estimate", version: 1, estimate: {} }, 0, null).newer, undefined);
 });
 
 test("deployment settings: browser is always offered and secrets are never published", () => {

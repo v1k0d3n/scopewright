@@ -3,15 +3,16 @@
  * model can act on. Used by `npm run catalog:check` and by the import dialog.
  * Pure: no I/O.
  */
-import { mergeCatalog } from "./estimate.ts";
+import { mergeCatalog, unknownPlaceholders } from "./estimate.ts";
+import { CATALOG_VERSION, checkCatalogFile } from "./formats.ts";
 import { phases } from "./types.ts";
 import type { Catalog } from "./types.ts";
 
 export type LintMessage = { level: "error" | "warning"; text: string };
 
-const TOP_LEVEL = ["format", "version", "exportedAt", "catalog", "$schema"];
+const TOP_LEVEL = ["format", "version", "writtenBy", "exportedAt", "catalog", "$schema"];
 const SECTIONS = ["products", "installation", "prerequisites", "groups", "solutions"];
-const OPTIONAL_SECTIONS = ["outOfScope"];
+const OPTIONAL_SECTIONS = ["outOfScope", "documentTemplates"];
 
 /** Structural problems that prevent import or signal the wrong shape. */
 export function lintCatalogFile(data: unknown): LintMessage[] {
@@ -20,11 +21,14 @@ export function lintCatalogFile(data: unknown): LintMessage[] {
   const d = data as Record<string, unknown>;
   const unknownTop = Object.keys(d).filter((key) => !TOP_LEVEL.includes(key));
   if (!d.catalog || typeof d.catalog !== "object") {
-    out.push({ level: "error", text: 'Missing the top-level "catalog" object. The file must be { "format": "scopewright-catalog", "version": 1, "catalog": { products, installation, prerequisites, groups, solutions } }.' });
+    out.push({ level: "error", text: `Missing the top-level "catalog" object. The file must be { "format": "scopewright-catalog", "version": ${CATALOG_VERSION}, "catalog": { products, installation, prerequisites, groups, solutions } }.` });
     if (unknownTop.length) out.push({ level: "error", text: `Unexpected top-level keys: ${unknownTop.join(", ")}. Scopewright has no notion of these; see docs/authoring.md, "Common mistakes".` });
     return out;
   }
   if (unknownTop.length) out.push({ level: "warning", text: `Ignored top-level keys: ${unknownTop.join(", ")}.` });
+  const file = checkCatalogFile(d);
+  if (file.kind === "invalid") out.push({ level: "error", text: `"version" must be a whole number (this Scopewright writes ${CATALOG_VERSION}).` });
+  if (file.kind === "newer") out.push({ level: "error", text: `"version" is ${file.version}, but this Scopewright reads catalog versions up to ${CATALOG_VERSION}. Update Scopewright, or see docs/formats.md.` });
   if (d.format !== "scopewright-catalog") out.push({ level: "warning", text: `"format" should be "scopewright-catalog" (found ${JSON.stringify(d.format)}).` });
   const c = d.catalog as Record<string, unknown>;
   for (const key of SECTIONS) if (!(key in c)) out.push({ level: "error", text: `catalog.${key} is missing (use [] or {} when empty).` });
@@ -33,6 +37,7 @@ export function lintCatalogFile(data: unknown): LintMessage[] {
   if (c.installation && (typeof c.installation !== "object" || Array.isArray(c.installation))) out.push({ level: "error", text: "catalog.installation must be an object keyed by product id, not a list." });
   if (c.prerequisites && (typeof c.prerequisites !== "object" || Array.isArray(c.prerequisites))) out.push({ level: "error", text: "catalog.prerequisites must be an object keyed by product id (each product lists what the customer provides), not a flat list." });
   if (c.outOfScope !== undefined && !Array.isArray(c.outOfScope)) out.push({ level: "error", text: 'catalog.outOfScope must be an array of { "id", "label" } items.' });
+  if (c.documentTemplates !== undefined && !Array.isArray(c.documentTemplates)) out.push({ level: "error", text: 'catalog.documentTemplates must be an array of { "id", "name", "introduction", "closing", "enabled" } items.' });
   if (c.groups && !Array.isArray(c.groups)) out.push({ level: "error", text: "catalog.groups must be an array of deliverable groups, each with tasks." });
   return out;
 }
@@ -77,6 +82,14 @@ export function lintCatalog(raw: unknown, initial: Catalog): LintMessage[] {
   for (const p of merged.products) {
     const has = (merged.installation[p.id]?.length ?? 0) + (merged.prerequisites[p.id]?.length ?? 0) + merged.groups.filter((g) => g.productId === p.id).length;
     if (!has) out.push({ level: "warning", text: `Product "${p.id}" has no installation questions, prerequisites, or deliverable groups; it will estimate at ${p.hours}h with nothing to show.` });
+  }
+  const templateIds = merged.documentTemplates.map((t) => t.id);
+  const dupeTemplates = templateIds.filter((v, i) => templateIds.indexOf(v) !== i);
+  if (dupeTemplates.length) out.push({ level: "error", text: `Duplicate document template ids: ${[...new Set(dupeTemplates)].join(", ")}.` });
+  for (const t of merged.documentTemplates) {
+    if (!t.introduction.trim() && !t.closing.trim()) out.push({ level: "warning", text: `Document template ${JSON.stringify(t.id)}: no introduction and no closing, so it prints nothing.` });
+    const unknown = unknownPlaceholders(`${t.introduction}\n${t.closing}`);
+    if (unknown.length) out.push({ level: "warning", text: `Document template ${JSON.stringify(t.id)}: ${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a placeholder" : "are not placeholders"} and will print as typed. Placeholders: {customer}, {title}, {products}, {organization}.` });
   }
   const seen = new Set<string>();
   const visit = (id: string, trail: string[]) => { if (trail.includes(id)) { out.push({ level: "error", text: `Circular requires: ${[...trail, id].join(" → ")}.` }); return; } if (seen.has(id)) return; seen.add(id); for (const dep of merged.products.find((p) => p.id === id)?.requires ?? []) visit(dep, [...trail, id]); };

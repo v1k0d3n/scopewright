@@ -6,9 +6,14 @@
  * catalog and brand survive restarts and are the same for every visitor.
  * Last write wins; there is no per-user data here. Writes require an editor
  * identity (see identity.ts); reads are open to anyone the proxy lets in.
+ *
+ * The catalog carries a format version (see formats.ts). A write in any other
+ * version is refused with 409, so a tab left open across an update cannot save
+ * an older catalog over a newer one and drop what it does not know about.
  */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { catalogWriteProblem } from "./formats.ts";
 import { readIdentity } from "./identity.ts";
 
 const keys = ["catalog", "branding"] as const;
@@ -58,6 +63,8 @@ export async function handleStore(key: StoreKey, request: Request): Promise<Resp
         return json({ error: "Body must be JSON" }, 400);
       }
       if (!value || typeof value !== "object") return json({ error: "Body must be a JSON object" }, 400);
+      const outdated = key === "catalog" ? catalogWriteProblem(value) : null;
+      if (outdated) return json({ error: outdated, code: "version" }, 409);
       await writeDocument(key, value);
       return json({ key, savedAt: new Date().toISOString() });
     }

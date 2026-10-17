@@ -1,6 +1,9 @@
-import type { Catalog, DeliverableGroup, DeliverableTask, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
 import { phases, prerequisiteStatuses } from "./types.ts";
-import { bool, hours as num, id, list, objectOrNull, record, text } from "./sanitize.ts";
+import { bool, hours as num, id, list, objectOrNull, oneOf, record, text } from "./sanitize.ts";
+import { CATALOG_FORMAT, CATALOG_VERSION, ESTIMATE_FORMAT, ESTIMATE_VERSION, WRITTEN_BY, checkCatalogFile, checkEstimateFile, storedCatalogVersion, upgradeCatalog, upgradeEstimate } from "./formats.ts";
+
+export { CATALOG_FORMAT, ESTIMATE_FORMAT };
 
 /** Selected products plus every foundation they transitively require, in dependency order. */
 export function resolveProducts(selected: string[], products: Product[]): string[] {
@@ -177,6 +180,8 @@ export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string)
   let n = 0;
   const section = (name: string) => `${++n}. ${name}`;
   const lines: string[] = [`${estimate.customer || "Customer"} — ${title}`, `Prepared by ${orgName}`, ""];
+  const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
+  if (framing.introduction.length) lines.push(...framing.introduction.flatMap((paragraph) => [paragraph, ""]));
   lines.push(section("GOAL"), estimate.goal || "Goal to be defined.", "");
   lines.push(section("PRODUCTS IN SCOPE"));
   for (const item of breakdown.products) lines.push(`- ${item.product.name}: ${item.existing ? "existing environment" : "new deployment"}${item.foundation ? " (required foundation)" : ""}`);
@@ -207,7 +212,53 @@ export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string)
   if (showHours) lines.push(section("EFFORT SUMMARY"), `Installation: ${breakdown.installationHours} hours`, `Deliverables: ${breakdown.deliverableHours} hours`, `Total: ${breakdown.total} hours (planning range ${breakdown.low}–${breakdown.high})`, "");
   lines.push(section("SUCCESS CRITERIA"), ...estimate.successCriteria.split("\n").filter(Boolean).map((line) => `- ${line}`), "");
   lines.push(section("ASSUMPTIONS"), ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
+  if (framing.closing.length) lines.push("", ...framing.closing.flatMap((paragraph, index) => (index ? ["", paragraph] : [paragraph])));
   return lines.join("\n");
+}
+
+/** Words a template can use; they are filled in from the estimate when the document is printed. */
+export const PLACEHOLDERS = ["customer", "title", "products", "organization"] as const;
+export type PlaceholderValues = Record<(typeof PLACEHOLDERS)[number], string>;
+
+const PLACEHOLDER = /\{([^{}\s]{1,40})\}/g;
+
+/** Placeholders in a text that Scopewright does not know; they would print as typed. */
+export const unknownPlaceholders = (value: string): string[] => [...new Set([...value.matchAll(PLACEHOLDER)].map((match) => match[1]).filter((name) => !(PLACEHOLDERS as readonly string[]).includes(name)))];
+
+/** Replace each known placeholder; anything else is left exactly as written. */
+export const fillPlaceholders = (value: string, values: PlaceholderValues): string => value.replace(PLACEHOLDER, (match, name: string) => (Object.hasOwn(values, name) ? values[name as keyof PlaceholderValues] : match));
+
+/** What each placeholder stands for in this estimate. {products} names the products the architect picked, not the foundations they pull in. */
+export function placeholderValues(estimate: Estimate, breakdown: EstimateBreakdown, orgName: string): PlaceholderValues {
+  const picked = breakdown.products.filter((item) => !item.foundation).map((item) => item.product.name);
+  return { customer: estimate.customer || "the customer", title: estimate.title || defaultTitle(breakdown), products: new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(picked), organization: orgName };
+}
+
+/** Paragraphs are separated by a blank line; a single line break stays inside its paragraph. */
+export const paragraphs = (value: string): string[] => value.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+
+/** The introduction and closing as printed: placeholders filled, split into paragraphs. Empty when the estimate has none. */
+export function framedText(estimate: Estimate, values: PlaceholderValues): { introduction: string[]; closing: string[] } {
+  const framing = estimate.framing;
+  if (!framing || framing.source === "none") return { introduction: [], closing: [] };
+  return { introduction: paragraphs(fillPlaceholders(framing.introduction, values)), closing: paragraphs(fillPlaceholders(framing.closing, values)) };
+}
+
+export const noFraming: DocumentFraming = { source: "none", templateId: "", templateName: "", introduction: "", closing: "", edited: false, locked: false };
+
+/** Copy a catalog template's wording into an estimate. */
+export const framingFrom = (template: DocumentTemplate): DocumentFraming => ({ source: "template", templateId: template.id, templateName: template.name, introduction: template.introduction, closing: template.closing, edited: false, locked: template.locked });
+
+/**
+ * The catalog's template, when it now reads differently from the estimate's unedited copy (or has been locked or unlocked since).
+ * An edited copy is the architect's own, so only a template that has since been locked is offered to it.
+ */
+export function templateChanged(catalog: Catalog, framing: DocumentFraming): DocumentTemplate | null {
+  if (framing.source !== "template") return null;
+  const template = (catalog.documentTemplates ?? []).find((item) => item.id === framing.templateId);
+  if (!template) return null;
+  if (framing.edited) return template.locked ? template : null;
+  return template.introduction !== framing.introduction || template.closing !== framing.closing || template.locked !== framing.locked ? template : null;
 }
 
 /** Printed in place of an installation answer the catalog no longer offers. */
@@ -256,13 +307,17 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
     const label = text(o.label, 200);
     return label ? { id: id(o.id, `oos-${index}`), label } : null;
   });
-  return { products, installation, prerequisites, groups, solutions, outOfScope };
+  const documentTemplates = s.documentTemplates === undefined ? initial.documentTemplates ?? [] : list(s.documentTemplates, (item, index) => {
+    const t = objectOrNull(item); if (!t) return null;
+    return { id: id(t.id, `template-${index}`), name: text(t.name, 120, `Template ${index + 1}`), description: text(t.description, 300) || undefined, introduction: text(t.introduction, MAX_LONG), closing: text(t.closing, MAX_LONG), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
+  });
+  return { products, installation, prerequisites, groups, solutions, outOfScope, documentTemplates };
 }
 
 /** A question or prerequisite: its id is only unique within its product. */
 export type ProductItem = { productId: string; itemId: string };
 /** What to delete from a catalog. */
-export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
+export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; documentTemplates?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
 
 /** Delete items by id. A deleted product takes its questions, prerequisites, and deliverable groups with it, and drops out of foundations and solutions. */
 export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Catalog {
@@ -270,6 +325,7 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
   const solutions = new Set(removal.solutions);
   const groups = new Set(removal.groups);
   const outOfScope = new Set(removal.outOfScope);
+  const templates = new Set(removal.documentTemplates);
   // Ids may contain ":", so pairs are compared as pairs, never as a joined string.
   const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: ProductItem[] = []) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.some((pair) => pair.productId === productId && pair.itemId === item.id))]));
   return {
@@ -279,7 +335,31 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
     groups: catalog.groups.filter((group) => !groups.has(group.id) && !products.has(group.productId)),
     solutions: catalog.solutions.filter((solution) => !solutions.has(solution.id)).map((solution) => ({ ...solution, products: solution.products.filter((id) => !products.has(id)) })),
     outOfScope: catalog.outOfScope.filter((item) => !outOfScope.has(item.id)),
+    documentTemplates: (catalog.documentTemplates ?? []).filter((item) => !templates.has(item.id)),
   };
+}
+
+/** The shared catalog as the server or the browser cache holds it, upgraded from an earlier version. One from a newer version is read as far as this one understands it. */
+export function readStoredCatalog(stored: unknown, initial: Catalog): Catalog {
+  const version = storedCatalogVersion(stored) ?? CATALOG_VERSION;
+  return mergeCatalog(version < CATALOG_VERSION ? upgradeCatalog(stored, version) : stored, initial);
+}
+
+/** True when the stored shared catalog was written by a newer Scopewright. */
+export const isNewerStoredCatalog = (stored: unknown) => (storedCatalogVersion(stored) ?? 0) > CATALOG_VERSION;
+
+/**
+ * A catalog export file, upgraded. Refused (with the reason) when it is not a
+ * catalog or comes from a newer Scopewright: importing it would drop what this
+ * version does not understand, for everyone.
+ */
+export function readCatalogFile(data: unknown, initial: Catalog): { catalog: Catalog } | { problem: string } {
+  const body = (data as { catalog?: unknown } | null)?.catalog;
+  if (!isCatalog(body)) return { problem: 'Not a Scopewright catalog: the file needs a top-level "catalog" object with products, installation, prerequisites, groups, and solutions. See docs/authoring.md, or run npm run catalog:check.' };
+  const file = checkCatalogFile(data);
+  if (file.kind === "invalid") return { problem: 'The catalog file\'s "version" must be a whole number.' };
+  if (file.kind === "newer") return { problem: `This catalog was written by a newer Scopewright (catalog format ${file.version}; this one reads up to ${CATALOG_VERSION}). Update Scopewright before importing it.` };
+  return { catalog: mergeCatalog(upgradeCatalog(body, file.version), initial) };
 }
 
 export const isCatalog = (value: unknown): value is Catalog => {
@@ -309,37 +389,57 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
     outOfScope: list(s.outOfScope, (oid) => (typeof oid === "string" ? id(oid, "") || null : null)),
     customOutOfScope: text(s.customOutOfScope, MAX_LONG),
     options: { showHours: bool(record(s.options).showHours, true) },
+    framing: mergeFraming(s.framing),
     updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
   };
 }
 const MAX_MAP = 2_000;
 const MAX_LONG = 20_000;
 
-export const ESTIMATE_FORMAT = "scopewright-estimate";
-const LEGACY_ESTIMATE_FORMATS = ["poc-estimate"];
-/** Older catalog files ("poc-catalog", "coe-estimator-catalog") still import; the format is checked by shape. */
-export const CATALOG_FORMAT = "scopewright-catalog";
+function mergeFraming(value: unknown): DocumentFraming {
+  const f = record(value);
+  const source = oneOf(f.source, ["none", "template", "custom"] as const, "none");
+  if (source === "none") return noFraming;
+  const locked = source === "template" && bool(f.locked, false);
+  return { source, templateId: source === "template" ? id(f.templateId, "") : "", templateName: source === "template" ? text(f.templateName, 120) : "", introduction: text(f.introduction, MAX_LONG), closing: text(f.closing, MAX_LONG), edited: source === "template" && !locked && bool(f.edited, false), locked };
+}
 
 /** A portable, versioned estimate file. The summary is informational, for humans reading the JSON. */
 export function estimateExport(catalog: Catalog, estimate: Estimate) {
   const breakdown = calculate(catalog, estimate);
   return {
     format: ESTIMATE_FORMAT,
-    version: 1,
+    version: ESTIMATE_VERSION,
+    writtenBy: WRITTEN_BY,
     exportedAt: new Date().toISOString(),
     summary: { customer: estimate.customer, title: estimate.title || defaultTitle(breakdown), products: breakdown.products.map((item) => item.product.name), totalHours: breakdown.total, pendingPrerequisites: breakdown.pendingPrerequisites },
     estimate,
   };
 }
 
-/** True for a file this version can open: a known format, version 1, carrying an estimate object. */
-export function isEstimateExport(data: unknown): data is { format: string; version: 1; estimate: object } {
-  const d = data as { format?: unknown; version?: unknown; estimate?: unknown } | null;
-  return Boolean(d && typeof d === "object" && typeof d.format === "string" && (d.format === ESTIMATE_FORMAT || LEGACY_ESTIMATE_FORMATS.includes(d.format)) && d.version === 1 && d.estimate && typeof d.estimate === "object" && !Array.isArray(d.estimate));
+/** True for an estimate file of any version, including one from a newer Scopewright (listed, but opened view-only). */
+export function isEstimateExport(data: unknown): data is { format: string; version: number; estimate: object } {
+  return checkEstimateFile(data).kind !== "invalid";
 }
 
+/**
+ * Open an estimate file. One from an earlier version is upgraded. One from a
+ * newer Scopewright is read as far as this version understands it and marked
+ * `newer`, so it is shown but never written back: saving would drop whatever
+ * this version does not know about.
+ */
+export function readEstimateFile(data: unknown, initial: Estimate): { estimate: Estimate; newer: number | null } | null {
+  const file = checkEstimateFile(data);
+  if (file.kind === "invalid") return null;
+  const body = (data as { estimate: unknown }).estimate;
+  if (file.kind === "newer") return { estimate: mergeEstimate(body, initial), newer: file.version };
+  return { estimate: mergeEstimate(upgradeEstimate(body, file.version), initial), newer: null };
+}
+
+/** An estimate file this version can edit, upgraded; null for anything else, including a file from a newer Scopewright. */
 export function parseEstimateExport(data: unknown, initial: Estimate): Estimate | null {
-  return isEstimateExport(data) ? mergeEstimate(data.estimate, initial) : null;
+  const file = readEstimateFile(data, initial);
+  return file && file.newer === null ? file.estimate : null;
 }
 
 

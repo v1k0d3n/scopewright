@@ -59,7 +59,7 @@ export function Library({ library, now, onOpen, onRefresh }: { library: LibraryM
                   <div>
                     <b>{doc.customer || "Untitled customer"}</b>
                     <span>{doc.title || "Untitled engagement"}</span>
-                    <small>{doc.name}</small>
+                    <small>{doc.name}{doc.newer && <span className="retired-tag" title="Saved by a newer Scopewright. It opens view-only here.">Newer version · view only</span>}</small>
                   </div>
                   <span className="library-hours">{doc.totalHours === null ? "" : `${doc.totalHours}h`}</span>
                   <span className="library-when">{when(doc.updatedAt)}</span>

@@ -59,7 +59,11 @@ export function clearPersistentState(key: string) {
   }
 }
 
-export type SyncStatus = "loading" | "synced" | "saving" | "local" | "error" | "readonly";
+/** "outdated": this page and the server run different Scopewright versions, so changes are not saved until the page is reloaded. */
+export type SyncStatus = "loading" | "synced" | "saving" | "local" | "error" | "readonly" | "outdated";
+
+/** How a shared document is versioned: the body written to the server, and whether a stored one is newer than this page understands. */
+export type SharedFormat<T> = { toServer: (value: T) => unknown; isNewer: (stored: unknown) => boolean };
 
 /**
  * State shared by everyone who opens the workspace.
@@ -69,11 +73,15 @@ export type SyncStatus = "loading" | "synced" | "saving" | "local" | "error" | "
  * renders something useful before the fetch returns and keeps working if the
  * API is unreachable (for example a static preview); in that case status is
  * "local" and changes stay in this browser only.
+ *
+ * With a `format`, a stored document from a newer Scopewright, or a write the
+ * server refuses with 409 (it runs another version), sets status "outdated"
+ * and stops writing: saving would lose what one side does not understand.
  */
-export function useSharedState<T>(key: string, initial: T, merge: (stored: unknown, initial: T) => T) {
+export function useSharedState<T>(key: string, initial: T, merge: (stored: unknown, initial: T) => T, format?: SharedFormat<T>) {
   const [value, setValue] = useState<T>(initial);
   const [status, setStatus] = useState<SyncStatus>("loading");
-  const [config] = useState(() => ({ initial, merge }));
+  const [config] = useState(() => ({ initial, merge, format }));
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -93,7 +101,7 @@ export function useSharedState<T>(key: string, initial: T, merge: (stored: unkno
         // The server is the source of truth: a missing document means defaults,
         // even if this browser cached an older value.
         setValue(body.value !== null && body.value !== undefined ? config.merge(body.value, config.initial) : config.initial);
-        setStatus("synced");
+        setStatus(body.value && config.format?.isNewer(body.value) ? "outdated" : "synced");
       })
       .catch(() => {
         if (!cancelled) setStatus("local");
@@ -111,10 +119,10 @@ export function useSharedState<T>(key: string, initial: T, merge: (stored: unkno
     } catch {
       /* ignore */
     }
-    if (status === "local" || status === "loading") return;
+    if (status === "local" || status === "loading" || status === "outdated") return;
     const timer = window.setTimeout(() => {
-      fetch(`/api/workspace/${key}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(value) })
-        .then((response) => setStatus(response.ok ? "synced" : response.status === 401 || response.status === 403 ? "readonly" : "error"))
+      fetch(`/api/workspace/${key}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(config.format ? config.format.toServer(value) : value) })
+        .then((response) => setStatus(response.ok ? "synced" : response.status === 401 || response.status === 403 ? "readonly" : response.status === 409 ? "outdated" : "error"))
         .catch(() => setStatus("error"));
     }, 600);
     return () => window.clearTimeout(timer);

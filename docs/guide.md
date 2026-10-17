@@ -24,7 +24,11 @@ Scope documents, Weekly updates, and Saved estimates. **Manage** is setup: the E
 (what your team delivers and the hours each piece takes) and Settings (how the workspace
 looks). The bottom of the sidebar shows who is signed in and the sync state
 of the shared catalog and brand, for example "Shared workspace · synced" or
-"View only".
+"View only". After Scopewright is updated, a tab that was left open shows
+**Reload to keep working** and "Not saving · reload the page" the next time
+it tries to save a catalog change: the server only accepts changes from the
+current version, so an old page cannot overwrite what it does not understand.
+Reload the page and make the change again; your estimate draft is kept.
 
 Two kinds of data live in Scopewright:
 
@@ -99,6 +103,40 @@ specific to this engagement.
 
 ![Deliverables step](img/004-estimate-deliverables.png)
 
+<!-- screenshot needed: img/004b-estimate-introduction.png (the Introduction and closing panel with a template chosen) -->
+
+**Introduction and closing** at the top of the step adds optional wording to
+the scope document: an introduction printed after the title, before the
+numbered sections, and a closing printed after the last section, before the
+signatures. Use it for text such as the purpose of the proof of concept.
+The **Wording** list offers:
+
+- **None**: the document starts straight at the goal. This is the default.
+- **Your team's templates**, maintained in the
+  [catalog](#introduction-and-closing-templates). Picking one copies its
+  wording into this estimate. You can then edit the copy for this engagement;
+  the panel says the wording is based on the template and edited, and
+  **Restore the template wording** undoes your edits. A template marked
+  **locked** in the catalog cannot be edited: its wording is used exactly as
+  written.
+- **Write my own**: write the introduction and closing yourself. Switching
+  from a template keeps its wording as a starting point, except from a
+  locked one, which starts empty.
+
+Either box may be left empty. Leave a blank line between paragraphs.
+`{customer}`, `{title}`, `{products}`, and `{organization}` are filled in from
+the estimate when the document is printed, so the wording follows later
+changes to the customer name or products. Anything else in braces prints as
+typed, and the panel points it out. Choosing other wording after editing asks
+before replacing your text.
+
+Because the wording is copied, a later change to the template does not change
+this estimate. If the catalog's template now reads differently, or has been
+locked or unlocked, the panel says so and offers **Use the new wording**; nothing changes until you choose
+it. Wording you edited is yours, so the only change offered for it is a
+template that has since been locked. An estimate keeps its wording even if the template is turned off or
+deleted.
+
 Deliverables are grouped by delivery phase (Planning, Prerequisites,
 Deployment, Configuration, Testing and Validation) and within a phase by
 catalog group. Only groups tied to a product in the engagement, or to no
@@ -115,7 +153,8 @@ engagement no longer needs it; once cleared, it is not offered again.
 
 ![Review step](img/005-estimate-review.png)
 
-A summary of the engagement details with a link back to step 1, and the
+A summary of the engagement details (including which introduction and
+closing the document uses) with a link back to step 1, and the
 scope table: one row per product with its chosen decisions and hours, one per
 deliverable group, and the total. A banner shows how many required
 prerequisites are still pending, and another lists any installation questions
@@ -137,7 +176,10 @@ sections, numbered as they appear: goal, products in scope, installation
 scope, prerequisites with values and status, delivery plan with numbered
 deliverables, out of scope, effort summary with the planning range, success
 criteria, and assumptions, followed by sign-off lines and the footer from
-Settings.
+Settings. When the estimate has an [introduction or
+closing](#5-deliverables), the introduction appears between the title and the
+first section and the closing after the last section; neither is numbered, so
+section numbers do not change.
 
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
@@ -210,7 +252,20 @@ If the only change is a kept deliverable, a short notice says so instead.
 The scope document always reflects the current catalog: an option that was
 renamed prints its new name, and changed hours print the new hours. The
 original wording of a removed option is not kept in the estimate, so the PDF
-printed at the time remains the record of what was agreed.
+printed at the time remains the record of what was agreed. The introduction
+and closing are the exception: they are copied into the estimate and print
+the same whatever happens to the template.
+
+### Estimates from a newer Scopewright
+
+An estimate saved by a newer release of Scopewright (for example, by a
+colleague on a workspace that has already been updated) may contain details
+this release does not understand. Saving it here would lose them, so it opens
+**view only**: a banner explains why, every step and the scope document can
+be read and printed, and Save, Save as, and Export are unavailable. The file
+is not locked while you view it. In Saved estimates such a file is tagged
+**Newer version · view only**. Open it in an up-to-date Scopewright to change
+it. [formats.md](formats.md) explains how file versions work.
 
 ## Saved estimates
 
@@ -331,6 +386,38 @@ engagement-specific ones there.
 ### Deliverables
 
 ![Catalog: deliverables](img/014-catalog-deliverables.png)
+
+The Deliverables tab has two parts: introduction and closing templates, then
+deliverable groups.
+
+#### Introduction and closing templates
+
+<!-- screenshot needed: img/014b-catalog-templates.png (a template opened for editing) -->
+
+Longer wording for the scope document that your team wants used
+consistently, such as the purpose of a proof of concept. Each
+template has a **name**, an optional **When to use it** line shown to the
+person choosing, an **Introduction** printed after the title, and a
+**Closing** printed after the last section; either may be empty. Separate
+paragraphs with a blank line. `{customer}`, `{title}`, `{products}`, and
+`{organization}` are filled in from each estimate; anything else in braces is
+pointed out, because it would print as typed.
+
+**Offer in workflow** controls whether the template is listed in the
+[Deliverables step](#5-deliverables); the arrows set the order of the list.
+**Lock wording** is for wording that must be used exactly as written, for
+example a statement your organization has approved: estimates that pick a
+locked template cannot edit it (placeholders are still filled in). Without
+it, a template is a starting point that architects can adapt.
+Architects who pick a template get a copy of its wording, so editing,
+turning off, or deleting a template never changes an estimate that already
+uses it. After an edit, estimates whose copy is unedited offer the new
+wording; an estimate whose architect edited their copy is offered the
+template only once it is locked. Nothing changes unless the architect
+accepts it. **Delete template** asks for
+confirmation first.
+
+#### Deliverable groups
 
 Deliverable **groups** have a section number, a name, a category, and the
 product they belong to ("Any product" for engagement-wide work such as

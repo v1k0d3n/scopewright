@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { byProductName, groupHours, removeFromCatalog } from "../lib/estimate";
+import { PLACEHOLDERS, byProductName, groupHours, removeFromCatalog, unknownPlaceholders } from "../lib/estimate";
 import type { ProductItem } from "../lib/estimate";
 import { phases } from "../lib/types";
-import type { Catalog, DeliverableGroup, DeliverableTask, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
+import type { Catalog, DeliverableGroup, DeliverableTask, DocumentTemplate, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void };
@@ -24,6 +24,8 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [confirming, setConfirming] = useState(false);
   const [draft, setDraft] = useState<Product | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<DocumentTemplate | null>(null);
+  const [newTemplate, setNewTemplate] = useState("");
   const products = catalog.products;
   const patch = (next: Partial<Catalog>) => setCatalog({ ...catalog, ...next });
 
@@ -100,6 +102,11 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   const setSolutions = (solutions: SolutionTemplate[]) => patch({ solutions });
   const updateSolution = (id: string, changes: Partial<SolutionTemplate>) => setSolutions(catalog.solutions.map((item) => item.id === id ? { ...item, ...changes } : item));
   const addSolution = () => setSolutions([...catalog.solutions, { id: uid("solution"), label: "SOLUTION", title: "New solution", subtitle: "", products: [] }]);
+
+  const templates = catalog.documentTemplates ?? [];
+  const setTemplates = (documentTemplates: DocumentTemplate[]) => patch({ documentTemplates });
+  const updateTemplate = (id: string, changes: Partial<DocumentTemplate>) => setTemplates(templates.map((item) => item.id === id ? { ...item, ...changes } : item));
+  const addTemplate = () => { const id = uid("template"); setTemplates([...templates, { id, name: "New template", introduction: "", closing: "", enabled: true, locked: false }]); setNewTemplate(id); };
 
   const setGroups = (groups: DeliverableGroup[]) => patch({ groups });
   const updateGroup = (id: string, changes: Partial<DeliverableGroup>) => setGroups(catalog.groups.map((group) => group.id === id ? { ...group, ...changes } : group));
@@ -290,7 +297,43 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
 
       {tab === "deliverables" && (
         <div className="content designer-content">
-          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Deliverable workflows</h1><p>Group tasks by the product they belong to. Only groups tied to a product in the engagement, or to no product, are offered in the Deliverables step.</p></div><div className="actions"><button type="button" className="secondary" onClick={() => offerAll(true)}>Offer all</button><button type="button" className="secondary" onClick={() => offerAll(false)}>Offer none</button><button type="button" className="primary" onClick={addGroup}>+ Add group</button></div></div>
+          <div className="title-row"><div><span className="eyebrow">ESTIMATE CATALOG</span><h1>Deliverable workflows</h1><p>Introduction and closing templates for the scope document, then deliverable groups. Only groups tied to a product in the engagement, or to no product, are offered in the Deliverables step.</p></div></div>
+          <section className="template-editor" aria-labelledby="template-heading">
+            <div className="section-head">
+              <div><h2 id="template-heading">Introduction and closing templates</h2><p>Longer wording printed before the numbered sections and after the last one, such as the purpose of a proof of concept. Architects pick one in the Deliverables step or write their own. Picking one copies its wording into the estimate, so a change here never alters an estimate that already uses it; they are offered the new wording instead. Architects can edit the copy for their engagement unless the template is locked. Leave a blank line between paragraphs. {PLACEHOLDERS.map((name) => `{${name}}`).join(" ")} are filled in from each estimate.</p></div>
+              <button type="button" className="secondary" onClick={addTemplate}>+ Add template</button>
+            </div>
+            <div className="designer-list">
+              {templates.length === 0 && <p className="panel-copy list-empty">No templates yet. The Deliverables step still lets architects write their own.</p>}
+              {templates.map((template, index) => {
+                const unknown = unknownPlaceholders(`${template.introduction}\n${template.closing}`);
+                return (
+                  <details key={template.id} open={template.id === newTemplate || undefined}>
+                    <summary><i>{index + 1}</i><span><b>{template.name || "Untitled"}</b><small>{template.description || [template.introduction && "Introduction", template.closing && "closing"].filter(Boolean).join(" and ") || "No wording yet"}</small></span><em className={template.enabled ? "" : "pending"}>{template.enabled ? "Offered" : "Not offered"}{template.locked ? " · Locked" : ""}</em></summary>
+                    <div className="designer-fields template-fields">
+                      <label>Name<input value={template.name} onChange={(event) => updateTemplate(template.id, { name: event.target.value })} /></label>
+                      <label className="span-2">When to use it<input placeholder="e.g. Explains that a successful proof of concept helps the customer make their decision" value={template.description ?? ""} onChange={(event) => updateTemplate(template.id, { description: event.target.value })} /></label>
+                      <label className="wide">Introduction · printed after the title<textarea rows={6} value={template.introduction} onChange={(event) => updateTemplate(template.id, { introduction: event.target.value })} /></label>
+                      <label className="wide">Closing · printed after the last section<textarea rows={6} value={template.closing} onChange={(event) => updateTemplate(template.id, { closing: event.target.value })} /></label>
+                      {unknown.length > 0 && <p className="wide needs-answer">Not a placeholder, so it prints as typed: {unknown.map((name) => `{${name}}`).join(" ")}</p>}
+                      <div className="row-actions wide">
+                        <label className="workflow-toggle"><input type="checkbox" checked={template.enabled} onChange={(event) => updateTemplate(template.id, { enabled: event.target.checked })} /><span>Offer in workflow</span></label>
+                        <label className="workflow-toggle" title="Estimates that pick this template use its wording exactly as written; architects cannot edit it."><input type="checkbox" checked={template.locked} onChange={(event) => updateTemplate(template.id, { locked: event.target.checked })} /><span>Lock wording</span></label>
+                        <span className="order-label">Order in the list</span>
+                        <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setTemplates(move(templates, index, index - 1))}>↑</button>
+                        <button type="button" className="icon" aria-label="Move down" disabled={index === templates.length - 1} onClick={() => setTemplates(move(templates, index, index + 1))}>↓</button>
+                        <button type="button" className="destructive-outline" onClick={() => setDeletingTemplate(template)}>Delete template</button>
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </section>
+          <div className="section-head groups-head">
+            <div><h2>Deliverable groups</h2><p>Group tasks by the product they belong to.</p></div>
+            <div className="actions"><button type="button" className="secondary" onClick={() => offerAll(true)}>Offer all</button><button type="button" className="secondary" onClick={() => offerAll(false)}>Offer none</button><button type="button" className="primary" onClick={addGroup}>+ Add group</button></div>
+          </div>
           {selectionBar}
           <div className="catalog-groups">
             {catalog.groups.map((group, index) => (
@@ -330,6 +373,12 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
         </div>
       )}
 
+      {deletingTemplate && (
+        <ConfirmDialog title={`Delete “${deletingTemplate.name || "Untitled"}”?`} confirmLabel="Delete template" onCancel={() => setDeletingTemplate(null)} onConfirm={() => { setCatalog(removeFromCatalog(catalog, { documentTemplates: [deletingTemplate.id] })); setDeletingTemplate(null); }}>
+          <p className="modal-note">Estimates that already use it keep their copy of the wording. To stop offering it but keep it here, turn off “Offer in workflow” instead.</p>
+          <p className="modal-warning">This changes the shared catalog for everyone and cannot be undone.</p>
+        </ConfirmDialog>
+      )}
       {confirming && chosen.length > 0 && (
         <ConfirmDialog title={`Delete ${plural(chosen.length, one, many)}?`} confirmLabel={`Delete ${plural(chosen.length, one, many)}`} onCancel={() => setConfirming(false)} onConfirm={deleteSelected}>
           <div className="confirm-list">
