@@ -1,6 +1,6 @@
 # Base images are pinned by digest; Dependabot proposes updates weekly.
 # Build stage: install every dependency and build the Node server.
-FROM registry.access.redhat.com/ubi9/nodejs-22:latest@sha256:724b994feda13753bdc8dcb38dbf2ab14decb5105d18021b8a2b092f7e3b4c69 AS build
+FROM registry.access.redhat.com/ubi9/nodejs-22:latest@sha256:9c92c41e1f0122df9c8e120c22afe3605fa919b05b4d3630b5c0ac439c678762 AS build
 WORKDIR /opt/app-root/src
 COPY --chown=1001:0 package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
