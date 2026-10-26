@@ -8,7 +8,7 @@ COPY --chown=1001:0 . .
 RUN npm run build
 
 # Runtime stage: only the build output and the modules `vinext start` needs.
-FROM registry.access.redhat.com/ubi9/nodejs-22-minimal:latest@sha256:254080e3c058143c592f708e4ca78691449349fc79f03ee678c717aa4b6222b6
+FROM registry.access.redhat.com/ubi9/nodejs-22-minimal:latest@sha256:61318c7c1d5d5a5a5f7190d842223ab27815876a060c55f15d03c3981311573b
 WORKDIR /opt/app-root/src
 ENV NODE_ENV=production PORT=3000 HOME=/opt/app-root/src
 COPY --from=build --chown=1001:0 /opt/app-root/src/package.json ./
