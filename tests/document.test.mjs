@@ -215,3 +215,12 @@ test("the list rules shipped before Markdown still hold", () => {
   assert.deepEqual(after.map((block) => block.kind), ["paragraph", "list"], "a list may start straight after a line of text");
   assert.equal(after[1].start, 3);
 });
+
+test("a list typed indented with no list above it is indented, and its own nesting still works", () => {
+  const { blocks, text } = markdownSection("This document will provide:\n  1. A review\n    - of the goals\n  2. An overview\n\nPlain list:\n- not indented");
+  assert.deepEqual(blocks.map((block) => [block.kind, block.indent ?? false]), [["paragraph", false], ["list", true], ["paragraph", false], ["list", false]]);
+  assert.deepEqual(blocks[1].items, [["A review"], ["An overview"]]);
+  assert.deepEqual(blocks[1].nested[0].items, [["of the goals"]], "two more spaces still nest under the item above");
+  assert.ok(text.includes("  1. A review"), "the copied text keeps the indent as typed");
+  assert.equal(markdownSection("1. Platform\n  - Operators").blocks[0].indent, undefined, "spaces under a list item nest, they do not indent");
+});

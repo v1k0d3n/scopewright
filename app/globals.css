@@ -397,6 +397,7 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .doc-preview ul { list-style: disc; }
 .doc-preview ol { list-style: decimal; }
 .doc-preview li > ul { list-style: circle; }
+.doc-preview .doc-list-indent { margin-left: 24px; }
 .doc-preview li > ul, .doc-preview li > ol { margin: 2px 0; }
 .doc-preview .doc-hours { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .doc-preview li small { font-size: 11px; }

@@ -14,28 +14,43 @@ const LIST_ITEM = /^([ \t]*)([-*•]|\d{1,3}[.)])\s+(.*)$/;
 
 /**
  * Text as Scopewright's rules read it, rewritten for Markdown. Two spaces or a
- * tab nest a list line under the one above, whatever the marker above it; and
- * a list may start straight after a line of text, at any number. Markdown
- * would need deeper indents after a numbered item, and would keep "3." after
- * a line of text in the paragraph.
+ * tab nest a list line under the one above, whatever the marker above it; a
+ * list may start straight after a line of text, at any number; and a list
+ * whose first line is indented, with no list above it to belong to, is
+ * indented on the page. Markdown would need deeper indents after a numbered
+ * item, would keep "3." after a line of text in the paragraph, and has no
+ * indented lists.
+ *
+ * `indented` says, for each list that starts at the top level, in order,
+ * whether it was typed indented.
  */
-function normalize(text: string): string {
+function normalize(text: string): { text: string; indented: boolean[] } {
   const out: string[] = [];
+  const indented: boolean[] = [];
   let previous: "blank" | "text" | "list" = "blank";
+  // The indent and marker of the list being written; null outside a list.
+  let list: { base: number; kind: string; indented: boolean } | null = null;
   for (const line of text.split("\n")) {
     const item = LIST_ITEM.exec(line);
     if (!item) {
       out.push(line);
+      if (line.trim() && !(previous === "list" && /^\s/.test(line))) list = null;
       previous = line.trim() ? (previous === "list" && /^\s/.test(line) ? "list" : "text") : "blank";
       continue;
     }
     if (previous === "text") out.push("");
-    const level = Math.floor(item[1].replace(/\t/g, "  ").length / 2);
+    const indent = item[1].replace(/\t/g, "  ").length;
+    if (!list) list = { base: indent, kind: "", indented: indent >= 2 };
+    const level = Math.max(0, Math.floor((indent - list.base) / 2));
+    const marker = item[2] === "•" ? "-" : item[2];
+    // Markdown starts a new list when the marker changes kind ("-" or "*", "1." or "1)").
+    const kind = /\d/.test(marker) ? marker.slice(-1) : marker;
+    if (level === 0 && kind !== list.kind) { indented.push(list.indented); list.kind = kind; }
     // Four spaces a level is deeper than any marker up to "99." needs, and not deep enough to be code.
-    out.push(`${"    ".repeat(level)}${item[2] === "•" ? "-" : item[2]} ${item[3]}`);
+    out.push(`${"    ".repeat(level)}${marker} ${item[3]}`);
     previous = "list";
   }
-  return out.join("\n");
+  return { text: out.join("\n"), indented };
 }
 
 type Fill = (value: string) => string;
@@ -93,7 +108,11 @@ function blocks(tokens: Token[], fill: Fill): Block[] {
 }
 
 /** Custom section text as blocks. Placeholders are filled after parsing, so a filled-in value is never read as Markdown. */
-export const markdownBlocks = (text: string, fill: Fill): Block[] => blocks(lexer(normalize(text)), fill);
+export function markdownBlocks(text: string, fill: Fill): Block[] {
+  const normalized = normalize(text);
+  let lists = 0;
+  return blocks(lexer(normalized.text), fill).map((block) => (block.kind === "list" && normalized.indented[lists++] ? { ...block, indent: true } : block));
+}
 
 /** One line of custom text for the copied text: the words, without the Markdown marks around them. */
 export const markdownLine = (line: string): string => line

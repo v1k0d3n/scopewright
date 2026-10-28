@@ -89,7 +89,8 @@ const Spans = ({ spans }: { spans: Span[] }) => <>{spans.map((span, index) => <S
 
 function ListView({ list }: { list: ListBlock }) {
   const items = list.items.map((item, line) => <li key={line}><Spans spans={item} />{list.nested?.[line] && <ListView list={list.nested[line]} />}</li>);
-  return list.ordered ? <ol start={list.start}>{items}</ol> : <ul>{items}</ul>;
+  const className = list.indent ? "doc-list-indent" : undefined;
+  return list.ordered ? <ol className={className} start={list.start}>{items}</ol> : <ul className={className}>{items}</ul>;
 }
 
 function Blocks({ blocks }: { blocks: Block[] }) {

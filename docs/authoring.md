@@ -213,7 +213,8 @@ with these rules:
 - A line that starts with `- ` (or `* `, `• `) is a bullet, and one that
   starts with `1. ` (or `1) `) is a numbered item; a numbered list starts at
   the first number given. A line indented by two spaces or a tab belongs to a
-  list under the line above.
+  list under the list item above; a list whose first line is indented, with
+  no list item above it, is printed indented.
 - `{customer}`, `{title}`, `{products}` (the products the architect picked,
   as "A, B, and C"), and `{organization}` (the organization name in Settings)
   are filled in from each estimate when the document is printed, in titles,

@@ -18,8 +18,8 @@ export type Span = string | { strong: string } | { em: string } | { note: string
 
 export type TableRow = { cells: Span[][]; total?: boolean };
 
-/** Bullets, or numbers from `start`. An item may hold one list of its own (`nested[i]` belongs to `items[i]`). */
-export type ListBlock = { kind: "list"; items: Span[][]; ordered?: boolean; start?: number; nested?: (ListBlock | undefined)[] };
+/** Bullets, or numbers from `start`. An item may hold one list of its own (`nested[i]` belongs to `items[i]`). An `indent`ed list sits further in from the text around it. */
+export type ListBlock = { kind: "list"; items: Span[][]; ordered?: boolean; start?: number; nested?: (ListBlock | undefined)[]; indent?: boolean };
 
 export type Block =
   /** Placeholder copy stands in for something not written yet. */
