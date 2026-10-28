@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PLACEHOLDERS, removeFromCatalog } from "../lib/estimate";
+import { PLACEHOLDERS, SECTION_LIMITS, removeFromCatalog } from "../lib/estimate";
 import type { Catalog, SectionTemplate } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SectionFields } from "./SectionFields";
@@ -25,7 +25,7 @@ export function SectionTemplates({ catalog, setCatalog }: Props) {
   const templates = catalog.sectionTemplates ?? [];
   const setTemplates = (sectionTemplates: SectionTemplate[]) => setCatalog({ ...catalog, sectionTemplates });
   const update = (id: string, changes: Partial<SectionTemplate>) => setTemplates(templates.map((item) => (item.id === id ? { ...item, ...changes } : item)));
-  const add = () => { const id = uid(); setTemplates([...templates, { id, title: "", category: templates.at(-1)?.category ?? "", blocks: [{ kind: "text", text: "" }], enabled: true, locked: false }]); setOpened(id); };
+  const add = () => { const id = uid(); setTemplates([...templates, { id, title: "", category: templates.at(-1)?.category ?? "", blocks: [{ kind: "text", text: "" }], enabled: false, locked: false }]); setOpened(id); };
   const categories = [...new Set(templates.map((template) => template.category.trim()).filter(Boolean))];
   return (
     <div className="content designer-content">
@@ -40,8 +40,8 @@ export function SectionTemplates({ catalog, setCatalog }: Props) {
           <details key={template.id} open={template.id === opened || undefined}>
             <summary><i>{index + 1}</i><span><b>{template.title || "Untitled section"}</b><small>{[template.category || "No category", template.description || contents(template)].join(" · ")}</small></span><em className={template.enabled ? "" : "pending"}>{template.enabled ? "Offered" : "Not offered"}{template.locked ? " · Locked" : ""}</em></summary>
             <div className="designer-fields template-fields">
-              <label>Category<input list="section-categories" placeholder="e.g. Proof of concept" value={template.category} onChange={(event) => update(template.id, { category: event.target.value })} /></label>
-              <label className="span-2">When to use it<input placeholder="e.g. Named contacts on both sides, for every proof of concept" value={template.description ?? ""} onChange={(event) => update(template.id, { description: event.target.value })} /></label>
+              <label>Category<input list="section-categories" maxLength={SECTION_LIMITS.category} placeholder="e.g. Proof of concept" value={template.category} onChange={(event) => update(template.id, { category: event.target.value })} /></label>
+              <label className="span-2">When to use it<input maxLength={SECTION_LIMITS.description} placeholder="e.g. Named contacts on both sides, for every proof of concept" value={template.description ?? ""} onChange={(event) => update(template.id, { description: event.target.value })} /></label>
               <div className="wide"><SectionFields value={template} onChange={(value) => update(template.id, value)} /></div>
               <div className="row-actions wide">
                 <label className="workflow-toggle"><input type="checkbox" checked={template.enabled} onChange={(event) => update(template.id, { enabled: event.target.checked })} /><span>Offer in workflow</span></label>

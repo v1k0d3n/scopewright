@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { mergeCatalog, mergeEstimate, readEstimateFile, removeFromCatalog, sectionFrom, sectionTemplateChanged } from "../app/lib/estimate.ts";
+import { SECTION_LIMITS, mergeCatalog, mergeEstimate, readEstimateFile, removeFromCatalog, sectionFrom, sectionTemplateChanged } from "../app/lib/estimate.ts";
 import { builtInSections, documentOutline, documentText, scopeDocument, sectionLayout } from "../app/lib/document.ts";
 import { sectionIds } from "../app/lib/types.ts";
 
@@ -168,4 +168,16 @@ test("custom text makes numbered lists from their first number, and indented lin
   assert.deepEqual(block.nested[1], { kind: "list", items: [["Deploy"]], ordered: true, start: 1 });
   const follow = scopeDocument(catalog, { ...sample, customSections: [section] }, "Org").sections.at(-1).blocks[2];
   assert.deepEqual(follow, { kind: "list", items: [["Follow-up"]] }, "a bullet after a numbered list starts a new list");
+});
+
+test("files keep exactly what the section editors allow, so nothing typed is lost on reload", () => {
+  const long = (n) => "x".repeat(n + 1);
+  const [section] = mergeEstimate({ customSections: [{ id: "s", title: long(SECTION_LIMITS.title), blocks: [{ kind: "text", text: long(SECTION_LIMITS.text) }, { kind: "table", columns: [long(SECTION_LIMITS.heading)], rows: [[long(SECTION_LIMITS.cell)]] }] }] }, emptyEstimate()).customSections;
+  assert.equal(section.title.length, SECTION_LIMITS.title);
+  assert.equal(section.blocks[0].text.length, SECTION_LIMITS.text);
+  assert.equal(section.blocks[1].columns[0].length, SECTION_LIMITS.heading);
+  assert.equal(section.blocks[1].rows[0][0].length, SECTION_LIMITS.cell);
+  const [template] = mergeCatalog({ ...emptyCatalog, sectionTemplates: [{ id: "t", title: "T", category: long(SECTION_LIMITS.category), description: long(SECTION_LIMITS.description), blocks: [] }] }, emptyCatalog).sectionTemplates;
+  assert.equal(template.category.length, SECTION_LIMITS.category);
+  assert.equal(template.description.length, SECTION_LIMITS.description);
 });

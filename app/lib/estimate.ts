@@ -256,7 +256,7 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
   const legacy = list(s.documentTemplates, (item) => objectOrNull(item)).flatMap(legacyTemplates);
   const sectionTemplates = s.sectionTemplates === undefined && !legacy.length ? initial.sectionTemplates ?? [] : list([...legacy, ...(Array.isArray(s.sectionTemplates) ? s.sectionTemplates : [])], (item, index) => {
     const t = objectOrNull(item); if (!t) return null;
-    return { id: id(t.id, `section-template-${index}`), title: text(t.title, 160), category: text(t.category, 60), description: text(t.description, 300) || undefined, blocks: mergeBlocks(t.blocks), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
+    return { id: id(t.id, `section-template-${index}`), title: text(t.title, SECTION_LIMITS.title), category: text(t.category, SECTION_LIMITS.category), description: text(t.description, SECTION_LIMITS.description) || undefined, blocks: mergeBlocks(t.blocks), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
   });
   return { products, installation, prerequisites, groups, solutions, outOfScope, sectionTemplates };
 }
@@ -349,20 +349,18 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
 const MAX_MAP = 2_000;
 const MAX_LONG = 20_000;
 
-/** Limits on a custom section's tables; the editor stops at the same ones. */
-export const MAX_COLUMNS = 8;
-export const MAX_ROWS = 200;
-const MAX_CELL = 500;
+/** What a custom section or section template keeps when it is read; the editors stop at the same limits, so nothing typed is lost on reload. */
+export const SECTION_LIMITS = { title: 160, category: 60, description: 300, text: MAX_LONG, heading: 120, cell: 500, columns: 8, rows: 200 } as const;
 
 /** Text and tables, every table row as wide as its columns. */
 function mergeBlocks(value: unknown): CustomBlock[] {
   return list(value, (entry): CustomBlock | null => {
     const b = objectOrNull(entry); if (!b) return null;
-    if (b.kind === "text") return { kind: "text", text: text(b.text, MAX_LONG) };
+    if (b.kind === "text") return { kind: "text", text: text(b.text, SECTION_LIMITS.text) };
     if (b.kind !== "table") return null;
-    const columns = list(b.columns, (column) => text(column, 120)).slice(0, MAX_COLUMNS);
+    const columns = list(b.columns, (column) => text(column, SECTION_LIMITS.heading)).slice(0, SECTION_LIMITS.columns);
     if (!columns.length) return null;
-    const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], MAX_CELL)) : null)).slice(0, MAX_ROWS);
+    const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], SECTION_LIMITS.cell)) : null)).slice(0, SECTION_LIMITS.rows);
     return { kind: "table", columns, rows };
   }).slice(0, 50);
 }
@@ -373,7 +371,7 @@ function mergeCustomSections(value: unknown): CustomSection[] {
     const c = objectOrNull(item); if (!c) return null;
     const templateId = id(c.templateId, "");
     const locked = Boolean(templateId) && bool(c.locked, false);
-    return { id: id(c.id, `section-${index}`), title: text(c.title, 160), blocks: mergeBlocks(c.blocks), templateId, templateName: templateId ? text(c.templateName, 160) : "", edited: Boolean(templateId) && !locked && bool(c.edited, false), locked };
+    return { id: id(c.id, `section-${index}`), title: text(c.title, SECTION_LIMITS.title), blocks: mergeBlocks(c.blocks), templateId, templateName: templateId ? text(c.templateName, SECTION_LIMITS.title) : "", edited: Boolean(templateId) && !locked && bool(c.edited, false), locked };
   }).slice(0, 50).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index);
 }
 

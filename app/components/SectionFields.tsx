@@ -1,7 +1,7 @@
 "use client";
 
 import type { Ref } from "react";
-import { MAX_COLUMNS, MAX_ROWS, unknownPlaceholders } from "../lib/estimate";
+import { SECTION_LIMITS, unknownPlaceholders } from "../lib/estimate";
 import type { CustomBlock } from "../lib/types";
 
 export type SectionContent = { title: string; blocks: CustomBlock[] };
@@ -25,7 +25,7 @@ export function SectionFields({ value, onChange, readOnly = false, titleRef }: P
   return (
     // A disabled fieldset turns off every input and button inside it at once.
     <fieldset className="section-fields" disabled={readOnly}>
-      <label>Title<input ref={titleRef} value={title} placeholder="e.g. Contacts" onChange={(event) => onChange({ title: event.target.value, blocks })} /></label>
+      <label>Title<input ref={titleRef} value={title} maxLength={SECTION_LIMITS.title} placeholder="e.g. Contacts" onChange={(event) => onChange({ title: event.target.value, blocks })} /></label>
       {blocks.map((block, index) => (
         <section className="section-block" key={index}>
           <header>
@@ -58,7 +58,7 @@ export function SectionFields({ value, onChange, readOnly = false, titleRef }: P
 function TextBlock({ block, onChange }: { block: Extract<CustomBlock, { kind: "text" }>; onChange: (block: CustomBlock) => void }) {
   return (
     <label className="section-text">Text
-      <textarea rows={6} value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} />
+      <textarea rows={6} maxLength={SECTION_LIMITS.text} value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} />
       <small>Leave a blank line between paragraphs. Start a line with “- ” for a bullet or “1. ” for a numbered list; indent it two spaces to put it under the line above.</small>
     </label>
   );
@@ -80,14 +80,14 @@ function TableBlock({ block, readOnly, onChange }: { block: Extract<CustomBlock,
               </tr>
             )}
             <tr>
-              {columns.map((column, index) => <th key={index}><input aria-label={`Column ${index + 1} heading`} placeholder={`Column ${index + 1}`} value={column} onChange={(event) => onChange({ ...block, columns: columns.map((item, at) => (at === index ? event.target.value : item)) })} /></th>)}
+              {columns.map((column, index) => <th key={index}><input aria-label={`Column ${index + 1} heading`} placeholder={`Column ${index + 1}`} maxLength={SECTION_LIMITS.heading} value={column} onChange={(event) => onChange({ ...block, columns: columns.map((item, at) => (at === index ? event.target.value : item)) })} /></th>)}
               <th aria-hidden="true" />
             </tr>
           </thead>
           <tbody>
             {rows.map((cells, row) => (
               <tr key={row}>
-                {cells.map((cell, column) => <td key={column}><input aria-label={`Row ${row + 1}, ${columns[column] || `column ${column + 1}`}`} value={cell} onChange={(event) => setCell(row, column, event.target.value)} /></td>)}
+                {cells.map((cell, column) => <td key={column}><input aria-label={`Row ${row + 1}, ${columns[column] || `column ${column + 1}`}`} maxLength={SECTION_LIMITS.cell} value={cell} onChange={(event) => setCell(row, column, event.target.value)} /></td>)}
                 {!readOnly && <td><button type="button" className="icon" aria-label={`Remove row ${row + 1}`} onClick={() => onChange({ ...block, rows: rows.filter((_, at) => at !== row) })}>×</button></td>}
               </tr>
             ))}
@@ -95,8 +95,8 @@ function TableBlock({ block, readOnly, onChange }: { block: Extract<CustomBlock,
         </table>
       </div>
       {!readOnly && <div className="section-editor-add">
-        <button type="button" className="secondary" disabled={rows.length >= MAX_ROWS} onClick={() => onChange({ ...block, rows: [...rows, columns.map(() => "")] })}>+ Row</button>
-        <button type="button" className="secondary" disabled={columns.length >= MAX_COLUMNS} onClick={() => onChange({ kind: "table", columns: [...columns, ""], rows: rows.map((cells) => [...cells, ""]) })}>+ Column</button>
+        <button type="button" className="secondary" disabled={rows.length >= SECTION_LIMITS.rows} onClick={() => onChange({ ...block, rows: [...rows, columns.map(() => "")] })}>+ Row</button>
+        <button type="button" className="secondary" disabled={columns.length >= SECTION_LIMITS.columns} onClick={() => onChange({ kind: "table", columns: [...columns, ""], rows: rows.map((cells) => [...cells, ""]) })}>+ Column</button>
       </div>}
     </div>
   );

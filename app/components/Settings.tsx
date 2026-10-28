@@ -217,9 +217,9 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
           {deleting && (
             <ConfirmDialog title="Delete the entire catalog?" confirmLabel="Delete catalog" typeToConfirm="DELETE" onCancel={() => setDeleting(false)} onConfirm={deleteCatalog}
               aside={<button type="button" className="secondary modal-aside" onClick={exportCatalog}>Export .json first</button>}>
-              <p className="modal-warning"><b>WARNING: this cannot be undone.</b> Every product, solution, installation question, prerequisite, deliverable group, and out-of-scope item is deleted for everyone who uses this workspace.</p>
+              <p className="modal-warning"><b>WARNING: this cannot be undone.</b> Every product, solution, installation question, prerequisite, deliverable group, out-of-scope item, and section template is deleted for everyone who uses this workspace.</p>
               <p className="modal-note">Make sure you have a current backup before you continue. <b>Export .json first</b> saves one, and <b>Import .json</b> restores it later.</p>
-              <p className="modal-note">Deletes {catalog.products.length} products, {catalog.solutions.length} solutions, {catalog.groups.length} deliverable groups, and {catalog.outOfScope.length} out-of-scope items.</p>
+              <p className="modal-note">Deletes {catalog.products.length} products, {catalog.solutions.length} solutions, {catalog.groups.length} deliverable groups, {catalog.outOfScope.length} out-of-scope items, and {catalog.sectionTemplates.length} section templates.</p>
             </ConfirmDialog>
           )}
         </section>

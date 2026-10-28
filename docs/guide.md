@@ -450,7 +450,8 @@ example the kind of engagement, or the team that uses it), and an optional
 note on when to use it, and the same title, text, and table editor as a
 [custom section](#custom-sections). **Offer in workflow** controls whether it is listed
 when an architect adds a section; one that is not offered stays in the
-catalog. **Lock wording** is for wording that must be used exactly as
+catalog. **+ Add template** starts one that is not offered, so nobody adds it
+while it is being written; turn on **Offer in workflow** when it is ready. **Lock wording** is for wording that must be used exactly as
 written, for example a statement your organization has approved: an estimate
 that adds a locked template cannot edit its copy. Without it, a template is a
 starting point that architects adapt. Adding a template copies it, so
