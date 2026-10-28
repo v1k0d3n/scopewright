@@ -31,21 +31,16 @@ function normalize(text: string): { text: string; indented: boolean[] } {
   let previous: "blank" | "text" | "list" = "blank";
   // The indent and marker of the list being written; null outside a list.
   let list: { base: number; kind: string; indented: boolean } | null = null;
-  // Inside fenced code or a raw HTML block, lines are left exactly as typed.
-  let fence = "";
-  let html = false;
-  for (const line of text.split("\n")) {
-    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
-    if (fence) { out.push(line); if (opening && opening[0] === fence[0] && opening.length >= fence.length) fence = ""; continue; }
-    if (opening) { fence = opening; out.push(line); previous = "text"; list = null; continue; }
-    if (html) { out.push(line); if (!line.trim()) { html = false; previous = "blank"; } continue; }
-    if (/^ {0,3}<[A-Za-z/!?]/.test(line)) { html = true; out.push(line); previous = "text"; list = null; continue; }
+  // Code and raw HTML blocks are left exactly as typed, wherever Markdown says they start and end.
+  const literal = literalLines(text);
+  text.split("\n").forEach((line, index) => {
+    if (literal.has(index)) { out.push(line); previous = "text"; list = null; return; }
     const item = LIST_ITEM.exec(line);
     if (!item) {
       out.push(line);
       if (line.trim() && !(previous === "list" && /^\s/.test(line))) list = null;
       previous = line.trim() ? (previous === "list" && /^\s/.test(line) ? "list" : "text") : "blank";
-      continue;
+      return;
     }
     if (previous === "text") out.push("");
     const indent = item[1].replace(/\t/g, "  ").length;
@@ -58,8 +53,23 @@ function normalize(text: string): { text: string; indented: boolean[] } {
     // Four spaces a level is deeper than any marker up to "99." needs, and not deep enough to be code.
     out.push(`${"    ".repeat(level)}${marker} ${item[3]}`);
     previous = "list";
-  }
+  });
   return { text: out.join("\n"), indented };
+}
+
+/** The lines of the text that Markdown reads as a code or raw HTML block. Its tokens' raw text, end to end, is the text itself. */
+function literalLines(text: string): Set<number> {
+  const lines = new Set<number>();
+  let line = 0;
+  for (const token of lexer(text)) {
+    const breaks = token.raw.split("\n").length - 1;
+    if (token.type === "code" || token.type === "html") {
+      const last = line + breaks - (token.raw.endsWith("\n") ? 1 : 0);
+      for (let at = line; at <= last; at += 1) lines.add(at);
+    }
+    line += breaks;
+  }
+  return lines;
 }
 
 type Fill = (value: string) => string;

@@ -247,3 +247,12 @@ test("a list inside a quote never takes the indent of a later list", () => {
   const { blocks } = markdownSection("> - quoted\n\nIntro:\n  1. indented\n\nPlain:\n- plain");
   assert.deepEqual(blocks.filter((block) => block.kind === "list").map((block) => [block.items[0][0], block.indent ?? false]), [["quoted", false], ["indented", true], ["plain", false]]);
 });
+
+test("code and raw HTML blocks end where Markdown ends them, and lists after them work as usual", () => {
+  const fenced = markdownSection("```\n  - task\n``` trailing\n  3. literal\n```\nIntro:\n  1. after").blocks;
+  assert.equal(fenced[0].content[0], "```\n  - task\n``` trailing\n  3. literal\n```", "a fence with text after it does not close the block");
+  assert.deepEqual(fenced.at(-1), { kind: "list", items: [["after"]], ordered: true, start: 1, indent: true });
+  const html = markdownSection("<pre>raw</pre>\nIntro:\n  3. Step").blocks;
+  assert.deepEqual(html.map((block) => block.kind), ["paragraph", "paragraph", "list"]);
+  assert.equal(html[2].start, 3);
+});
