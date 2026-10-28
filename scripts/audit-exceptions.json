@@ -1,8 +1,1 @@
-[
-  {
-    "id": "GHSA-vfj7-8cjw-p6xm",
-    "package": "braces",
-    "expires": "2026-11-12",
-    "reason": "No patched release exists (<= 3.0.3, the latest). Reached only through lint and build tooling (@next/eslint-plugin-next, vinext's vite-plugin-commonjs via fast-glob/micromatch), which expand our own glob patterns, never user input."
-  }
-]
+[]

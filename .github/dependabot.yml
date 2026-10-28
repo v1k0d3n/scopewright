@@ -22,6 +22,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # CodeQL fails when init and analyze run different versions.
+      codeql:
+        patterns: ["github/codeql-action*"]
   - package-ecosystem: docker
     directory: /
     schedule:
