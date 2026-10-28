@@ -10,8 +10,8 @@
  */
 import type { Catalog, CustomBlock, CustomSection, Estimate, PrerequisiteStatus, SectionPlacement } from "./types.ts";
 import type { EstimateBreakdown } from "./estimate.ts";
-import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, outOfScopeLines, paragraphs, placeholderValues, statusLabel } from "./estimate.ts";
-import { markdownBlocks, markdownLine } from "./markdown.ts";
+import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, outOfScopeLines, placeholderValues, statusLabel } from "./estimate.ts";
+import { markdownBlocks, markdownText } from "./markdown.ts";
 
 /** A piece of inline content. Plain text prints as written; the others are styled on the page. */
 export type Span = string | { strong: string } | { em: string } | { note: string } | { hours: number } | { status: PrerequisiteStatus; label: string };
@@ -264,20 +264,9 @@ function customBlocks(block: CustomBlock, fill: (value: string) => string): Bloc
   return markdownBlocks(block.text, fill);
 }
 
-/** A Markdown table's divider row, such as "|---|:--:|". */
-const TABLE_DIVIDER = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
-
 function customText(block: CustomBlock, fill: (value: string) => string): string[] {
   if (block.kind === "table") return [...(block.columns.some((column) => column.trim()) ? [block.columns.map(fill).join(" | ")] : []), ...block.rows.map((row) => `- ${row.map(fill).join(" | ")}`.trimEnd())];
-  // Lines print as typed, without Markdown's marks; a Markdown table prints like a custom table.
-  const line = (value: string) => {
-    const words = markdownLine(value);
-    return /^\s*\|.*\|\s*$/.test(words) ? words.trim().slice(1, -1).split("|").map((cell) => cell.trim()).join(" | ") : words;
-  };
-  return paragraphs(fill(block.text)).flatMap((paragraph, index) => {
-    const lines = paragraph.split("\n").filter((value) => !TABLE_DIVIDER.test(value)).map(line);
-    return index ? ["", ...lines] : lines;
-  });
+  return markdownText(block.text, fill);
 }
 
 /** Everything the scope document prints, in order. */

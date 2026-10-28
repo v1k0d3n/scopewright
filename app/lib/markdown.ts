@@ -3,11 +3,12 @@
  *
  * marked only parses; it never produces HTML. Each kind of Markdown becomes a
  * block the page, the copied text, and any later output already draw, and
- * anything without one (raw HTML, code, images) prints as plain text.
+ * anything without one (raw HTML, code, images, rules) prints as typed.
  */
-import { lexer } from "marked";
+import { Lexer, lexer } from "marked";
 import type { Token, Tokens } from "marked";
 import type { Block, ListBlock, Span } from "./document.ts";
+import { paragraphs } from "./estimate.ts";
 
 /** A list line as people type it: an indent, then "-", "*", or "•", or "1." or "1)". */
 const LIST_ITEM = /^([ \t]*)([-*•]|\d{1,3}[.)])\s+(.*)$/;
@@ -30,7 +31,15 @@ function normalize(text: string): { text: string; indented: boolean[] } {
   let previous: "blank" | "text" | "list" = "blank";
   // The indent and marker of the list being written; null outside a list.
   let list: { base: number; kind: string; indented: boolean } | null = null;
+  // Inside fenced code or a raw HTML block, lines are left exactly as typed.
+  let fence = "";
+  let html = false;
   for (const line of text.split("\n")) {
+    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) { out.push(line); if (opening && opening[0] === fence[0] && opening.length >= fence.length) fence = ""; continue; }
+    if (opening) { fence = opening; out.push(line); previous = "text"; list = null; continue; }
+    if (html) { out.push(line); if (!line.trim()) { html = false; previous = "blank"; } continue; }
+    if (/^ {0,3}<[A-Za-z/!?]/.test(line)) { html = true; out.push(line); previous = "text"; list = null; continue; }
     const item = LIST_ITEM.exec(line);
     if (!item) {
       out.push(line);
@@ -66,7 +75,10 @@ function inline(tokens: Token[] | undefined, fill: Fill): Span[] {
         const label = plain(token.tokens, fill);
         return [label === token.href ? label : `${label} (${token.href})`];
       }
-      case "image": return [fill(token.text)];
+      // Images, inline code, and raw HTML print exactly as typed.
+      case "image":
+      case "codespan":
+      case "html": return [fill(token.raw)];
       case "text": return "tokens" in token && token.tokens ? inline(token.tokens, fill) : [fill(token.text)];
       default: return [fill("text" in token && typeof token.text === "string" ? token.text : token.raw)];
     }
@@ -91,8 +103,7 @@ function list(token: Tokens.List, fill: Fill): ListBlock {
 function blocks(tokens: Token[], fill: Fill): Block[] {
   return tokens.flatMap((token): Block[] => {
     switch (token.type) {
-      case "space":
-      case "hr": return [];
+      case "space": return [];
       case "heading": return [{ kind: "heading", content: inline(token.tokens, fill) }];
       case "paragraph": return [{ kind: "paragraph", content: inline(token.tokens, fill) }];
       case "list": return [list(token as Tokens.List, fill)];
@@ -111,13 +122,56 @@ function blocks(tokens: Token[], fill: Fill): Block[] {
 export function markdownBlocks(text: string, fill: Fill): Block[] {
   const normalized = normalize(text);
   let lists = 0;
-  return blocks(lexer(normalized.text), fill).map((block) => (block.kind === "list" && normalized.indented[lists++] ? { ...block, indent: true } : block));
+  // Only a top-level list takes its indent, so a list inside a quote never takes another's.
+  return lexer(normalized.text).flatMap((token) => {
+    const indent = token.type === "list" && normalized.indented[lists++];
+    return blocks([token], fill).map((block) => (indent && block.kind === "list" ? { ...block, indent: true } : block));
+  });
 }
 
-/** One line of custom text for the copied text: the words, without the Markdown marks around them. */
-export const markdownLine = (line: string): string => line
-  .replace(/^\s{0,3}#{1,6}\s+/, "")
-  .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
-  .replace(/(^|[^*\w])\*(?!\s)(.+?)\*(?!\w)|(^|\W)_(?!\s)(.+?)_(?!\w)/g, "$1$3$2$4")
-  .replace(/`([^`]+)`/g, "$1")
-  .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label: string, href: string) => (label === href ? label : `${label} (${href})`));
+/** A line's inline Markdown as text: bold and italic lose their marks, a link reads "text (address)", and code, images, and HTML stay as typed. */
+function inlineText(tokens: Token[] | undefined): string {
+  return (tokens ?? []).map((token) => {
+    switch (token.type) {
+      case "strong":
+      case "em":
+      case "del": return inlineText(token.tokens);
+      case "link": { const label = inlineText(token.tokens); return label === token.href ? label : `${label} (${token.href})`; }
+      case "escape": return token.text;
+      case "text": return "tokens" in token && token.tokens ? inlineText(token.tokens) : token.raw;
+      default: return token.raw;
+    }
+  }).join("");
+}
+
+const lineText = (line: string) => inlineText(Lexer.lexInline(line));
+
+/** One block of custom text for the copied text, read the way the page reads it. */
+function tokenText(token: Token): string[] {
+  const lines = (raw: string) => raw.replace(/\n+$/, "").split("\n");
+  switch (token.type) {
+    case "space": return [];
+    case "heading": return [inlineText(token.tokens)];
+    case "table": {
+      const table = token as Tokens.Table;
+      return [table.header.map((cell) => inlineText(cell.tokens)).join(" | "), ...table.rows.map((row) => row.map((cell) => inlineText(cell.tokens)).join(" | "))];
+    }
+    // Code, raw HTML, and rules have no marks to drop.
+    case "code":
+    case "html":
+    case "hr": return lines(token.raw);
+    default: return lines(token.raw).map(lineText);
+  }
+}
+
+/**
+ * Custom section text for the copied text: each line as typed, without
+ * Markdown's marks, then placeholders filled, so a filled-in value is never
+ * changed. Paragraphs are separated by one blank line.
+ */
+export function markdownText(text: string, fill: Fill): string[] {
+  return paragraphs(text).flatMap((paragraph, index) => {
+    const lines = lexer(paragraph).flatMap(tokenText).map(fill);
+    return index ? ["", ...lines] : lines;
+  });
+}

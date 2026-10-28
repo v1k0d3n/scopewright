@@ -224,3 +224,26 @@ test("a list typed indented with no list above it is indented, and its own nesti
   assert.ok(text.includes("  1. A review"), "the copied text keeps the indent as typed");
   assert.equal(markdownSection("1. Platform\n  - Operators").blocks[0].indent, undefined, "spaces under a list item nest, they do not indent");
 });
+
+test("copied text drops Markdown's marks the way the page reads them, and never changes code, images, rules, or a filled-in value", () => {
+  const { text } = markdownSection("**Bold** `__init__` snake_case [Docs](https://docs.example) ![*alt*](i.png)\n\nOne | two |\n\n---\n\nHi {customer}", "**Acme**");
+  assert.deepEqual(text, ["Bold `__init__` snake_case Docs (https://docs.example) ![*alt*](i.png)", "", "One | two |", "", "---", "", "Hi **Acme**", ""]);
+});
+
+test("on the page, images, inline code, and rules print as typed", () => {
+  const { blocks } = markdownSection("See `npm run check` and ![logo](l.png)\n\n---");
+  assert.deepEqual(blocks[0].content, ["See ", "`npm run check`", " and ", "![logo](l.png)"]);
+  assert.deepEqual(blocks[1], { kind: "paragraph", content: ["---"] });
+});
+
+test("list lines inside fenced code or raw HTML are left exactly as typed", () => {
+  const fenced = markdownSection("```\n  1. not a list\n```").blocks;
+  assert.deepEqual(fenced, [{ kind: "paragraph", content: ["```\n  1. not a list\n```"] }]);
+  const html = markdownSection("<div>\n  - kept\n</div>").blocks;
+  assert.deepEqual(html, [{ kind: "paragraph", content: ["<div>\n  - kept\n</div>"] }]);
+});
+
+test("a list inside a quote never takes the indent of a later list", () => {
+  const { blocks } = markdownSection("> - quoted\n\nIntro:\n  1. indented\n\nPlain:\n- plain");
+  assert.deepEqual(blocks.filter((block) => block.kind === "list").map((block) => [block.items[0][0], block.indent ?? false]), [["quoted", false], ["indented", true], ["plain", false]]);
+});
