@@ -197,8 +197,10 @@ A template is copied into the estimate: when the catalog's version changes,
 the section's editor offers the new one, and a locked template's copy cannot
 be edited. Text follows the same
 rules as the introduction and closing: a blank line starts a new paragraph,
-`{customer}` and the other placeholders are filled in, and lines starting
-with `- ` print as a list. A table has up to eight columns; the first row of
+`{customer}` and the other placeholders are filled in, lines starting
+with `- ` print as bullets, and lines starting with `1. ` print as a numbered
+list that starts at the number you type. Indent a line by two spaces to put
+it in a list under the line above. A table has up to eight columns; the first row of
 the editor is the heading. Select a custom section's name in the list to edit
 or delete it. Custom sections belong to the estimate, so they are saved,
 exported, and copied as text with it.

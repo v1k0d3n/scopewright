@@ -235,7 +235,8 @@ product documentation.
 Custom sections a team reuses, such as contacts, a responsibility matrix, or
 a schedule. Text follows the introduction and closing rules (a blank line
 between paragraphs, the same placeholders); lines that start with `- ` print
-as a list. A table has one to eight `columns`, and every row has one cell per
+as bullets and lines that start with `1. ` as a numbered list, and a line
+indented by two spaces nests under the line above. A table has one to eight `columns`, and every row has one cell per
 column (extra cells are dropped, missing ones are empty). Adding a template
 to an estimate copies it, with the same rules as introduction and closing
 templates: a later change is offered, never applied, and a locked template's

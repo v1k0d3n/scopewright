@@ -59,7 +59,7 @@ function TextBlock({ block, onChange }: { block: Extract<CustomBlock, { kind: "t
   return (
     <label className="section-text">Text
       <textarea rows={6} value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} />
-      <small>Leave a blank line between paragraphs. Start a line with “- ” to make a list.</small>
+      <small>Leave a blank line between paragraphs. Start a line with “- ” for a bullet or “1. ” for a numbered list; indent it two spaces to put it under the line above.</small>
     </label>
   );
 }

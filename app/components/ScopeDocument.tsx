@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { outOfScopeLines } from "../lib/estimate";
 import { documentText, scopeDocument } from "../lib/document";
-import type { Block, Span } from "../lib/document";
+import type { Block, ListBlock, Span } from "../lib/document";
 import { SectionLayout } from "./SectionLayout";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
@@ -88,11 +88,16 @@ function SpanView({ span }: { span: Span }) {
 
 const Spans = ({ spans }: { spans: Span[] }) => <>{spans.map((span, index) => <SpanView key={index} span={span} />)}</>;
 
+function ListView({ list }: { list: ListBlock }) {
+  const items = list.items.map((item, line) => <li key={line}><Spans spans={item} />{list.nested?.[line] && <ListView list={list.nested[line]} />}</li>);
+  return list.ordered ? <ol start={list.start}>{items}</ol> : <ul>{items}</ul>;
+}
+
 function Blocks({ blocks }: { blocks: Block[] }) {
   return <>{blocks.map((block, index) => {
     switch (block.kind) {
       case "paragraph": return <p key={index} className={block.placeholder ? "placeholder-copy" : undefined}><Spans spans={block.content} /></p>;
-      case "list": return <ul key={index}>{block.items.map((item, line) => <li key={line}><Spans spans={item} /></li>)}</ul>;
+      case "list": return <ListView key={index} list={block} />;
       case "table": return (
         <table key={index} className={`doc-table${block.numeric ? " numeric" : ""}`}>
           {block.columns.length > 0 && <thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>}

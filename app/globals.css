@@ -388,7 +388,8 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .doc-preview hr { border: 0; border-top: 3px solid var(--brand); margin-bottom: 30px; }
 .doc-preview h5 { color: var(--brand); font-size: 9px; letter-spacing: .16em; margin: 28px 0 10px; }
 .doc-preview p, .doc-preview li, .doc-preview td { font-size: 13px; line-height: 1.65; color: var(--ink); }
-.doc-preview ul { padding-left: 18px; margin: 6px 0; }
+.doc-preview ul, .doc-preview ol { padding-left: 18px; margin: 6px 0; }
+.doc-preview li > ul, .doc-preview li > ol { margin: 2px 0; }
 .doc-preview .doc-hours { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .doc-preview li small { font-size: 11px; }
 .scope-product { margin: 10px 0 16px; }

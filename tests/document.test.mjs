@@ -157,3 +157,15 @@ test("a locked copy is never also marked edited, and a section written from scra
     { templateId: "", templateName: "", edited: false, locked: false },
   ]);
 });
+
+test("custom text makes numbered lists from their first number, and indented lines nest under the item above", () => {
+  const section = { id: "s", title: "Plan", blocks: [{ kind: "text", text: "Steps:\n3. Prepare\n  - Rack servers\n  - Cable ports\n4. Execute\n\t1) Deploy\n- Follow-up" }], templateId: "", templateName: "", edited: false, locked: false };
+  const [block] = scopeDocument(catalog, { ...sample, customSections: [section] }, "Org").sections.at(-1).blocks.slice(1);
+  assert.equal(block.ordered, true);
+  assert.equal(block.start, 3);
+  assert.deepEqual(block.items, [["Prepare"], ["Execute"]]);
+  assert.deepEqual(block.nested[0], { kind: "list", items: [["Rack servers"], ["Cable ports"]] });
+  assert.deepEqual(block.nested[1], { kind: "list", items: [["Deploy"]], ordered: true, start: 1 });
+  const follow = scopeDocument(catalog, { ...sample, customSections: [section] }, "Org").sections.at(-1).blocks[2];
+  assert.deepEqual(follow, { kind: "list", items: [["Follow-up"]] }, "a bullet after a numbered list starts a new list");
+});

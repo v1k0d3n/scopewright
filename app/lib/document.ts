@@ -17,10 +17,13 @@ export type Span = string | { strong: string } | { note: string } | { hours: num
 
 export type TableRow = { cells: Span[][]; total?: boolean };
 
+/** Bullets, or numbers from `start`. An item may hold one list of its own (`nested[i]` belongs to `items[i]`). */
+export type ListBlock = { kind: "list"; items: Span[][]; ordered?: boolean; start?: number; nested?: (ListBlock | undefined)[] };
+
 export type Block =
   /** Placeholder copy stands in for something not written yet. */
   | { kind: "paragraph"; content: Span[]; placeholder?: boolean }
-  | { kind: "list"; items: Span[][] }
+  | ListBlock
   /** Columns may be empty for a table without a header. A numeric table's last column holds figures. */
   | { kind: "table"; columns: string[]; rows: TableRow[]; numeric?: boolean }
   /** A titled part of a section, such as one product. */
@@ -253,9 +256,14 @@ function customDefinition(section: CustomSection): SectionDefinition {
   };
 }
 
-const BULLET = /^\s*- /;
+/** A list line: its indent, then "-", "*", or "•" for a bullet, or "1." or "1)" for a number. */
+const LIST_ITEM = /^([ \t]*)(?:[-*•]|(\d{1,3})[.)])\s+(.*)$/;
 
-/** Text as paragraphs, with each run of "- " lines as a list. A single line break stays inside its paragraph. */
+/**
+ * Text as paragraphs and lists. A single line break stays inside its
+ * paragraph; a run of list lines is a list, and a line indented by two spaces
+ * or a tab belongs to a list under the item above it.
+ */
 function customBlocks(block: CustomBlock, fill: (value: string) => string): Block[] {
   if (block.kind === "table") {
     const columns = block.columns.map(fill);
@@ -265,9 +273,18 @@ function customBlocks(block: CustomBlock, fill: (value: string) => string): Bloc
     const out: Block[] = [];
     for (const line of paragraph.split("\n")) {
       const last = out.at(-1);
-      if (BULLET.test(line)) {
-        const item = [line.replace(BULLET, "").trim()];
-        if (last?.kind === "list") last.items.push(item); else out.push({ kind: "list", items: [item] });
+      const match = LIST_ITEM.exec(line);
+      if (match) {
+        const [, indent, number, content] = match;
+        const ordered = number !== undefined;
+        const item = [content.trim()];
+        const fresh = (): ListBlock => (ordered ? { kind: "list", items: [item], ordered, start: Number(number) } : { kind: "list", items: [item] });
+        if (indent.replace(/\t/g, "  ").length >= 2 && last?.kind === "list") {
+          const at = last.items.length - 1;
+          const nested = (last.nested ??= []);
+          if (nested[at]) nested[at].items.push(item); else nested[at] = fresh();
+        } else if (last?.kind === "list" && Boolean(last.ordered) === ordered) last.items.push(item);
+        else out.push(fresh());
       } else if (last?.kind === "paragraph") last.content.push(`\n${line}`);
       else out.push({ kind: "paragraph", content: [line] });
     }
