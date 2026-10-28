@@ -91,7 +91,7 @@ test("a custom section prints its title, text, and table, with placeholders fill
   assert.equal(section.custom, true);
   assert.equal(section.title, `${sample.customer} CONTACTS`.toUpperCase());
   assert.deepEqual(section.blocks.map((block) => block.kind), ["paragraph", "list", "table"]);
-  assert.deepEqual(section.blocks[0].content, ["Who to call during the engagement.", "\nAsk the account team first."]);
+  assert.deepEqual(section.blocks[0].content, ["Who to call during the engagement.\nAsk the account team first."], "a single line break stays inside its paragraph");
   assert.deepEqual(section.blocks[1].items, [["Weekdays only"], ["Escalate through Org"]]);
   assert.deepEqual(section.blocks[2].columns, ["Role", "Name", "Contact"]);
   const text = documentText(document, "Org");
@@ -184,4 +184,34 @@ test("files keep exactly what the section editors allow, so nothing typed is los
   const [template] = mergeCatalog({ ...emptyCatalog, sectionTemplates: [{ id: "t", title: "T", category: long(SECTION_LIMITS.category), description: long(SECTION_LIMITS.description), blocks: [] }] }, emptyCatalog).sectionTemplates;
   assert.equal(template.category.length, SECTION_LIMITS.category);
   assert.equal(template.description.length, SECTION_LIMITS.description);
+});
+
+const markdownSection = (text, customer = sample.customer) => {
+  const section = { id: "s", title: "T", blocks: [{ kind: "text", text }], templateId: "", templateName: "", edited: false, locked: false };
+  const document = scopeDocument(catalog, { ...sample, customer, customSections: [section] }, "Org");
+  return { blocks: document.sections.at(-1).blocks, text: document.sections.at(-1).text };
+};
+
+test("custom text reads Markdown: subheadings, bold, italic, and tables", () => {
+  const { blocks, text } = markdownSection("## Solstice Core Platform\nSome **bold** and *italic* words.\n\n| Role | Name |\n|------|------|\n| Sponsor | {customer} |");
+  assert.deepEqual(blocks[0], { kind: "heading", content: ["Solstice Core Platform"] });
+  assert.deepEqual(blocks[1], { kind: "paragraph", content: ["Some ", { strong: "bold" }, " and ", { em: "italic" }, " words."] });
+  assert.deepEqual(blocks[2], { kind: "table", columns: ["Role", "Name"], rows: [{ cells: [["Sponsor"], [sample.customer]] }] });
+  assert.deepEqual(text, ["Solstice Core Platform", "Some bold and italic words.", "", "Role | Name", "Sponsor | Harbor & Vale Logistics", ""], "the copied text keeps the words, not the marks");
+});
+
+test("raw HTML prints as the text that was typed, and placeholders are never read as Markdown", () => {
+  const html = markdownSection("<script>alert(1)</script>").blocks;
+  assert.deepEqual(html, [{ kind: "paragraph", content: ["<script>alert(1)</script>"] }]);
+  const filled = markdownSection("Hello {customer}", "**Acme**").blocks;
+  assert.deepEqual(filled, [{ kind: "paragraph", content: ["Hello **Acme**"] }], "a filled-in value prints as typed");
+});
+
+test("the list rules shipped before Markdown still hold", () => {
+  const { blocks } = markdownSection("1. Platform\n  - Operators\n  - Storage\n2. Ceph");
+  assert.equal(blocks[0].ordered, true);
+  assert.deepEqual(blocks[0].nested[0].items, [["Operators"], ["Storage"]], "two spaces nest under a numbered item");
+  const after = markdownSection("Steps:\n3. Prepare\n4. Execute").blocks;
+  assert.deepEqual(after.map((block) => block.kind), ["paragraph", "list"], "a list may start straight after a line of text");
+  assert.equal(after[1].start, 3);
 });

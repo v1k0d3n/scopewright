@@ -342,6 +342,9 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-layout-actions button.secondary { padding: 7px 12px; font-size: 12px; }
 .section-layout-actions button.link { font-size: 12px; }
 .doc-custom p { white-space: pre-line; margin: 0 0 10px; }
+.doc-subheading { font-size: 14px; font-weight: 700; color: var(--ink); margin: 16px 0 6px; letter-spacing: 0; text-transform: none; }
+.doc-preview .doc-custom > .doc-subheading:first-of-type { margin-top: 4px; }
+.doc-preview .doc-subheading { break-after: avoid; }
 .modal.section-editor { width: min(780px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
 .section-block { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
 .section-block header { display: flex; align-items: center; justify-content: space-between; height: auto; padding: 0; border: 0; background: none; }

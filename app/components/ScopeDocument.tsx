@@ -79,6 +79,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
 function SpanView({ span }: { span: Span }) {
   if (typeof span === "string") return <>{span}</>;
   if ("strong" in span) return <b>{span.strong}</b>;
+  if ("em" in span) return <i>{span.em}</i>;
   if ("note" in span) return <> <small>({span.note})</small></>;
   if ("hours" in span) return <> <span className="doc-hours">{span.hours}h</span></>;
   return <span className={`status-${span.status}`}>{span.label}</span>;
@@ -102,6 +103,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
           <tbody>{block.rows.map((row, line) => <tr key={line} className={row.total ? "doc-total" : undefined}>{row.cells.map((cell, column) => <td key={column}><Spans spans={cell} /></td>)}</tr>)}</tbody>
         </table>
       );
+      case "heading": return <h6 key={index} className="doc-subheading"><Spans spans={block.content} /></h6>;
       case "group": return <section key={index} className="scope-product"><b><Spans spans={block.title} /></b><Blocks blocks={block.blocks} /></section>;
     }
   })}</>;
