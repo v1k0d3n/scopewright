@@ -341,7 +341,7 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-layout-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .section-layout-actions button.secondary { padding: 7px 12px; font-size: 12px; }
 .section-layout-actions button.link { font-size: 12px; }
-.doc-custom p { white-space: pre-line; }
+.doc-custom p { white-space: pre-line; margin: 0 0 10px; }
 .modal.section-editor { width: min(780px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
 .section-block { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
 .section-block header { display: flex; align-items: center; justify-content: space-between; height: auto; padding: 0; border: 0; background: none; }
@@ -389,6 +389,10 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .doc-preview h5 { color: var(--brand); font-size: 9px; letter-spacing: .16em; margin: 28px 0 10px; }
 .doc-preview p, .doc-preview li, .doc-preview td { font-size: 13px; line-height: 1.65; color: var(--ink); }
 .doc-preview ul, .doc-preview ol { padding-left: 18px; margin: 6px 0; }
+/* The base styles remove list markers everywhere; the document keeps them, as it does in print. */
+.doc-preview ul { list-style: disc; }
+.doc-preview ol { list-style: decimal; }
+.doc-preview li > ul { list-style: circle; }
 .doc-preview li > ul, .doc-preview li > ol { margin: 2px 0; }
 .doc-preview .doc-hours { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .doc-preview li small { font-size: 11px; }
