@@ -190,8 +190,12 @@ with the estimate; **Restore the default order** puts every section back and
 prints them all.
 
 **+ Add section** writes a section of your own, such as contacts, a schedule,
-or who is responsible for what. It gets a title and any mix of text and
-tables, and moves and prints like any other section. Text follows the same
+or who is responsible for what, either blank or from one of your team's
+[section templates](#section-templates), listed by category. It gets a title
+and any mix of text and tables, and moves and prints like any other section.
+A template is copied into the estimate: when the catalog's version changes,
+the section's editor offers the new one, and a locked template's copy cannot
+be edited. Text follows the same
 rules as the introduction and closing: a blank line starts a new paragraph,
 `{customer}` and the other placeholders are filled in, and lines starting
 with `- ` print as a list. A table has up to eight columns; the first row of
@@ -451,6 +455,18 @@ task at once, and the same button on each group does it for that group alone. Nu
 
 A simple list of things your team commonly excludes from an engagement. They
 appear as checkboxes in the Engagement step.
+
+### Section templates
+
+Custom sections your teams use again and again: contacts, a responsibility
+matrix, an engagement schedule, or anything else made of text and tables.
+Each has a title, a **category** that groups it in the Add section list (for
+example the kind of engagement, or the team that uses it), and an optional
+note on when to use it. **Offer in workflow** and **Lock wording** work as
+they do for introduction and closing templates: a template that is not
+offered stays in the catalog, and a locked one is used exactly as written.
+Changing or deleting a template never changes an estimate that already uses
+it. The Solstice pack includes three to start from.
 
 ### Deleting catalog items
 

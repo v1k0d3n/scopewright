@@ -287,7 +287,11 @@
               ]
             ]
           }
-        ]
+        ],
+        "templateId": "contacts",
+        "templateName": "Contacts",
+        "edited": true,
+        "locked": false
       }
     ]
   }

@@ -1,18 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MAX_COLUMNS, MAX_ROWS, PLACEHOLDERS, unknownPlaceholders } from "../lib/estimate";
+import { PLACEHOLDERS, sectionFrom, sectionTemplateChanged } from "../lib/estimate";
 import { useDialogFocus } from "../lib/useDialogFocus";
-import type { CustomBlock, CustomSection } from "../lib/types";
+import type { Catalog, CustomSection } from "../lib/types";
+import { SectionFields } from "./SectionFields";
 
-type Props = { section: CustomSection; onChange: (section: CustomSection) => void; onDelete: () => void; onClose: () => void };
+type Props = { catalog: Catalog; section: CustomSection; onChange: (section: CustomSection) => void; onDelete: () => void; onClose: () => void };
 
 const placeholderList = PLACEHOLDERS.map((name) => `{${name}}`).join(" ");
 
-const move = <T,>(items: T[], from: number, to: number) => { if (to < 0 || to >= items.length) return items; const next = [...items]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; };
-
-/** Writes one custom section: a title, then text and tables in order. Changes apply as they are typed. */
-export function CustomSectionEditor({ section, onChange, onDelete, onClose }: Props) {
+/** Writes one custom section of the estimate. Changes apply as they are typed. */
+export function CustomSectionEditor({ catalog, section, onChange, onDelete, onClose }: Props) {
   const dialog = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLInputElement>(null);
   useDialogFocus(dialog);
@@ -22,87 +21,32 @@ export function CustomSectionEditor({ section, onChange, onDelete, onClose }: Pr
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
   }, [onClose]);
-  const setBlocks = (blocks: CustomBlock[]) => onChange({ ...section, blocks });
-  const setBlock = (index: number, block: CustomBlock) => setBlocks(section.blocks.map((item, at) => (at === index ? block : item)));
-  const unknown = unknownPlaceholders([section.title, ...section.blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [...block.columns, ...block.rows.flat()]))].join("\n"));
+  const template = (catalog.sectionTemplates ?? []).find((item) => item.id === section.templateId);
+  const newer = sectionTemplateChanged(catalog, section);
+  // What someone wrote is only replaced on purpose; an unchanged copy can always be fetched again.
+  const replace = (from: NonNullable<typeof template>) => { if (!section.edited || window.confirm("Replace what was written for this estimate with the catalog version?")) onChange(sectionFrom(from, section.id)); };
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div ref={dialog} className="modal section-editor" role="dialog" aria-modal="true" aria-labelledby="section-editor-title">
         <h2 id="section-editor-title">Custom section</h2>
-        <label>Title<input ref={title} value={section.title} placeholder="e.g. Contacts" onChange={(event) => onChange({ ...section, title: event.target.value })} /></label>
-        <p className="modal-note">Written for this estimate. {placeholderList} are filled in from the estimate when the document is printed.</p>
-        {section.blocks.map((block, index) => (
-          <section className="section-block" key={index}>
-            <header>
-              <b>{block.kind === "text" ? "Text" : "Table"}</b>
-              <div className="row-actions">
-                <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setBlocks(move(section.blocks, index, index - 1))}>↑</button>
-                <button type="button" className="icon" aria-label="Move down" disabled={index === section.blocks.length - 1} onClick={() => setBlocks(move(section.blocks, index, index + 1))}>↓</button>
-                <button type="button" className="link" onClick={() => setBlocks(section.blocks.filter((_, at) => at !== index))}>Remove</button>
-              </div>
-            </header>
-            {block.kind === "text"
-              ? <TextBlock block={block} onChange={(next) => setBlock(index, next)} />
-              : <TableBlock block={block} onChange={(next) => setBlock(index, next)} />}
-          </section>
-        ))}
-        {section.blocks.length === 0 && <p className="modal-note">Nothing written yet. Add text or a table.</p>}
-        {unknown.length > 0 && <p className="modal-note needs-answer">Not a placeholder, so it prints as typed: {unknown.map((name) => `{${name}}`).join(" ")}</p>}
-        <div className="section-editor-add">
-          <button type="button" className="secondary" onClick={() => setBlocks([...section.blocks, { kind: "text", text: "" }])}>+ Text</button>
-          <button type="button" className="secondary" onClick={() => setBlocks([...section.blocks, { kind: "table", columns: ["", ""], rows: [["", ""]] }])}>+ Table</button>
-        </div>
+        <p className="modal-note">
+          {!section.templateId ? <>Written for this estimate. </> : section.edited ? <>Based on “{section.templateName}”, edited for this estimate. </> : <>Copied from the catalog template “{section.templateName}”{section.locked ? " (locked)" : ""}. </>}
+          {placeholderList} are filled in from the estimate when the document is printed.
+        </p>
+        {newer && (
+          <div className="notice">
+            <b>The catalog has {newer.locked !== section.locked ? (newer.locked ? "locked" : "unlocked") : "a new version of"} “{newer.title || section.templateName}”</b>
+            <span>{section.edited ? "This estimate keeps its edited copy until you choose the locked version instead." : "This estimate keeps the copy it was given until you choose to update it."}</span>
+            <button type="button" className="link" onClick={() => replace(newer)}>Use the catalog version</button>
+          </div>
+        )}
+        {section.locked && <p className="modal-note framing-locked"><b>Locked.</b> This template is used exactly as written, so it cannot be edited here. To change it, delete it and add a blank section instead.</p>}
+        <SectionFields value={section} readOnly={section.locked} titleRef={title} onChange={(value) => onChange({ ...section, ...value, edited: Boolean(section.templateId) })} />
+        {section.edited && template && !newer && <p className="modal-note"><button type="button" className="link" onClick={() => replace(template)}>Restore the template version</button></p>}
         <div className="modal-actions">
           <button type="button" className="destructive-outline modal-aside" onClick={onDelete}>Delete section</button>
           <button type="button" className="primary" onClick={onClose}>Done</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function TextBlock({ block, onChange }: { block: Extract<CustomBlock, { kind: "text" }>; onChange: (block: CustomBlock) => void }) {
-  return (
-    <label className="section-text">Text
-      <textarea rows={6} value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} />
-      <small>Leave a blank line between paragraphs. Start a line with “- ” to make a list.</small>
-    </label>
-  );
-}
-
-function TableBlock({ block, onChange }: { block: Extract<CustomBlock, { kind: "table" }>; onChange: (block: CustomBlock) => void }) {
-  const { columns, rows } = block;
-  const setCell = (row: number, column: number, value: string) => onChange({ ...block, rows: rows.map((cells, at) => (at === row ? cells.map((cell, index) => (index === column ? value : cell)) : cells)) });
-  const removeColumn = (column: number) => onChange({ kind: "table", columns: columns.filter((_, index) => index !== column), rows: rows.map((cells) => cells.filter((_, index) => index !== column)) });
-  return (
-    <div className="section-table">
-      <div className="section-table-scroll">
-        <table>
-          <thead>
-            {columns.length > 1 && (
-              <tr className="column-actions">
-                {columns.map((_, index) => <th key={index}><button type="button" className="icon" aria-label={`Remove column ${index + 1}`} onClick={() => removeColumn(index)}>×</button></th>)}
-                <th aria-hidden="true" />
-              </tr>
-            )}
-            <tr>
-              {columns.map((column, index) => <th key={index}><input aria-label={`Column ${index + 1} heading`} placeholder={`Column ${index + 1}`} value={column} onChange={(event) => onChange({ ...block, columns: columns.map((item, at) => (at === index ? event.target.value : item)) })} /></th>)}
-              <th aria-hidden="true" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((cells, row) => (
-              <tr key={row}>
-                {cells.map((cell, column) => <td key={column}><input aria-label={`Row ${row + 1}, ${columns[column] || `column ${column + 1}`}`} value={cell} onChange={(event) => setCell(row, column, event.target.value)} /></td>)}
-                <td><button type="button" className="icon" aria-label={`Remove row ${row + 1}`} onClick={() => onChange({ ...block, rows: rows.filter((_, at) => at !== row) })}>×</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="section-editor-add">
-        <button type="button" className="secondary" disabled={rows.length >= MAX_ROWS} onClick={() => onChange({ ...block, rows: [...rows, columns.map(() => "")] })}>+ Row</button>
-        <button type="button" className="secondary" disabled={columns.length >= MAX_COLUMNS} onClick={() => onChange({ kind: "table", columns: [...columns, ""], rows: rows.map((cells) => [...cells, ""]) })}>+ Column</button>
       </div>
     </div>
   );

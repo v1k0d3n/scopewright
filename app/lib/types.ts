@@ -106,8 +106,40 @@ export type CustomBlock =
   /** Every row has one cell per column. */
   | { kind: "table"; columns: string[]; rows: string[][] };
 
-/** A section written for this estimate, such as contacts or a schedule. */
-export type CustomSection = { id: string; title: string; blocks: CustomBlock[] };
+/**
+ * A section written for this estimate, such as contacts or a schedule, or
+ * copied from a catalog template. Like the introduction and closing, a copy
+ * never changes when the template does.
+ */
+export type CustomSection = {
+  id: string;
+  title: string;
+  blocks: CustomBlock[];
+  /** The catalog template it was copied from; empty when written from scratch. */
+  templateId: string;
+  /** That template's title when it was copied, so it can be named even after the catalog drops it. */
+  templateName: string;
+  /** True once the copy has been changed for this estimate. Never true for a locked copy. */
+  edited: boolean;
+  /** Copied from a locked template: it cannot be edited in this estimate. */
+  locked: boolean;
+};
+
+/** A custom section kept in the catalog so teams can reuse it, such as a contacts table. */
+export type SectionTemplate = {
+  id: string;
+  /** Printed as the section's heading; placeholders are filled in. */
+  title: string;
+  /** Groups templates in the Add section list, e.g. by kind of engagement or by team. */
+  category: string;
+  /** When to use it, shown to the person choosing. */
+  description?: string;
+  blocks: CustomBlock[];
+  /** Only enabled templates are offered when adding a section. */
+  enabled: boolean;
+  /** Estimates that pick it use it exactly as written. */
+  locked: boolean;
+};
 
 /**
  * Introduction and closing wording for the scope document, kept in the catalog
@@ -141,6 +173,8 @@ export type Catalog = {
   outOfScope: OutOfScopeItem[];
   /** Introduction and closing templates offered in the Deliverables step; may be empty. */
   documentTemplates: DocumentTemplate[];
+  /** Custom sections offered on the Scope documents page; may be empty. */
+  sectionTemplates: SectionTemplate[];
 };
 
 /**

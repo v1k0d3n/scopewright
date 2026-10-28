@@ -1,6 +1,6 @@
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-09-13T02:37:29.990480+00:00",
   "catalog": {
     "products": [
@@ -1264,6 +1264,38 @@
         "description": "Standard introduction and closing for a customer proof of concept.",
         "introduction": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.",
         "closing": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.",
+        "enabled": true,
+        "locked": false
+      }
+    ],
+    "sectionTemplates": [
+      {
+        "id": "contacts",
+        "title": "Contacts",
+        "category": "Proof of concept",
+        "description": "Named contacts on both sides.",
+        "blocks": [
+          {
+            "kind": "table",
+            "columns": [
+              "Role",
+              "Name",
+              "Contact"
+            ],
+            "rows": [
+              [
+                "Sponsor",
+                "",
+                ""
+              ],
+              [
+                "Engineer",
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
         "enabled": true,
         "locked": false
       }

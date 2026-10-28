@@ -359,6 +359,18 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-table button.icon { width: 26px; height: 26px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; color: var(--muted); }
 .section-editor-add { display: flex; gap: 8px; }
 .section-editor-add button { padding: 7px 12px; font-size: 12px; }
+.section-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.section-fields > label { display: grid; gap: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+.section-fields > label input { padding: 10px; font-size: 14px; font-weight: 400; text-transform: none; }
+.section-fields:disabled input, .section-fields:disabled textarea { background: var(--surface); color: var(--ink); opacity: 1; }
+.modal.add-section { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+.add-section h3 { margin: 6px 0 6px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.add-section section { display: grid; gap: 6px; }
+.section-pick { display: grid; gap: 3px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.section-pick:hover, .section-pick:focus-visible { border-color: var(--brand); background: var(--brand-tint); }
+.section-pick b { font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
+.section-pick em { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.section-pick small { font-size: 12px; color: var(--muted); font-weight: 400; }
 .scope-source-note { display: grid; gap: 6px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
 .scope-source-note span::before { content: "✓"; margin-right: 8px; color: var(--ok); font-weight: 700; }
 .scope-source-note button { margin-top: 6px; font-size: 12px; }
@@ -409,7 +421,7 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .catalog-groups summary strong { text-align: right; font-size: 12px; color: var(--brand); }
 .designer-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 8px 0 18px 46px; }
 .designer-fields label { display: grid; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
-.designer-fields label.wide { grid-column: 1 / -1; }
+.designer-fields label.wide, .designer-fields div.wide { grid-column: 1 / -1; }
 .designer-fields > button { align-self: end; justify-self: start; }
 .field-builder { padding: 6px 0 18px 46px; }
 .field-builder section { padding: 12px 0; border-bottom: 1px solid var(--line-soft); display: grid; gap: 7px; }

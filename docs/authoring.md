@@ -18,7 +18,7 @@ explicitly, and a complete example is included.
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [],
     "installation": {},
@@ -26,12 +26,13 @@ explicitly, and a complete example is included.
     "groups": [],
     "solutions": [],
     "outOfScope": [],
-    "documentTemplates": []
+    "documentTemplates": [],
+    "sectionTemplates": []
   }
 }
 ```
 
-(`outOfScope` and `documentTemplates` are optional; the other five sections
+(`outOfScope`, `documentTemplates`, and `sectionTemplates` are optional; the other five sections
 are required. Files with `"version": 1` still import; see
 [formats.md](formats.md) for how versions work.)
 
@@ -117,9 +118,9 @@ A catalog is one JSON file:
 }
 ```
 
-All five sections are required (use `[]` or `{}` when empty); `outOfScope`
-and `documentTemplates` may be added. `version` is the catalog format
-version, currently `2`; Scopewright refuses a file with a higher version
+All five sections are required (use `[]` or `{}` when empty); `outOfScope`,
+`documentTemplates`, and `sectionTemplates` may be added. `version` is the
+catalog format version, currently `3`; Scopewright refuses a file with a higher version
 than it understands rather than lose what it cannot read
 ([formats.md](formats.md)). Field by field:
 
@@ -219,6 +220,28 @@ An assistant building a catalog from product documentation should leave
 this section out: this wording usually comes from your own team, not from
 product documentation.
 
+### `sectionTemplates[]` (optional)
+
+| Field | Type | Required | Meaning |
+|-------|------|----------|---------|
+| `id` | string, unique | yes | |
+| `title` | string | yes | Printed as the section's heading; placeholders are filled in. |
+| `category` | string | yes (may be `""`) | Groups templates in the Add section list, for example by kind of engagement or by team. |
+| `description` | string | no | When to use it, shown to the person choosing. |
+| `blocks` | array | yes | The section's content, in order: `{ "kind": "text", "text": "..." }` or `{ "kind": "table", "columns": ["..."], "rows": [["..."]] }`. |
+| `enabled` | boolean | yes | `true` offers it when an architect adds a section. |
+| `locked` | boolean | no (default `false`) | `true` means estimates use it exactly as written. |
+
+Custom sections a team reuses, such as contacts, a responsibility matrix, or
+a schedule. Text follows the introduction and closing rules (a blank line
+between paragraphs, the same placeholders); lines that start with `- ` print
+as a list. A table has one to eight `columns`, and every row has one cell per
+column (extra cells are dropped, missing ones are empty). Adding a template
+to an estimate copies it, with the same rules as introduction and closing
+templates: a later change is offered, never applied, and a locked template's
+copy cannot be edited. Like `documentTemplates`, leave this section out when
+building a catalog from product documentation.
+
 ## Estimate files are not catalogs
 
 This guide is about **catalog** files (`"format": "scopewright-catalog"`).
@@ -249,6 +272,8 @@ context, this is its shape:
     "customOutOfScope": "free text, one per line",
     "options": { "showHours": true },
     "framing": { "source": "template", "templateId": "<documentTemplates id>", "templateName": "...", "introduction": "...", "closing": "...", "edited": false, "locked": false },
+    "sectionLayout": [{ "id": "goal", "hidden": false }, { "id": "<custom section id>", "hidden": false }],
+    "customSections": [{ "id": "<custom section id>", "title": "...", "blocks": [], "templateId": "<sectionTemplates id, or empty>", "templateName": "...", "edited": false, "locked": false }],
     "updatedAt": 1789840000000
   }
 }
@@ -392,8 +417,8 @@ structure was invented instead of using the five sections.
 
 ## Checklist before importing
 
-- Valid JSON; `format` is `scopewright-catalog`, `version` is `2` (or `1`
-  for a file without `documentTemplates`).
+- Valid JSON; `format` is `scopewright-catalog`, `version` is `3` (`2` for
+  a file without `sectionTemplates`, `1` for one without `documentTemplates`).
 - Every `requires`, `productId`, and solution product names an existing
   product id; no product requires itself or forms a cycle.
 - Every question has at least one choice; every choice and task has a

@@ -6,9 +6,10 @@ import type { ProductItem } from "../lib/estimate";
 import { phases } from "../lib/types";
 import type { Catalog, DeliverableGroup, DeliverableTask, DocumentTemplate, InstallationChoice, InstallationField, Phase, PrerequisiteItem, Product, SolutionTemplate } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { SectionTemplates } from "./SectionTemplates";
 
 type Props = { catalog: Catalog; setCatalog: (catalog: Catalog) => void };
-type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions" | "outofscope";
+type Tab = "products" | "installation" | "prerequisites" | "deliverables" | "solutions" | "outofscope" | "sections";
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -17,7 +18,7 @@ const plural = (count: number, one: string, many = `${one}s`) => `${count} ${cou
 const itemKey = (productId: string, itemId: string) => JSON.stringify([productId, itemId]);
 
 /** What a checkbox on each tab selects, and what deleting the selection is called. */
-const nouns: Record<Tab, [string, string]> = { products: ["product", "products"], solutions: ["solution", "solutions"], installation: ["question", "questions"], prerequisites: ["prerequisite", "prerequisites"], deliverables: ["deliverable group", "deliverable groups"], outofscope: ["out-of-scope item", "out-of-scope items"] };
+const nouns: Record<Tab, [string, string]> = { products: ["product", "products"], solutions: ["solution", "solutions"], installation: ["question", "questions"], prerequisites: ["prerequisite", "prerequisites"], deliverables: ["deliverable group", "deliverable groups"], outofscope: ["out-of-scope item", "out-of-scope items"], sections: ["section template", "section templates"] };
 
 export function CatalogManager({ catalog, setCatalog }: Props) {
   const [tab, setTab] = useState<Tab>("products");
@@ -55,7 +56,9 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
     : tab === "installation" ? sorted.flatMap((product) => (catalog.installation[product.id] ?? []).map((field) => ({ key: itemKey(product.id, field.id), label: `${product.short}: ${field.label}`, pair: { productId: product.id, itemId: field.id } })))
     : tab === "prerequisites" ? sorted.flatMap((product) => (catalog.prerequisites[product.id] ?? []).map((item) => ({ key: itemKey(product.id, item.id), label: `${product.short}: ${item.label}`, pair: { productId: product.id, itemId: item.id } })))
     : tab === "deliverables" ? catalog.groups.map((group) => ({ key: group.id, label: group.name }))
-    : catalog.outOfScope.map((item) => ({ key: item.id, label: item.label }));
+    : tab === "outofscope" ? catalog.outOfScope.map((item) => ({ key: item.id, label: item.label }))
+    // Section templates are deleted one at a time, from their own card.
+    : [];
   const chosen = rows.filter((row) => selected.has(row.key));
   const [one, many] = nouns[tab];
 
@@ -68,7 +71,8 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
       : tab === "installation" ? { fields: pairs }
       : tab === "prerequisites" ? { prerequisites: pairs }
       : tab === "deliverables" ? { groups: keys }
-      : { outOfScope: keys }));
+      : tab === "outofscope" ? { outOfScope: keys }
+      : {}));
     setSelected(new Set());
     setConfirming(false);
   };
@@ -131,7 +135,7 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
   return (
     <div className="designer">
       <div className="designer-tabs" role="tablist">
-        {([["products", "01", "Products"], ["solutions", "02", "Solutions"], ["installation", "03", "Installation Details"], ["prerequisites", "04", "Prerequisites"], ["deliverables", "05", "Deliverables"], ["outofscope", "06", "Out of Scope"]] as const).map(([id, number, label]) => (
+        {([["products", "01", "Products"], ["solutions", "02", "Solutions"], ["installation", "03", "Installation Details"], ["prerequisites", "04", "Prerequisites"], ["deliverables", "05", "Deliverables"], ["outofscope", "06", "Out of Scope"], ["sections", "07", "Section templates"]] as const).map(([id, number, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => switchTab(id)}><span>{number}</span> {label}</button>
         ))}
       </div>
@@ -372,6 +376,8 @@ export function CatalogManager({ catalog, setCatalog }: Props) {
           </div>
         </div>
       )}
+
+      {tab === "sections" && <SectionTemplates catalog={catalog} setCatalog={setCatalog} />}
 
       {deletingTemplate && (
         <ConfirmDialog title={`Delete “${deletingTemplate.name || "Untitled"}”?`} confirmLabel="Delete template" onCancel={() => setDeletingTemplate(null)} onConfirm={() => { setCatalog(removeFromCatalog(catalog, { documentTemplates: [deletingTemplate.id] })); setDeletingTemplate(null); }}>

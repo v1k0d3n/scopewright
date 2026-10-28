@@ -21,8 +21,8 @@ export const WRITTEN_BY = `Scopewright ${APP_VERSION}`;
 export const CATALOG_FORMAT = "scopewright-catalog";
 export const ESTIMATE_FORMAT = "scopewright-estimate";
 
-/** 2: introduction and closing templates (documentTemplates). */
-export const CATALOG_VERSION = 2;
+/** 2: introduction and closing templates (documentTemplates). 3: custom section templates (sectionTemplates). */
+export const CATALOG_VERSION = 3;
 /** 2: the estimate's own introduction and closing (framing). 3: the order of the scope document's sections (sectionLayout) and sections written for the estimate (customSections). */
 export const ESTIMATE_VERSION = 3;
 
@@ -35,6 +35,7 @@ type Upgrade = (body: Body) => Body;
 /** Step n turns a version-n catalog into version n + 1. */
 export const catalogUpgrades: Record<number, Upgrade> = {
   1: (catalog) => ({ ...catalog, documentTemplates: Array.isArray(catalog.documentTemplates) ? catalog.documentTemplates : [] }),
+  2: (catalog) => ({ ...catalog, sectionTemplates: Array.isArray(catalog.sectionTemplates) ? catalog.sectionTemplates : [] }),
 };
 
 /** Step n turns a version-n estimate into version n + 1. */

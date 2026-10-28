@@ -1,6 +1,6 @@
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-09-13T02:37:29.990480+00:00",
   "catalog": {
     "products": [
@@ -1264,6 +1264,199 @@
         "description": "Standard introduction and closing for a customer proof of concept.",
         "introduction": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.",
         "closing": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.",
+        "enabled": true,
+        "locked": false
+      }
+    ],
+    "sectionTemplates": [
+      {
+        "id": "contacts",
+        "title": "Contacts",
+        "category": "Proof of concept",
+        "description": "Named people on both sides, and how to reach them.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "The people below are the contacts for {customer} and {organization} for the duration of the proof of concept."
+          },
+          {
+            "kind": "table",
+            "columns": [
+              "Role",
+              "Name",
+              "Capacity",
+              "Contact"
+            ],
+            "rows": [
+              [
+                "Customer sponsor",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Customer engineer",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Solution architect",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Account lead",
+                "",
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "enabled": true,
+        "locked": false
+      },
+      {
+        "id": "responsibilities",
+        "title": "Responsibilities",
+        "category": "Proof of concept",
+        "description": "Who is responsible (R), accountable (A), consulted (C), and informed (I) for each activity.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "R: responsible · A: accountable · C: consulted · I: informed"
+          },
+          {
+            "kind": "table",
+            "columns": [
+              "Activity",
+              "Customer sponsor",
+              "Customer engineer",
+              "Solution architect",
+              "Account lead"
+            ],
+            "rows": [
+              [
+                "Kickoff and communication",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Plan",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Prepare the environment",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Access",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Pre-checks",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Execution",
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Debrief and hand-over",
+                "",
+                "",
+                "",
+                ""
+              ]
+            ]
+          }
+        ],
+        "enabled": true,
+        "locked": false
+      },
+      {
+        "id": "schedule",
+        "title": "Engagement schedule",
+        "category": "Proof of concept",
+        "description": "High-level activities with dates. Each starts when the one before it is complete.",
+        "blocks": [
+          {
+            "kind": "table",
+            "columns": [
+              "Activity",
+              "Description",
+              "Start",
+              "End or duration"
+            ],
+            "rows": [
+              [
+                "Kickoff and communication",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Plan",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Prepare the environment",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Access",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Pre-checks",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Execution",
+                "",
+                "",
+                ""
+              ],
+              [
+                "Debrief and hand-over",
+                "",
+                "",
+                ""
+              ]
+            ]
+          },
+          {
+            "kind": "text",
+            "text": "Activities run in the order listed: each one starts once the one before it is complete."
+          }
+        ],
         "enabled": true,
         "locked": false
       }

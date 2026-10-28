@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { UNTITLED_SECTION, builtInSections, documentOutline } from "../lib/document";
 import type { SectionOutline } from "../lib/document";
+import { blankSection, sectionFrom, sectionTemplateChanged } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
-import type { Catalog, CustomSection, Estimate } from "../lib/types";
+import type { Catalog, CustomSection, Estimate, SectionTemplate } from "../lib/types";
+import { AddSectionDialog } from "./AddSectionDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CustomSectionEditor } from "./CustomSectionEditor";
 
@@ -18,14 +20,24 @@ const uid = () => `section-${Date.now().toString(36)}${Math.random().toString(36
 export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<CustomSection | null>(null);
+  const [adding, setAdding] = useState(false);
   const outline = documentOutline(catalog, estimate, breakdown);
   const layout = (items: SectionOutline[]) => items.map(({ id, hidden }) => ({ id, hidden }));
   const save = (next: SectionOutline[]) => update({ sectionLayout: layout(next) });
   const customSections = estimate.customSections;
-  const add = () => {
-    const section: CustomSection = { id: uid(), title: "", blocks: [{ kind: "text", text: "" }] };
+  const offered = (catalog.sectionTemplates ?? []).filter((template) => template.enabled);
+  const add = (template: SectionTemplate | null) => {
+    const section = template ? sectionFrom(template, uid()) : blankSection(uid());
     update({ customSections: [...customSections, section], sectionLayout: [...layout(outline), { id: section.id, hidden: false }] });
-    setEditing(section.id);
+    setAdding(false);
+    // A template is ready to print; a blank section needs writing.
+    if (!template) setEditing(section.id);
+  };
+  /** Where a custom section came from, under its name in the list. */
+  const origin = (id: string) => {
+    const section = customSections.find((item) => item.id === id);
+    if (!section?.templateId) return "Custom · select to edit";
+    return [`From “${section.templateName}”`, section.locked && "locked", section.edited && "edited", sectionTemplateChanged(catalog, section) && "update available"].filter(Boolean).join(" · ");
   };
   const remove = (id: string) => update({ customSections: customSections.filter((section) => section.id !== id), sectionLayout: layout(outline.filter((item) => item.id !== id)) });
   const current = customSections.find((section) => section.id === editing);
@@ -46,7 +58,7 @@ export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
               <span className="section-number">{prints ? ++number : "–"}</span>
               <span className="section-name">
                 {item.custom ? <button type="button" className="link" title={`Edit ${name}`} onClick={() => setEditing(item.id)}>{name}</button> : <b>{name}</b>}
-                {item.hidden ? <small>Not printed</small> : item.omitted ? <small>{item.omitted}</small> : item.custom && <small>Custom · select to edit</small>}
+                {item.hidden ? <small>Not printed</small> : item.omitted ? <small>{item.omitted}</small> : item.custom && <small>{origin(item.id)}</small>}
               </span>
               <label className="workflow-toggle" title={`Print ${name}`}><input type="checkbox" aria-label={`Print ${name}`} checked={!item.hidden} onChange={(event) => setHidden(item.id, !event.target.checked)} /><span>Print</span></label>
               <div className="row-actions">
@@ -58,10 +70,11 @@ export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
         })}
       </ol>
       <div className="section-layout-actions">
-        <button type="button" className="secondary" onClick={add}>+ Add section</button>
+        <button type="button" className="secondary" onClick={() => (offered.length ? setAdding(true) : add(null))}>+ Add section</button>
         {!isDefault && <button type="button" className="link" title="Custom sections move to the end" onClick={() => update({ sectionLayout: [] })}>Restore the default order</button>}
       </div>
-      {current && <CustomSectionEditor section={current} onChange={(section) => update({ customSections: customSections.map((item) => (item.id === section.id ? section : item)) })} onDelete={() => { setEditing(null); setDeleting(current); }} onClose={() => setEditing(null)} />}
+      {adding && <AddSectionDialog templates={offered} onPick={add} onCancel={() => setAdding(false)} />}
+      {current && <CustomSectionEditor catalog={catalog} section={current} onChange={(section) => update({ customSections: customSections.map((item) => (item.id === section.id ? section : item)) })} onDelete={() => { setEditing(null); setDeleting(current); }} onClose={() => setEditing(null)} />}
       {deleting && (
         <ConfirmDialog title={`Delete “${deleting.title || UNTITLED_SECTION}”?`} confirmLabel="Delete section" onConfirm={() => { remove(deleting.id); setDeleting(null); }} onCancel={() => setDeleting(null)}>
           <p className="modal-note">The section and everything written in it are removed from this estimate. This cannot be undone.</p>

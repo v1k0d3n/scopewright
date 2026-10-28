@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { mergeCatalog, mergeEstimate, readEstimateFile } from "../app/lib/estimate.ts";
+import { mergeCatalog, mergeEstimate, readEstimateFile, removeFromCatalog, sectionFrom, sectionTemplateChanged } from "../app/lib/estimate.ts";
 import { builtInSections, documentOutline, documentText, scopeDocument, sectionLayout } from "../app/lib/document.ts";
 import { sectionIds } from "../app/lib/types.ts";
 
@@ -120,4 +120,40 @@ test("untrusted custom sections are cleaned up: tables keep one cell per column,
   assert.equal(estimate.customSections.length, 1);
   assert.deepEqual(estimate.customSections[0].blocks, [{ kind: "table", columns: ["One", "Two"], rows: [["1", ""], ["1", "2"]] }, { kind: "text", text: "" }]);
   assert.deepEqual(estimate.sectionLayout, [{ id: "a", hidden: true }]);
+});
+
+const contactsTemplate = { id: "contacts", title: "Contacts", category: "Proof of concept", blocks: [{ kind: "table", columns: ["Role", "Name"], rows: [["Sponsor", ""]] }], enabled: true, locked: false };
+
+test("a section added from a template is a copy: editing either one leaves the other alone", () => {
+  const section = sectionFrom(contactsTemplate, "s1");
+  assert.deepEqual({ ...section, blocks: undefined }, { id: "s1", title: "Contacts", blocks: undefined, templateId: "contacts", templateName: "Contacts", edited: false, locked: false });
+  section.blocks[0].rows[0][1] = "Ana";
+  assert.equal(contactsTemplate.blocks[0].rows[0][1], "", "the catalog template is untouched");
+});
+
+test("a copy is offered the catalog version when the template changes, and an edited copy only when it is locked", () => {
+  const catalog = { ...emptyCatalog, sectionTemplates: [contactsTemplate] };
+  const copy = sectionFrom(contactsTemplate, "s1");
+  assert.equal(sectionTemplateChanged(catalog, copy), null);
+  const renamed = { ...catalog, sectionTemplates: [{ ...contactsTemplate, title: "Who to call" }] };
+  assert.equal(sectionTemplateChanged(renamed, copy).title, "Who to call");
+  const edited = { ...copy, title: "Our contacts", edited: true };
+  assert.equal(sectionTemplateChanged(renamed, edited), null);
+  assert.equal(sectionTemplateChanged({ ...catalog, sectionTemplates: [{ ...contactsTemplate, locked: true }] }, edited).locked, true);
+  assert.equal(sectionTemplateChanged({ ...catalog, sectionTemplates: [] }, copy), null, "a template deleted from the catalog offers nothing");
+});
+
+test("section templates are read from untrusted catalogs and deleted by id", () => {
+  const catalog = mergeCatalog({ ...emptyCatalog, sectionTemplates: [{ id: "a", title: "A", category: "X", blocks: [{ kind: "table", columns: ["One"], rows: [["1", "2"]] }] }, { title: "No id" }, "bad"] }, emptyCatalog);
+  assert.deepEqual(catalog.sectionTemplates.map((t) => [t.id, t.enabled, t.locked]), [["a", true, false], ["section-template-1", true, false]]);
+  assert.deepEqual(catalog.sectionTemplates[0].blocks[0].rows, [["1"]]);
+  assert.deepEqual(removeFromCatalog(catalog, { sectionTemplates: ["a"] }).sectionTemplates.map((t) => t.id), ["section-template-1"]);
+});
+
+test("a locked copy is never also marked edited, and a section written from scratch names no template", () => {
+  const estimate = mergeEstimate({ customSections: [{ id: "a", templateId: "t", templateName: "T", locked: true, edited: true }, { id: "b", templateName: "Stray", edited: true, locked: true }] }, emptyEstimate());
+  assert.deepEqual(estimate.customSections.map(({ templateId, templateName, edited, locked }) => ({ templateId, templateName, edited, locked })), [
+    { templateId: "t", templateName: "T", edited: false, locked: true },
+    { templateId: "", templateName: "", edited: false, locked: false },
+  ]);
 });

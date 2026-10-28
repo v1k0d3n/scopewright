@@ -5,7 +5,7 @@ import type { Branding, Catalog, ColorScheme, Estimate } from "./types.ts";
  * own catalog from Settings, or start from one of the packs under packs/
  * (packs/solstice is a complete example).
  */
-export const defaultCatalog: Catalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [], documentTemplates: [] };
+export const defaultCatalog: Catalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [], documentTemplates: [], sectionTemplates: [] };
 
 export const emptyEstimate = (): Estimate => ({
   customer: "",

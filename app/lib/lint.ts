@@ -12,7 +12,7 @@ export type LintMessage = { level: "error" | "warning"; text: string };
 
 const TOP_LEVEL = ["format", "version", "writtenBy", "exportedAt", "catalog", "$schema"];
 const SECTIONS = ["products", "installation", "prerequisites", "groups", "solutions"];
-const OPTIONAL_SECTIONS = ["outOfScope", "documentTemplates"];
+const OPTIONAL_SECTIONS = ["outOfScope", "documentTemplates", "sectionTemplates"];
 
 /** Structural problems that prevent import or signal the wrong shape. */
 export function lintCatalogFile(data: unknown): LintMessage[] {
@@ -38,6 +38,7 @@ export function lintCatalogFile(data: unknown): LintMessage[] {
   if (c.prerequisites && (typeof c.prerequisites !== "object" || Array.isArray(c.prerequisites))) out.push({ level: "error", text: "catalog.prerequisites must be an object keyed by product id (each product lists what the customer provides), not a flat list." });
   if (c.outOfScope !== undefined && !Array.isArray(c.outOfScope)) out.push({ level: "error", text: 'catalog.outOfScope must be an array of { "id", "label" } items.' });
   if (c.documentTemplates !== undefined && !Array.isArray(c.documentTemplates)) out.push({ level: "error", text: 'catalog.documentTemplates must be an array of { "id", "name", "introduction", "closing", "enabled" } items.' });
+  if (c.sectionTemplates !== undefined && !Array.isArray(c.sectionTemplates)) out.push({ level: "error", text: 'catalog.sectionTemplates must be an array of { "id", "title", "category", "blocks", "enabled" } items.' });
   if (c.groups && !Array.isArray(c.groups)) out.push({ level: "error", text: "catalog.groups must be an array of deliverable groups, each with tasks." });
   return out;
 }
@@ -90,6 +91,15 @@ export function lintCatalog(raw: unknown, initial: Catalog): LintMessage[] {
     if (!t.introduction.trim() && !t.closing.trim()) out.push({ level: "warning", text: `Document template ${JSON.stringify(t.id)}: no introduction and no closing, so it prints nothing.` });
     const unknown = unknownPlaceholders(`${t.introduction}\n${t.closing}`);
     if (unknown.length) out.push({ level: "warning", text: `Document template ${JSON.stringify(t.id)}: ${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a placeholder" : "are not placeholders"} and will print as typed. Placeholders: {customer}, {title}, {products}, {organization}.` });
+  }
+  const sectionIds = merged.sectionTemplates.map((t) => t.id);
+  const dupeSections = sectionIds.filter((v, i) => sectionIds.indexOf(v) !== i);
+  if (dupeSections.length) out.push({ level: "error", text: `Duplicate section template ids: ${[...new Set(dupeSections)].join(", ")}.` });
+  for (const t of merged.sectionTemplates) {
+    if (!t.title.trim()) out.push({ level: "warning", text: `Section template ${JSON.stringify(t.id)}: no title, so it prints as "Untitled section".` });
+    if (!t.blocks.length) out.push({ level: "warning", text: `Section template ${JSON.stringify(t.id)}: no text or tables, so it prints nothing but its heading.` });
+    const unknown = unknownPlaceholders([t.title, ...t.blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [...block.columns, ...block.rows.flat()]))].join("\n"));
+    if (unknown.length) out.push({ level: "warning", text: `Section template ${JSON.stringify(t.id)}: ${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a placeholder" : "are not placeholders"} and will print as typed. Placeholders: {customer}, {title}, {products}, {organization}.` });
   }
   const seen = new Set<string>();
   const visit = (id: string, trail: string[]) => { if (trail.includes(id)) { out.push({ level: "error", text: `Circular requires: ${[...trail, id].join(" → ")}.` }); return; } if (seen.has(id)) return; seen.add(id); for (const dep of merged.products.find((p) => p.id === id)?.requires ?? []) visit(dep, [...trail, id]); };

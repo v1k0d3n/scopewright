@@ -1,4 +1,4 @@
-import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, CustomBlock, CustomSection, SectionPlacement } from "./types.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, CustomBlock, CustomSection, SectionPlacement, SectionTemplate } from "./types.ts";
 import { phases, prerequisiteStatuses, sectionIds } from "./types.ts";
 import { bool, hours as num, id, list, objectOrNull, oneOf, record, text } from "./sanitize.ts";
 import { CATALOG_FORMAT, CATALOG_VERSION, ESTIMATE_FORMAT, ESTIMATE_VERSION, WRITTEN_BY, checkCatalogFile, checkEstimateFile, storedCatalogVersion, upgradeCatalog, upgradeEstimate } from "./formats.ts";
@@ -216,6 +216,21 @@ export function templateChanged(catalog: Catalog, framing: DocumentFraming): Doc
   return template.introduction !== framing.introduction || template.closing !== framing.closing || template.locked !== framing.locked ? template : null;
 }
 
+/** A catalog section template copied into an estimate as a new custom section. */
+export const sectionFrom = (template: SectionTemplate, sectionId: string): CustomSection => ({ id: sectionId, title: template.title, blocks: structuredClone(template.blocks), templateId: template.id, templateName: template.title, edited: false, locked: template.locked });
+
+/** A custom section written from scratch. */
+export const blankSection = (sectionId: string): CustomSection => ({ id: sectionId, title: "", blocks: [{ kind: "text", text: "" }], templateId: "", templateName: "", edited: false, locked: false });
+
+/** The catalog's template, when it now differs from the section's unedited copy; like templateChanged, an edited copy is only offered a template that has since been locked. */
+export function sectionTemplateChanged(catalog: Catalog, section: CustomSection): SectionTemplate | null {
+  if (!section.templateId) return null;
+  const template = (catalog.sectionTemplates ?? []).find((item) => item.id === section.templateId);
+  if (!template) return null;
+  if (section.edited) return template.locked ? template : null;
+  return template.title !== section.title || JSON.stringify(template.blocks) !== JSON.stringify(section.blocks) || template.locked !== section.locked ? template : null;
+}
+
 /** Printed in place of an installation answer the catalog no longer offers. */
 export const TO_BE_DECIDED = "To be decided";
 
@@ -266,13 +281,17 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
     const t = objectOrNull(item); if (!t) return null;
     return { id: id(t.id, `template-${index}`), name: text(t.name, 120, `Template ${index + 1}`), description: text(t.description, 300) || undefined, introduction: text(t.introduction, MAX_LONG), closing: text(t.closing, MAX_LONG), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
   });
-  return { products, installation, prerequisites, groups, solutions, outOfScope, documentTemplates };
+  const sectionTemplates = s.sectionTemplates === undefined ? initial.sectionTemplates ?? [] : list(s.sectionTemplates, (item, index) => {
+    const t = objectOrNull(item); if (!t) return null;
+    return { id: id(t.id, `section-template-${index}`), title: text(t.title, 160), category: text(t.category, 60), description: text(t.description, 300) || undefined, blocks: mergeBlocks(t.blocks), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
+  });
+  return { products, installation, prerequisites, groups, solutions, outOfScope, documentTemplates, sectionTemplates };
 }
 
 /** A question or prerequisite: its id is only unique within its product. */
 export type ProductItem = { productId: string; itemId: string };
 /** What to delete from a catalog. */
-export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; documentTemplates?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
+export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; documentTemplates?: string[]; sectionTemplates?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
 
 /** Delete items by id. A deleted product takes its questions, prerequisites, and deliverable groups with it, and drops out of foundations and solutions. */
 export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Catalog {
@@ -281,6 +300,7 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
   const groups = new Set(removal.groups);
   const outOfScope = new Set(removal.outOfScope);
   const templates = new Set(removal.documentTemplates);
+  const sectionTemplates = new Set(removal.sectionTemplates);
   // Ids may contain ":", so pairs are compared as pairs, never as a joined string.
   const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: ProductItem[] = []) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.some((pair) => pair.productId === productId && pair.itemId === item.id))]));
   return {
@@ -291,6 +311,7 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
     solutions: catalog.solutions.filter((solution) => !solutions.has(solution.id)).map((solution) => ({ ...solution, products: solution.products.filter((id) => !products.has(id)) })),
     outOfScope: catalog.outOfScope.filter((item) => !outOfScope.has(item.id)),
     documentTemplates: (catalog.documentTemplates ?? []).filter((item) => !templates.has(item.id)),
+    sectionTemplates: (catalog.sectionTemplates ?? []).filter((item) => !sectionTemplates.has(item.id)),
   };
 }
 
@@ -359,20 +380,26 @@ export const MAX_COLUMNS = 8;
 export const MAX_ROWS = 200;
 const MAX_CELL = 500;
 
-/** Custom sections: ids unique, every table row as wide as its columns. */
+/** Text and tables, every table row as wide as its columns. */
+function mergeBlocks(value: unknown): CustomBlock[] {
+  return list(value, (entry): CustomBlock | null => {
+    const b = objectOrNull(entry); if (!b) return null;
+    if (b.kind === "text") return { kind: "text", text: text(b.text, MAX_LONG) };
+    if (b.kind !== "table") return null;
+    const columns = list(b.columns, (column) => text(column, 120)).slice(0, MAX_COLUMNS);
+    if (!columns.length) return null;
+    const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], MAX_CELL)) : null)).slice(0, MAX_ROWS);
+    return { kind: "table", columns, rows };
+  }).slice(0, 50);
+}
+
+/** Custom sections, ids unique. A locked copy is never also edited. */
 function mergeCustomSections(value: unknown): CustomSection[] {
   return list(value, (item, index) => {
     const c = objectOrNull(item); if (!c) return null;
-    const blocks = list(c.blocks, (entry): CustomBlock | null => {
-      const b = objectOrNull(entry); if (!b) return null;
-      if (b.kind === "text") return { kind: "text", text: text(b.text, MAX_LONG) };
-      if (b.kind !== "table") return null;
-      const columns = list(b.columns, (column) => text(column, 120)).slice(0, MAX_COLUMNS);
-      if (!columns.length) return null;
-      const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], MAX_CELL)) : null)).slice(0, MAX_ROWS);
-      return { kind: "table", columns, rows };
-    }).slice(0, 50);
-    return { id: id(c.id, `section-${index}`), title: text(c.title, 160), blocks };
+    const templateId = id(c.templateId, "");
+    const locked = Boolean(templateId) && bool(c.locked, false);
+    return { id: id(c.id, `section-${index}`), title: text(c.title, 160), blocks: mergeBlocks(c.blocks), templateId, templateName: templateId ? text(c.templateName, 160) : "", edited: Boolean(templateId) && !locked && bool(c.edited, false), locked };
   }).slice(0, 50).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index);
 }
 

@@ -21,8 +21,8 @@ for anyone changing a format. The code lives in `app/lib/formats.ts`.
 | File | `format` | Current `version` | Where it lives |
 |------|----------|-------------------|----------------|
 | Estimate | `scopewright-estimate` | 3 | Saved estimates (this browser, a folder, Google Drive) and exports |
-| Catalog export | `scopewright-catalog` | 2 | Settings → Export / Import, `packs/` |
-| Shared catalog | `scopewright-catalog` | 2 | The server's `data/catalog.json` |
+| Catalog export | `scopewright-catalog` | 3 | Settings → Export / Import, `packs/` |
+| Shared catalog | `scopewright-catalog` | 3 | The server's `data/catalog.json` |
 | Theme pack | `scopewright-theme` | 1 | Settings → Theme pack (a zip with `theme.json`) |
 | Shared brand | none | none | The server's `data/branding.json` (not versioned yet) |
 
@@ -45,6 +45,7 @@ can still read it.
 | Estimate | 3 | 0.4 | `sectionLayout`: the order of the scope document's sections, and the ones left out. `customSections`: sections written for the estimate, made of text and tables. |
 | Catalog | 1 | 0.1 | First version. The shared catalog had no `format` or `version`; a file without them is version 1. |
 | Catalog | 2 | 0.3 | `documentTemplates`: introduction and closing templates. |
+| Catalog | 3 | 0.4 | `sectionTemplates`: custom sections teams reuse, grouped by category. |
 | Theme | 1 | 0.1 | First version. |
 
 ## When a file and the app disagree
