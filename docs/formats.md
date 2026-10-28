@@ -42,10 +42,10 @@ can still read it.
 |--------|---------|---------|--------|
 | Estimate | 1 | 0.1 | First version. |
 | Estimate | 2 | 0.3 | `framing`: the estimate's own introduction and closing. |
-| Estimate | 3 | 0.4 | `sectionLayout`: the order of the scope document's sections, and the ones left out. `customSections`: sections written for the estimate, made of text and tables. They replace `framing`: an earlier introduction and closing open as custom sections, first and last. |
+| Estimate | 3 | 0.3 | `sectionLayout`: the order of the scope document's sections, and the ones left out. `customSections`: sections written for the estimate, made of text and tables. They replace `framing`: an earlier introduction and closing open as custom sections, first and last. |
 | Catalog | 1 | 0.1 | First version. The shared catalog had no `format` or `version`; a file without them is version 1. |
 | Catalog | 2 | 0.3 | `documentTemplates`: introduction and closing templates. |
-| Catalog | 3 | 0.4 | `sectionTemplates`: custom sections teams reuse, grouped by category. They replace `documentTemplates`, which import as section templates. |
+| Catalog | 3 | 0.3 | `sectionTemplates`: custom sections teams reuse, grouped by category. They replace `documentTemplates`, which import as section templates. |
 | Theme | 1 | 0.1 | First version. |
 
 ## When a file and the app disagree
