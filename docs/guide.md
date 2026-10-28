@@ -189,6 +189,16 @@ are hidden, stays in the list with the reason beside it. The order is saved
 with the estimate; **Restore the default order** puts every section back and
 prints them all.
 
+**+ Add section** writes a section of your own, such as contacts, a schedule,
+or who is responsible for what. It gets a title and any mix of text and
+tables, and moves and prints like any other section. Text follows the same
+rules as the introduction and closing: a blank line starts a new paragraph,
+`{customer}` and the other placeholders are filled in, and lines starting
+with `- ` print as a list. A table has up to eight columns; the first row of
+the editor is the heading. Select a custom section's name in the list to edit
+or delete it. Custom sections belong to the estimate, so they are saved,
+exported, and copied as text with it.
+
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
 for email or a ticket.

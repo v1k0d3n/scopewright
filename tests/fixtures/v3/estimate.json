@@ -238,6 +238,10 @@
         "hidden": false
       },
       {
+        "id": "section-contacts",
+        "hidden": false
+      },
+      {
         "id": "delivery",
         "hidden": false
       },
@@ -252,6 +256,38 @@
       {
         "id": "effort",
         "hidden": true
+      }
+    ],
+    "customSections": [
+      {
+        "id": "section-contacts",
+        "title": "Contacts",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "Named contacts for {customer} and {organization} during the proof of concept.\n\n- Changes to this list are agreed in the weekly update."
+          },
+          {
+            "kind": "table",
+            "columns": [
+              "Role",
+              "Name",
+              "Contact"
+            ],
+            "rows": [
+              [
+                "Sponsor",
+                "Dana Ortiz",
+                "dana.ortiz@harborvale.example"
+              ],
+              [
+                "Engineer",
+                "",
+                ""
+              ]
+            ]
+          }
+        ]
       }
     ]
   }

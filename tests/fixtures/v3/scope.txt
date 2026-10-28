@@ -116,7 +116,16 @@ Conductor Workflows
 - Integration service account (optional): — [Pending]
 - First three workflows to automate: Dock-door blocked alert, forklift near-miss report, nightly site health summary [Provided]
 
-6. DELIVERY PLAN
+6. CONTACTS
+Named contacts for Harbor & Vale Logistics and Solstice Field Engineering during the proof of concept.
+
+- Changes to this list are agreed in the weekly update.
+
+Role | Name | Contact
+- Sponsor | Dana Ortiz | dana.ortiz@harborvale.example
+- Engineer |  |
+
+7. DELIVERY PLAN
 1. Engagement Planning
 - 1.1. Kickoff, access validation, and success criteria (3 hours, Planning)
 - 1.2. Target architecture and site plan (4 hours, Planning)
@@ -150,13 +159,13 @@ Conductor Workflows
 - 10.3. Route alerts through Conductor to operations (3 hours, Configuration)
 - 10.4. Acceptance test against agreed detection targets (4 hours, Testing and Validation)
 
-7. ASSUMPTIONS
+8. ASSUMPTIONS
 - Harbor & Vale provides VMware capacity, network access, and camera credentials before kickoff.
 - The three pilot sites have a technician available for gateway installation.
 - Sample footage for custom training is delivered by the end of week one.
 - Estimate covers Solstice delivery effort only; calendar duration depends on site access and change windows.
 
-8. OUT OF SCOPE
+9. OUT OF SCOPE
 - Production hardening, performance tuning, and capacity planning
 - Migration of existing production data or workloads
 - Disaster recovery design and failover testing

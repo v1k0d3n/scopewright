@@ -1,22 +1,38 @@
 "use client";
 
-import { builtInSections, documentOutline } from "../lib/document";
+import { useState } from "react";
+import { UNTITLED_SECTION, builtInSections, documentOutline } from "../lib/document";
 import type { SectionOutline } from "../lib/document";
 import type { EstimateBreakdown } from "../lib/estimate";
-import type { Catalog, Estimate } from "../lib/types";
+import type { Catalog, CustomSection, Estimate } from "../lib/types";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { CustomSectionEditor } from "./CustomSectionEditor";
 
 type Props = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakdown; update: (patch: Partial<Estimate>) => void };
 
 /** "PRODUCTS IN SCOPE" as "Products in scope". */
 const sentence = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
+const uid = () => `section-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** The scope document's sections: their order, and which ones print. Part of the Scope documents page. */
 export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<CustomSection | null>(null);
   const outline = documentOutline(catalog, estimate, breakdown);
-  const save = (next: SectionOutline[]) => update({ sectionLayout: next.map(({ id, hidden }) => ({ id, hidden })) });
+  const layout = (items: SectionOutline[]) => items.map(({ id, hidden }) => ({ id, hidden }));
+  const save = (next: SectionOutline[]) => update({ sectionLayout: layout(next) });
+  const customSections = estimate.customSections;
+  const add = () => {
+    const section: CustomSection = { id: uid(), title: "", blocks: [{ kind: "text", text: "" }] };
+    update({ customSections: [...customSections, section], sectionLayout: [...layout(outline), { id: section.id, hidden: false }] });
+    setEditing(section.id);
+  };
+  const remove = (id: string) => update({ customSections: customSections.filter((section) => section.id !== id), sectionLayout: layout(outline.filter((item) => item.id !== id)) });
+  const current = customSections.find((section) => section.id === editing);
   const move = (from: number, to: number) => { const next = [...outline]; const [item] = next.splice(from, 1); next.splice(to, 0, item); save(next); };
   const setHidden = (id: string, hidden: boolean) => save(outline.map((item) => (item.id === id ? { ...item, hidden } : item)));
-  const isDefault = outline.every((item, index) => !item.hidden && item.id === builtInSections[index].id);
+  // The default is every built-in section in its usual place, then the custom ones, all printed.
+  const isDefault = outline.every((item, index) => !item.hidden && (index < builtInSections.length ? item.id === builtInSections[index].id : item.custom));
   let number = 0;
   return (
     <div className="section-layout">
@@ -24,11 +40,14 @@ export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
       <ol>
         {outline.map((item, index) => {
           const prints = !item.hidden && !item.omitted;
-          const name = sentence(item.title);
+          const name = item.custom ? item.title || UNTITLED_SECTION : sentence(item.title);
           return (
             <li key={item.id} className={prints ? undefined : "not-printed"}>
               <span className="section-number">{prints ? ++number : "–"}</span>
-              <span className="section-name"><b>{name}</b>{item.hidden ? <small>Not printed</small> : item.omitted && <small>{item.omitted}</small>}</span>
+              <span className="section-name">
+                {item.custom ? <button type="button" className="link" title={`Edit ${name}`} onClick={() => setEditing(item.id)}>{name}</button> : <b>{name}</b>}
+                {item.hidden ? <small>Not printed</small> : item.omitted ? <small>{item.omitted}</small> : item.custom && <small>Custom · select to edit</small>}
+              </span>
               <label className="workflow-toggle" title={`Print ${name}`}><input type="checkbox" aria-label={`Print ${name}`} checked={!item.hidden} onChange={(event) => setHidden(item.id, !event.target.checked)} /><span>Print</span></label>
               <div className="row-actions">
                 <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</button>
@@ -38,7 +57,16 @@ export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
           );
         })}
       </ol>
-      {!isDefault && <button type="button" className="link" onClick={() => update({ sectionLayout: [] })}>Restore the default order</button>}
+      <div className="section-layout-actions">
+        <button type="button" className="secondary" onClick={add}>+ Add section</button>
+        {!isDefault && <button type="button" className="link" title="Custom sections move to the end" onClick={() => update({ sectionLayout: [] })}>Restore the default order</button>}
+      </div>
+      {current && <CustomSectionEditor section={current} onChange={(section) => update({ customSections: customSections.map((item) => (item.id === section.id ? section : item)) })} onDelete={() => { setEditing(null); setDeleting(current); }} onClose={() => setEditing(null)} />}
+      {deleting && (
+        <ConfirmDialog title={`Delete “${deleting.title || UNTITLED_SECTION}”?`} confirmLabel="Delete section" onConfirm={() => { remove(deleting.id); setDeleting(null); }} onCancel={() => setDeleting(null)}>
+          <p className="modal-note">The section and everything written in it are removed from this estimate. This cannot be undone.</p>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

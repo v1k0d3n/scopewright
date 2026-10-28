@@ -93,8 +93,21 @@ export type ScopeOptions = {
 export const sectionIds = ["goal", "products", "installation", "prerequisites", "delivery", "out-of-scope", "effort", "success", "assumptions"] as const;
 export type SectionId = (typeof sectionIds)[number];
 
-/** Where a section prints in the scope document, and whether it prints at all. */
-export type SectionPlacement = { id: SectionId; hidden: boolean };
+/** Where a section prints in the scope document, and whether it prints at all. The id is a built-in SectionId or a custom section's id. */
+export type SectionPlacement = { id: string; hidden: boolean };
+
+/**
+ * Part of a custom section. Text keeps the same rules as the introduction and
+ * closing: a blank line between paragraphs, and placeholders such as
+ * {customer} filled in when printed. Lines starting with "- " print as a list.
+ */
+export type CustomBlock =
+  | { kind: "text"; text: string }
+  /** Every row has one cell per column. */
+  | { kind: "table"; columns: string[]; rows: string[][] };
+
+/** A section written for this estimate, such as contacts or a schedule. */
+export type CustomSection = { id: string; title: string; blocks: CustomBlock[] };
 
 /**
  * Introduction and closing wording for the scope document, kept in the catalog
@@ -184,6 +197,8 @@ export type Estimate = {
   framing: DocumentFraming;
   /** The order of the scope document's sections, and the ones left out. Empty means the default order with every section printed. */
   sectionLayout: SectionPlacement[];
+  /** Sections written for this estimate; sectionLayout says where they print. */
+  customSections: CustomSection[];
   updatedAt: number;
 };
 

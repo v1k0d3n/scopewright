@@ -71,3 +71,53 @@ test("an untrusted layout keeps only known sections, once each", () => {
   const estimate = mergeEstimate({ sectionLayout: [{ id: "goal", hidden: true }, { id: "goal" }, { id: "nope" }, "x", { id: "effort", hidden: "yes" }] }, emptyEstimate());
   assert.deepEqual(estimate.sectionLayout, [{ id: "goal", hidden: true }, { id: "effort", hidden: false }]);
 });
+
+const contacts = {
+  id: "section-contacts",
+  title: "{customer} contacts",
+  blocks: [
+    { kind: "text", text: "Who to call during the engagement.\nAsk the account team first.\n\n- Weekdays only\n- Escalate through {organization}" },
+    { kind: "table", columns: ["Role", "Name", "Contact"], rows: [["Sponsor", "Ana", "ana@example.com"], ["Engineer", "", ""]] },
+  ],
+};
+
+test("a custom section prints its title, text, and table, with placeholders filled", () => {
+  // The page always saves the full layout: here the custom section moved up to second place.
+  const layout = sectionLayout([], [contacts]);
+  const estimate = { ...sample, customSections: [contacts], sectionLayout: [layout[0], layout.at(-1), ...layout.slice(1, -1)] };
+  const document = scopeDocument(catalog, estimate, "Org");
+  const section = document.sections[1];
+  assert.equal(section.id, "section-contacts");
+  assert.equal(section.custom, true);
+  assert.equal(section.title, `${sample.customer} CONTACTS`.toUpperCase());
+  assert.deepEqual(section.blocks.map((block) => block.kind), ["paragraph", "list", "table"]);
+  assert.deepEqual(section.blocks[0].content, ["Who to call during the engagement.", "\nAsk the account team first."]);
+  assert.deepEqual(section.blocks[1].items, [["Weekdays only"], ["Escalate through Org"]]);
+  assert.deepEqual(section.blocks[2].columns, ["Role", "Name", "Contact"]);
+  const text = documentText(document, "Org");
+  assert.match(text, /\n2\. HARBOR & VALE LOGISTICS CONTACTS\nWho to call during the engagement\.\nAsk the account team first\.\n\n- Weekdays only\n- Escalate through Org\n\nRole \| Name \| Contact\n- Sponsor \| Ana \| ana@example\.com\n- Engineer \| {2}\|\n\n3\. PRODUCTS IN SCOPE\n/);
+});
+
+test("a custom section the layout does not mention prints last, and an empty one prints only a placeholder on the page", () => {
+  const empty = { id: "section-empty", title: "", blocks: [] };
+  const document = scopeDocument(catalog, { ...sample, customSections: [empty] }, "Org");
+  const last = document.sections.at(-1);
+  assert.equal(last.id, "section-empty");
+  assert.equal(last.title, "UNTITLED SECTION");
+  assert.equal(last.blocks[0].placeholder, true);
+  assert.deepEqual(last.text, []);
+  assert.match(documentText(document, "Org"), /\d+\. UNTITLED SECTION$/);
+});
+
+test("untrusted custom sections are cleaned up: tables keep one cell per column, and the layout only names sections that exist", () => {
+  const estimate = mergeEstimate({
+    customSections: [
+      { id: "a", title: "A", blocks: [{ kind: "table", columns: ["One", "Two"], rows: [["1"], ["1", "2", "3"], "bad"] }, { kind: "table", columns: [], rows: [] }, { kind: "image" }, { kind: "text", text: 5 }] },
+      { id: "a", title: "Duplicate", blocks: [] },
+    ],
+    sectionLayout: [{ id: "a", hidden: true }, { id: "gone" }],
+  }, emptyEstimate());
+  assert.equal(estimate.customSections.length, 1);
+  assert.deepEqual(estimate.customSections[0].blocks, [{ kind: "table", columns: ["One", "Two"], rows: [["1", ""], ["1", "2"]] }, { kind: "text", text: "" }]);
+  assert.deepEqual(estimate.sectionLayout, [{ id: "a", hidden: true }]);
+});

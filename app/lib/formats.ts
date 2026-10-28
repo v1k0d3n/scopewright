@@ -23,7 +23,7 @@ export const ESTIMATE_FORMAT = "scopewright-estimate";
 
 /** 2: introduction and closing templates (documentTemplates). */
 export const CATALOG_VERSION = 2;
-/** 2: the estimate's own introduction and closing (framing). 3: the order of the scope document's sections (sectionLayout). */
+/** 2: the estimate's own introduction and closing (framing). 3: the order of the scope document's sections (sectionLayout) and sections written for the estimate (customSections). */
 export const ESTIMATE_VERSION = 3;
 
 /** Older names of the estimate format; they still open. */
@@ -40,7 +40,7 @@ export const catalogUpgrades: Record<number, Upgrade> = {
 /** Step n turns a version-n estimate into version n + 1. */
 export const estimateUpgrades: Record<number, Upgrade> = {
   1: (estimate) => ({ ...estimate, framing: estimate.framing ?? { source: "none" } }),
-  2: (estimate) => ({ ...estimate, sectionLayout: Array.isArray(estimate.sectionLayout) ? estimate.sectionLayout : [] }),
+  2: (estimate) => ({ ...estimate, sectionLayout: Array.isArray(estimate.sectionLayout) ? estimate.sectionLayout : [], customSections: Array.isArray(estimate.customSections) ? estimate.customSections : [] }),
 };
 
 const upgrade = (body: unknown, from: number, to: number, steps: Record<number, Upgrade>): Body => {

@@ -8,9 +8,9 @@
  * document someone already produced must keep printing the same text
  * (tests/fixtures/README.md), and that text predates the blocks.
  */
-import type { Catalog, Estimate, PrerequisiteStatus, SectionId, SectionPlacement } from "./types.ts";
+import type { Catalog, CustomBlock, CustomSection, Estimate, PrerequisiteStatus, SectionPlacement } from "./types.ts";
 import type { EstimateBreakdown } from "./estimate.ts";
-import { TO_BE_DECIDED, calculate, defaultTitle, framedText, outOfScopeLines, placeholderValues, statusLabel } from "./estimate.ts";
+import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, framedText, outOfScopeLines, paragraphs, placeholderValues, statusLabel } from "./estimate.ts";
 
 /** A piece of inline content. Plain text prints as written; the others are styled on the page. */
 export type Span = string | { strong: string } | { note: string } | { hours: number } | { status: PrerequisiteStatus; label: string };
@@ -27,8 +27,11 @@ export type Block =
   | { kind: "group"; title: Span[]; blocks: Block[] };
 
 export type DocumentSection = {
-  id: SectionId;
+  /** A built-in SectionId or a custom section's id. */
+  id: string;
   title: string;
+  /** Written for this estimate rather than generated from it. */
+  custom: boolean;
   blocks: Block[];
   /** The lines printed under the section's heading in the copied text. */
   text: string[];
@@ -44,10 +47,10 @@ export type ScopeDocumentModel = {
   closing: string[];
 };
 
-type Context = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakdown; showHours: boolean };
+type Context = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakdown; showHours: boolean; fill: (value: string) => string };
 
 type SectionDefinition = {
-  id: SectionId;
+  id: string;
   title: string;
   /** Left out of this document when false, whatever the layout says; `omitted` says why. */
   include?: (context: Context) => boolean;
@@ -196,43 +199,95 @@ export const builtInSections: SectionDefinition[] = [
 ];
 
 /**
- * Every section in the order the estimate prints them. A section the saved
- * layout does not mention (one added by a later release, say) goes back in
- * after the section it follows by default.
+ * Every section in the order the estimate prints them. A built-in section the
+ * saved layout does not mention (one added by a later release, say) goes back
+ * in after the section it follows by default; a custom section goes last.
  */
-export function sectionLayout(saved: SectionPlacement[] = []): SectionPlacement[] {
-  const layout = saved.filter((item, index) => builtInSections.some((section) => section.id === item.id) && saved.findIndex((other) => other.id === item.id) === index);
+export function sectionLayout(saved: SectionPlacement[] = [], customSections: CustomSection[] = []): SectionPlacement[] {
+  const known = new Set<string>([...builtInSections.map((section) => section.id), ...customSections.map((section) => section.id)]);
+  const layout = saved.filter((item, index) => known.has(item.id) && saved.findIndex((other) => other.id === item.id) === index);
   builtInSections.forEach((section, index) => {
     if (layout.some((item) => item.id === section.id)) return;
     const earlier = builtInSections.slice(0, index).map((other) => other.id);
     layout.splice(layout.findLastIndex((item) => earlier.includes(item.id)) + 1, 0, { id: section.id, hidden: false });
   });
+  for (const section of customSections) if (!layout.some((item) => item.id === section.id)) layout.push({ id: section.id, hidden: false });
   return layout;
 }
 
 /** A section as the layout editor lists it: hidden by the architect, or left out because it has nothing to print. */
-export type SectionOutline = { id: SectionId; title: string; hidden: boolean; omitted: string | null };
+export type SectionOutline = { id: string; title: string; hidden: boolean; omitted: string | null; custom: boolean };
 
 export function documentOutline(catalog: Catalog, estimate: Estimate, breakdown = calculate(catalog, estimate)): SectionOutline[] {
-  const context = contextFor(catalog, estimate, breakdown);
-  return sectionLayout(estimate.sectionLayout).map((item) => {
-    const section = definition(item.id);
-    return { id: item.id, title: section.title, hidden: item.hidden, omitted: (section.include?.(context) ?? true) ? null : section.omitted ?? "Nothing to print" };
+  const context = contextFor(catalog, estimate, breakdown, "");
+  return placed(estimate).map(({ item, section, custom }) => ({ id: item.id, title: section.title, hidden: item.hidden, omitted: (section.include?.(context) ?? true) ? null : section.omitted ?? "Nothing to print", custom }));
+}
+
+/** Each section in the layout with what it prints. */
+function placed(estimate: Estimate) {
+  const customSections = estimate.customSections ?? [];
+  return sectionLayout(estimate.sectionLayout, customSections).map((item) => {
+    const custom = customSections.find((section) => section.id === item.id);
+    return { item, section: custom ? customDefinition(custom) : builtInSections.find((section) => section.id === item.id)!, custom: Boolean(custom) };
   });
 }
 
-const definition = (id: SectionId) => builtInSections.find((section) => section.id === id)!;
-const contextFor = (catalog: Catalog, estimate: Estimate, breakdown: EstimateBreakdown): Context => ({ catalog, estimate, breakdown, showHours: estimate.options?.showHours ?? true });
+const contextFor = (catalog: Catalog, estimate: Estimate, breakdown: EstimateBreakdown, orgName: string): Context => {
+  const values = placeholderValues(estimate, breakdown, orgName);
+  return { catalog, estimate, breakdown, showHours: estimate.options?.showHours ?? true, fill: (value) => fillPlaceholders(value, values) };
+};
+
+/** Printed as the heading of a custom section that has no title. */
+export const UNTITLED_SECTION = "Untitled section";
+
+/** A custom section drawn from what was written for it. Its text is new, so it is derived from its blocks. */
+function customDefinition(section: CustomSection): SectionDefinition {
+  return {
+    id: section.id,
+    title: section.title.trim() || UNTITLED_SECTION,
+    blocks: ({ fill }) => {
+      const blocks = section.blocks.flatMap((block) => customBlocks(block, fill));
+      return blocks.length ? blocks : [placeholder("Nothing written in this section yet.")];
+    },
+    text: ({ fill }) => section.blocks.map((block) => customText(block, fill)).filter((lines) => lines.length).flatMap((lines) => [...lines, ""]),
+  };
+}
+
+const BULLET = /^\s*- /;
+
+/** Text as paragraphs, with each run of "- " lines as a list. A single line break stays inside its paragraph. */
+function customBlocks(block: CustomBlock, fill: (value: string) => string): Block[] {
+  if (block.kind === "table") {
+    const columns = block.columns.map(fill);
+    return [{ kind: "table", columns: columns.some((column) => column.trim()) ? columns : [], rows: block.rows.map((row) => ({ cells: row.map((cell) => [fill(cell)]) })) }];
+  }
+  return paragraphs(fill(block.text)).flatMap((paragraph) => {
+    const out: Block[] = [];
+    for (const line of paragraph.split("\n")) {
+      const last = out.at(-1);
+      if (BULLET.test(line)) {
+        const item = [line.replace(BULLET, "").trim()];
+        if (last?.kind === "list") last.items.push(item); else out.push({ kind: "list", items: [item] });
+      } else if (last?.kind === "paragraph") last.content.push(`\n${line}`);
+      else out.push({ kind: "paragraph", content: [line] });
+    }
+    return out;
+  });
+}
+
+function customText(block: CustomBlock, fill: (value: string) => string): string[] {
+  if (block.kind === "table") return [...(block.columns.some((column) => column.trim()) ? [block.columns.map(fill).join(" | ")] : []), ...block.rows.map((row) => `- ${row.map(fill).join(" | ")}`.trimEnd())];
+  return paragraphs(fill(block.text)).flatMap((paragraph, index) => (index ? ["", ...paragraph.split("\n")] : paragraph.split("\n")));
+}
 
 /** Everything the scope document prints, in order. */
 export function scopeDocument(catalog: Catalog, estimate: Estimate, orgName: string, breakdown = calculate(catalog, estimate)): ScopeDocumentModel {
-  const context = contextFor(catalog, estimate, breakdown);
+  const context = contextFor(catalog, estimate, breakdown, orgName);
   const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
-  const sections = sectionLayout(estimate.sectionLayout)
-    .filter((item) => !item.hidden)
-    .map((item) => definition(item.id))
-    .filter((section) => section.include?.(context) ?? true)
-    .map((section) => ({ id: section.id, title: section.title, blocks: section.blocks(context), text: section.text(context) }));
+  const sections = placed(estimate)
+    .filter(({ item, section }) => !item.hidden && (section.include?.(context) ?? true))
+    // Built-in titles are already capitals; a custom title is written as people type it.
+    .map(({ section, custom }) => ({ id: section.id, title: context.fill(section.title).toUpperCase(), custom, blocks: section.blocks(context), text: section.text(context) }));
   return { title: estimate.title || defaultTitle(breakdown), customer: estimate.customer, introduction: framing.introduction, sections, closing: framing.closing };
 }
 

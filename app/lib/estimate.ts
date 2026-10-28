@@ -1,4 +1,4 @@
-import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, SectionId } from "./types.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, CustomBlock, CustomSection, SectionPlacement } from "./types.ts";
 import { phases, prerequisiteStatuses, sectionIds } from "./types.ts";
 import { bool, hours as num, id, list, objectOrNull, oneOf, record, text } from "./sanitize.ts";
 import { CATALOG_FORMAT, CATALOG_VERSION, ESTIMATE_FORMAT, ESTIMATE_VERSION, WRITTEN_BY, checkCatalogFile, checkEstimateFile, storedCatalogVersion, upgradeCatalog, upgradeEstimate } from "./formats.ts";
@@ -327,6 +327,7 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
   const s = record(stored);
   const statuses = prerequisiteStatuses as readonly string[];
   const status = (value: unknown): PrerequisiteStatus => (statuses.includes(value as string) ? (value as PrerequisiteStatus) : "pending");
+  const customSections = mergeCustomSections(s.customSections);
   const strMap = (value: unknown, allowed: (v: unknown) => boolean) => Object.fromEntries(Object.entries(record(value)).filter(([key, v]) => key.length <= 240 && allowed(v)).slice(0, MAX_MAP));
   return {
     customer: text(s.customer, 200, initial.customer),
@@ -345,13 +346,42 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
     customOutOfScope: text(s.customOutOfScope, MAX_LONG),
     options: { showHours: bool(record(s.options).showHours, true) },
     framing: mergeFraming(s.framing),
-    // An unknown or repeated section is dropped; the document puts back any that are missing.
-    sectionLayout: list(s.sectionLayout, (item) => { const p = objectOrNull(item); return p && (sectionIds as readonly unknown[]).includes(p.id) ? { id: p.id as SectionId, hidden: bool(p.hidden, false) } : null; }).filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index),
+    sectionLayout: mergeLayout(s.sectionLayout, customSections),
+    customSections,
     updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
   };
 }
 const MAX_MAP = 2_000;
 const MAX_LONG = 20_000;
+
+/** Limits on a custom section's tables; the editor stops at the same ones. */
+export const MAX_COLUMNS = 8;
+export const MAX_ROWS = 200;
+const MAX_CELL = 500;
+
+/** Custom sections: ids unique, every table row as wide as its columns. */
+function mergeCustomSections(value: unknown): CustomSection[] {
+  return list(value, (item, index) => {
+    const c = objectOrNull(item); if (!c) return null;
+    const blocks = list(c.blocks, (entry): CustomBlock | null => {
+      const b = objectOrNull(entry); if (!b) return null;
+      if (b.kind === "text") return { kind: "text", text: text(b.text, MAX_LONG) };
+      if (b.kind !== "table") return null;
+      const columns = list(b.columns, (column) => text(column, 120)).slice(0, MAX_COLUMNS);
+      if (!columns.length) return null;
+      const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], MAX_CELL)) : null)).slice(0, MAX_ROWS);
+      return { kind: "table", columns, rows };
+    }).slice(0, 50);
+    return { id: id(c.id, `section-${index}`), title: text(c.title, 160), blocks };
+  }).slice(0, 50).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index);
+}
+
+/** An unknown or repeated section is dropped; the document puts back any that are missing. */
+function mergeLayout(value: unknown, customSections: CustomSection[]): SectionPlacement[] {
+  const known = new Set<string>([...sectionIds, ...customSections.map((section) => section.id)]);
+  return list(value, (item) => { const p = objectOrNull(item); return p && typeof p.id === "string" && known.has(p.id) ? { id: p.id, hidden: bool(p.hidden, false) } : null; })
+    .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index);
+}
 
 function mergeFraming(value: unknown): DocumentFraming {
   const f = record(value);

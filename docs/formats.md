@@ -42,7 +42,7 @@ can still read it.
 |--------|---------|---------|--------|
 | Estimate | 1 | 0.1 | First version. |
 | Estimate | 2 | 0.3 | `framing`: the estimate's own introduction and closing. |
-| Estimate | 3 | 0.4 | `sectionLayout`: the order of the scope document's sections, and the ones left out. |
+| Estimate | 3 | 0.4 | `sectionLayout`: the order of the scope document's sections, and the ones left out. `customSections`: sections written for the estimate, made of text and tables. |
 | Catalog | 1 | 0.1 | First version. The shared catalog had no `format` or `version`; a file without them is version 1. |
 | Catalog | 2 | 0.3 | `documentTemplates`: introduction and closing templates. |
 | Theme | 1 | 0.1 | First version. |

@@ -63,7 +63,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <h4>Prepared for {estimate.customer || "Customer name"} by {branding.orgName}{branding.workspaceName && ` · ${branding.workspaceName}`}</h4>
           <hr />
           {doc.introduction.length > 0 && <div className="doc-framing">{doc.introduction.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
-          {doc.sections.map((section, index) => <section key={section.id}><h5>{index + 1} / {section.title}</h5><Blocks blocks={section.blocks} /></section>)}
+          {doc.sections.map((section, index) => <section key={section.id} className={section.custom ? "doc-custom" : undefined}><h5>{index + 1} / {section.title}</h5><Blocks blocks={section.blocks} /></section>)}
           {doc.closing.length > 0 && <div className="doc-framing doc-closing">{doc.closing.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           <div className="signatures">
             <div><span>Customer</span></div>
