@@ -270,3 +270,9 @@ test("copied text: bold across lines loses its marks, and a fence inside a quote
   assert.deepEqual(markdownSection("**Bold that\nspans lines** done").text, ["Bold that", "spans lines done", ""]);
   assert.deepEqual(markdownSection("> ```\n> **literal**\n> ```").text, ["> ```", "> **literal**", "> ```", ""]);
 });
+
+test("a quoted fence ends with its quote, so lines after it read as usual", () => {
+  const { blocks, text } = markdownSection("> ```\n> code\n\n**Intro:**\n  3. Step");
+  assert.equal(text[3], "Intro:", "bold after the quote loses its marks");
+  assert.deepEqual(blocks.at(-1), { kind: "list", items: [["Step"]], ordered: true, start: 3, indent: true });
+});

@@ -74,17 +74,19 @@ function blockLines(text: string): { token: Token; first: number; last: number }
  */
 function literalLines(text: string): Set<number> {
   const lines = new Set<number>();
-  let fence: { mark: string; length: number } | null = null;
+  let fence: { mark: string; length: number; quoted: boolean } | null = null;
   text.split("\n").forEach((line, index) => {
     // A fence may sit in a quote ("> ```"), and the quote's marks come first.
     const marker = /^(?:\s*>)*\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    // A quoted fence ends with its quote, closed or not.
+    if (fence?.quoted && !/^\s*>/.test(line)) fence = null;
     if (fence) {
       lines.add(index);
       // A fence closes only on the same mark, at least as long, with nothing after it.
       if (marker && marker[1][0] === fence.mark && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
     } else if (marker && !(marker[1][0] === "`" && marker[2].includes("`"))) {
       lines.add(index);
-      fence = { mark: marker[1][0], length: marker[1].length };
+      fence = { mark: marker[1][0], length: marker[1].length, quoted: /^\s*>/.test(line) };
     }
   });
   for (const { token, first, last } of blockLines(text)) {
