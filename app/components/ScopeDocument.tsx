@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { TO_BE_DECIDED, defaultTitle, framedText, outOfScopeLines, placeholderValues, scopeText, statusLabel } from "../lib/estimate";
+import { outOfScopeLines } from "../lib/estimate";
+import { documentText, scopeDocument } from "../lib/document";
+import type { Block, Span } from "../lib/document";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
 
@@ -9,25 +11,20 @@ type Props = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakdow
 
 export function ScopeDocument({ catalog, estimate, breakdown, branding, update, onEdit }: Props) {
   const [copied, setCopied] = useState(false);
-  const title = estimate.title || defaultTitle(breakdown);
+  // Sections are numbered as they are rendered, so leaving one out never leaves a gap.
+  const doc = scopeDocument(catalog, estimate, branding.orgName, breakdown);
   const copy = async () => {
     try {
-      await navigator.clipboard?.writeText(scopeText(catalog, estimate, branding.orgName));
+      await navigator.clipboard?.writeText(documentText(doc, branding.orgName));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
       /* clipboard unavailable */
     }
   };
-  const list = (text: string) => text.split("\n").map((line) => line.trim()).filter(Boolean);
   const date = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   const showHours = estimate.options.showHours;
   const excluded = outOfScopeLines(catalog, estimate);
-  const framing = framedText(estimate, placeholderValues(estimate, breakdown, branding.orgName));
-  // Sections are numbered as they are rendered, so hiding one never leaves a gap.
-  let sectionNumber = 0;
-  const heading = (name: string) => <h5>{++sectionNumber} / {name}</h5>;
-  const hours = (value: number) => (showHours ? <span>{value}h</span> : null);
   return (
     <div className="content scope-page">
       <div className="title-row no-print">
@@ -59,66 +56,12 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
               <span className="doc-tag">DRAFT · POC SCOPE · {date}</span>
             </div>
           </header>
-          <h2>{title}</h2>
+          <h2>{doc.title}</h2>
           <h4>Prepared for {estimate.customer || "Customer name"} by {branding.orgName}{branding.workspaceName && ` · ${branding.workspaceName}`}</h4>
           <hr />
-          {framing.introduction.length > 0 && <div className="doc-framing">{framing.introduction.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
-          {heading("GOAL")}
-          <p className={!estimate.goal ? "placeholder-copy" : ""}>{estimate.goal || "Add a concise POC goal in the Engagement step."}</p>
-          {heading("PRODUCTS IN SCOPE")}
-          {breakdown.products.length ? (
-            <table className="doc-table">
-              <thead><tr><th>Product</th><th>Environment</th>{showHours && <th>Effort</th>}</tr></thead>
-              <tbody>{breakdown.products.map((item) => <tr key={item.product.id}><td>{item.product.name}{item.foundation && <small> (required foundation)</small>}</td><td>{item.existing ? "Existing" : "New deployment"}</td>{showHours && <td>{item.hours}h</td>}</tr>)}</tbody>
-            </table>
-          ) : <p className="placeholder-copy">No products selected in the Estimate Builder.</p>}
-          {heading("INSTALLATION SCOPE")}
-          {breakdown.products.map((item) => (
-            <section className="scope-product" key={item.product.id}>
-              <b>{item.product.name}</b>
-              <ul>
-                {item.existing && <li>Validate access to the existing environment. No installation effort.</li>}
-                {showHours && item.baseHours > 0 && <li>Base work package {hours(item.baseHours)}</li>}
-                {item.decisions.map((decision) => <li key={decision.field.id}>{decision.field.label}: <b>{decision.choice.label}</b> {hours(decision.choice.hours)}</li>)}
-                {item.unanswered.map((field) => <li key={field.id}>{field.label}: <b className="status-pending">{TO_BE_DECIDED}</b></li>)}
-                {(estimate.details[item.product.id] ?? []).filter((line) => line.description).map((line) => <li key={line.id}>{line.description} {hours(line.hours)}</li>)}
-              </ul>
-            </section>
-          ))}
-          {heading("PREREQUISITES")}
-          {breakdown.prerequisites.length ? breakdown.prerequisites.map((item) => (
-            <section className="scope-product" key={item.product.id}>
-              <b>{item.product.name}</b>
-              <table className="doc-table prereq-table">
-                <thead><tr><th>Customer provides</th><th>Value</th><th>Status</th></tr></thead>
-                <tbody>{item.items.map((line) => <tr key={line.id}><td>{line.label}{!line.required && <small> (optional)</small>}</td><td>{line.value || "—"}</td><td className={`status-${line.status}`}>{statusLabel(line.status)}</td></tr>)}</tbody>
-              </table>
-            </section>
-          )) : <p className="placeholder-copy">No prerequisites are defined for the selected products.</p>}
-          {heading("DELIVERY PLAN")}
-          {breakdown.deliverables.length ? breakdown.deliverables.map((item) => (
-            <section className="scope-product" key={item.group.id}>
-              <b>{item.group.scopeNumber && `${item.group.scopeNumber}. `}{item.group.name}</b>
-              <ul>{item.tasks.map((task) => <li key={task.id}>{task.scopeNumber && `${task.scopeNumber}. `}{task.name} <small>({task.phase})</small> {hours(task.hours)}</li>)}</ul>
-            </section>
-          )) : <p className="placeholder-copy">No deliverables selected in the Estimate Builder.</p>}
-          {excluded.length > 0 && <>{heading("OUT OF SCOPE")}<ul>{excluded.map((line, index) => <li key={index}>{line}</li>)}</ul></>}
-          {showHours && <>
-            {heading("EFFORT SUMMARY")}
-            <table className="doc-table">
-              <tbody>
-                <tr><td>Installation and configuration</td><td>{breakdown.installationHours}h</td></tr>
-                <tr><td>Deliverables</td><td>{breakdown.deliverableHours}h</td></tr>
-                <tr className="doc-total"><td>Total estimated effort</td><td>{breakdown.total}h</td></tr>
-                <tr><td>Planning range</td><td>{breakdown.low}–{breakdown.high}h</td></tr>
-              </tbody>
-            </table>
-          </>}
-          {heading("SUCCESS CRITERIA")}
-          <ul>{list(estimate.successCriteria).map((line, index) => <li key={index}>{line}</li>)}</ul>
-          {heading("ASSUMPTIONS")}
-          <ul>{list(estimate.assumptions).map((line, index) => <li key={index}>{line}</li>)}</ul>
-          {framing.closing.length > 0 && <div className="doc-framing doc-closing">{framing.closing.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
+          {doc.introduction.length > 0 && <div className="doc-framing">{doc.introduction.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
+          {doc.sections.map((section, index) => <section key={section.id}><h5>{index + 1} / {section.title}</h5><Blocks blocks={section.blocks} /></section>)}
+          {doc.closing.length > 0 && <div className="doc-framing doc-closing">{doc.closing.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           <div className="signatures">
             <div><span>Customer</span></div>
             <div><span>Account team</span></div>
@@ -129,4 +72,31 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
       </div>
     </div>
   );
+}
+
+/** One span on the page. Hours sit at the right edge of their line. */
+function SpanView({ span }: { span: Span }) {
+  if (typeof span === "string") return <>{span}</>;
+  if ("strong" in span) return <b>{span.strong}</b>;
+  if ("note" in span) return <> <small>({span.note})</small></>;
+  if ("hours" in span) return <> <span className="doc-hours">{span.hours}h</span></>;
+  return <span className={`status-${span.status}`}>{span.label}</span>;
+}
+
+const Spans = ({ spans }: { spans: Span[] }) => <>{spans.map((span, index) => <SpanView key={index} span={span} />)}</>;
+
+function Blocks({ blocks }: { blocks: Block[] }) {
+  return <>{blocks.map((block, index) => {
+    switch (block.kind) {
+      case "paragraph": return <p key={index} className={block.placeholder ? "placeholder-copy" : undefined}><Spans spans={block.content} /></p>;
+      case "list": return <ul key={index}>{block.items.map((item, line) => <li key={line}><Spans spans={item} /></li>)}</ul>;
+      case "table": return (
+        <table key={index} className={`doc-table${block.numeric ? " numeric" : ""}`}>
+          {block.columns.length > 0 && <thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>}
+          <tbody>{block.rows.map((row, line) => <tr key={line} className={row.total ? "doc-total" : undefined}>{row.cells.map((cell, column) => <td key={column}><Spans spans={cell} /></td>)}</tr>)}</tbody>
+        </table>
+      );
+      case "group": return <section key={index} className="scope-product"><b><Spans spans={block.title} /></b><Blocks blocks={block.blocks} /></section>;
+    }
+  })}</>;
 }

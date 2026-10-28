@@ -4,7 +4,8 @@ import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { defaultCatalog, emptyEstimate } from "../app/lib/defaults.ts";
-import { defaultTitle, estimateExport, framedText, framingFrom, isNewerStoredCatalog, mergeCatalog, mergeEstimate, parseEstimateExport, placeholderValues, calculate, readCatalogFile, readEstimateFile, readStoredCatalog, removeFromCatalog, scopeText, templateChanged, unknownPlaceholders } from "../app/lib/estimate.ts";
+import { defaultTitle, estimateExport, framedText, framingFrom, isNewerStoredCatalog, mergeCatalog, mergeEstimate, parseEstimateExport, placeholderValues, calculate, readCatalogFile, readEstimateFile, readStoredCatalog, removeFromCatalog, templateChanged, unknownPlaceholders } from "../app/lib/estimate.ts";
+import { scopeText } from "../app/lib/document.ts";
 import { CATALOG_VERSION, ESTIMATE_VERSION, RELOAD_NEWER, RELOAD_OLDER, WRITTEN_BY, catalogDocument, catalogUpgrades, catalogWriteProblem, estimateUpgrades } from "../app/lib/formats.ts";
 import { lintCatalog, lintCatalogFile } from "../app/lib/lint.ts";
 

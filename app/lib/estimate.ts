@@ -171,51 +171,6 @@ export function outOfScopeLines(catalog: Catalog, estimate: Estimate): string[] 
   return [...chosen, ...custom];
 }
 
-/** Plain-text rendering of the scope document, for pasting into email or a ticket. */
-export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string): string {
-  const breakdown = calculate(catalog, estimate);
-  const title = estimate.title || defaultTitle(breakdown);
-  const showHours = estimate.options?.showHours ?? true;
-  const h = (hours: number, extra = "") => (showHours ? ` (${hours} hours${extra})` : extra ? ` (${extra.replace(/^, /, "")})` : "");
-  let n = 0;
-  const section = (name: string) => `${++n}. ${name}`;
-  const lines: string[] = [`${estimate.customer || "Customer"} — ${title}`, `Prepared by ${orgName}`, ""];
-  const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
-  if (framing.introduction.length) lines.push(...framing.introduction.flatMap((paragraph) => [paragraph, ""]));
-  lines.push(section("GOAL"), estimate.goal || "Goal to be defined.", "");
-  lines.push(section("PRODUCTS IN SCOPE"));
-  for (const item of breakdown.products) lines.push(`- ${item.product.name}: ${item.existing ? "existing environment" : "new deployment"}${item.foundation ? " (required foundation)" : ""}`);
-  lines.push("", section("INSTALLATION SCOPE"));
-  for (const item of breakdown.products) {
-    lines.push(item.product.name);
-    if (item.existing) lines.push("- Existing environment validated; no installation effort.");
-    if (item.baseHours && showHours) lines.push(`- Base work package${h(item.baseHours)}`);
-    for (const decision of item.decisions) lines.push(`- ${decision.field.label}: ${decision.choice.label}${h(decision.choice.hours)}`);
-    for (const field of item.unanswered) lines.push(`- ${field.label}: ${TO_BE_DECIDED}`);
-    for (const line of estimate.details[item.product.id] ?? []) if (line.description) lines.push(`- ${line.description}${h(line.hours)}`);
-    lines.push("");
-  }
-  lines.push(section("PREREQUISITES"));
-  for (const item of breakdown.prerequisites) {
-    lines.push(item.product.name);
-    for (const line of item.items) lines.push(`- ${line.label}${line.required ? "" : " (optional)"}: ${line.value || "—"} [${statusLabel(line.status)}]`);
-    lines.push("");
-  }
-  lines.push(section("DELIVERY PLAN"));
-  for (const item of breakdown.deliverables) {
-    lines.push(`${item.group.scopeNumber ? `${item.group.scopeNumber}. ` : ""}${item.group.name}`);
-    for (const task of item.tasks) lines.push(`- ${task.scopeNumber ? `${task.scopeNumber}. ` : ""}${task.name}${h(task.hours, `, ${task.phase}`)}`);
-  }
-  lines.push("");
-  const excluded = outOfScopeLines(catalog, estimate);
-  if (excluded.length) lines.push(section("OUT OF SCOPE"), ...excluded.map((line) => `- ${line}`), "");
-  if (showHours) lines.push(section("EFFORT SUMMARY"), `Installation: ${breakdown.installationHours} hours`, `Deliverables: ${breakdown.deliverableHours} hours`, `Total: ${breakdown.total} hours (planning range ${breakdown.low}–${breakdown.high})`, "");
-  lines.push(section("SUCCESS CRITERIA"), ...estimate.successCriteria.split("\n").filter(Boolean).map((line) => `- ${line}`), "");
-  lines.push(section("ASSUMPTIONS"), ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
-  if (framing.closing.length) lines.push("", ...framing.closing.flatMap((paragraph, index) => (index ? ["", paragraph] : [paragraph])));
-  return lines.join("\n");
-}
-
 /** Words a template can use; they are filled in from the estimate when the document is printed. */
 export const PLACEHOLDERS = ["customer", "title", "products", "organization"] as const;
 export type PlaceholderValues = Record<(typeof PLACEHOLDERS)[number], string>;
