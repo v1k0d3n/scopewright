@@ -34,7 +34,7 @@ export function SectionFields({ value, onChange, readOnly = false, titleRef }: P
               <div className="row-actions">
                 <button type="button" className="icon" aria-label="Move up" disabled={index === 0} onClick={() => setBlocks(move(blocks, index, index - 1))}>↑</button>
                 <button type="button" className="icon" aria-label="Move down" disabled={index === blocks.length - 1} onClick={() => setBlocks(move(blocks, index, index + 1))}>↓</button>
-                <button type="button" className="link" onClick={() => setBlocks(blocks.filter((_, at) => at !== index))}>Remove</button>
+                <button type="button" className="remove-block" aria-label={`Remove this ${block.kind === "text" ? "text" : "table"}`} onClick={() => setBlocks(blocks.filter((_, at) => at !== index))}>Remove</button>
               </div>
             )}
           </header>

@@ -334,8 +334,8 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-name { display: grid; gap: 2px; min-width: 0; }
 .section-name b { font-size: 13px; font-weight: 600; }
 .section-name small { font-size: 11px; color: var(--muted); }
-.section-layout .row-actions { flex-wrap: nowrap; gap: 6px; }
-.section-layout .row-actions button { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+.section-layout li .row-actions { flex-wrap: nowrap; gap: 6px; }
+.section-layout li .row-actions button { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
 .section-layout > button.link { justify-self: start; font-size: 12px; }
 .section-name > button.link { font-size: 13px; font-weight: 600; text-align: left; }
 .section-layout-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -347,6 +347,9 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-block header { display: flex; align-items: center; justify-content: space-between; height: auto; padding: 0; border: 0; background: none; }
 .section-block header b { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .section-block .row-actions button.icon { width: 28px; height: 28px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+.section-block .row-actions { flex-wrap: nowrap; gap: 6px; }
+.section-block .row-actions button.remove-block { height: 28px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; color: var(--brand); font-size: 12px; font-weight: 600; }
+.section-block .row-actions button.remove-block:hover { border-color: var(--brand); }
 .section-text textarea { font-size: 13px; text-transform: none; font-weight: 400; }
 .section-text small { font-weight: 400; text-transform: none; font-size: 11px; }
 .section-table-scroll { overflow-x: auto; }
