@@ -22,6 +22,7 @@ export const emptyEstimate = (): Estimate => ({
   customOutOfScope: "",
   options: { showHours: true },
   framing: { source: "none", templateId: "", templateName: "", introduction: "", closing: "", edited: false, locked: false },
+  sectionLayout: [],
   assumptions: "Customer provides hardware, network access, and credentials before the engagement starts.\nEstimate covers delivery work only; calendar duration depends on customer readiness.",
   successCriteria: "Agreed installation and configuration activities are completed.\nSelected deliverables are tested and validated with the customer.\nResults, decisions, and follow-up actions are documented.",
   updatedAt: 0,

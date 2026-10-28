@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { mergeCatalog, readEstimateFile } from "../app/lib/estimate.ts";
-import { builtInSections, documentText, scopeDocument } from "../app/lib/document.ts";
+import { mergeCatalog, mergeEstimate, readEstimateFile } from "../app/lib/estimate.ts";
+import { builtInSections, documentOutline, documentText, scopeDocument, sectionLayout } from "../app/lib/document.ts";
+import { sectionIds } from "../app/lib/types.ts";
 
 const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [], documentTemplates: [] };
 const pack = (name) => JSON.parse(readFileSync(new URL(`../packs/solstice/${name}`, import.meta.url), "utf8"));
@@ -37,4 +38,36 @@ test("with hours hidden, no section carries an hour figure", () => {
   const figures = document.sections.flatMap((section) => spans(section.blocks)).filter((span) => typeof span === "object" && "hours" in span);
   assert.deepEqual(figures, []);
   assert.doesNotMatch(document.sections.flatMap((section) => section.text).join("\n"), /\bhours?\b/);
+});
+
+test("the built-in sections are listed in the default order the data model names", () => {
+  assert.deepEqual(builtInSections.map((section) => section.id), [...sectionIds]);
+  assert.deepEqual(sectionLayout([]).map((item) => item.id), [...sectionIds]);
+});
+
+test("a saved layout sets the order, and hidden sections print nowhere", () => {
+  const layout = [{ id: "assumptions", hidden: false }, { id: "goal", hidden: false }, { id: "prerequisites", hidden: true }];
+  const document = scopeDocument(catalog, { ...sample, sectionLayout: layout }, "Org");
+  const ids = document.sections.map((section) => section.id);
+  assert.deepEqual(ids.slice(0, 2), ["assumptions", "goal"]);
+  assert.ok(!ids.includes("prerequisites"));
+  const text = documentText(document, "Org");
+  assert.match(text, /^1\. ASSUMPTIONS\n- .+\n(- .+\n)*\n2\. GOAL\n/m, "a section moved up still ends with a blank line");
+  assert.doesNotMatch(text, /PREREQUISITES/);
+});
+
+test("sections a saved layout does not mention go back in after the section they follow by default", () => {
+  assert.deepEqual(sectionLayout([{ id: "effort", hidden: true }, { id: "goal", hidden: false }]).map((item) => item.id), ["effort", "goal", "products", "installation", "prerequisites", "delivery", "out-of-scope", "success", "assumptions"]);
+});
+
+test("the outline marks hidden sections and says why an empty one does not print", () => {
+  const outline = documentOutline(catalog, { ...sample, options: { showHours: false }, sectionLayout: [{ id: "goal", hidden: true }] });
+  assert.equal(outline.find((item) => item.id === "goal").hidden, true);
+  assert.equal(outline.find((item) => item.id === "effort").omitted, "Hours are hidden");
+  assert.equal(outline.find((item) => item.id === "products").omitted, null);
+});
+
+test("an untrusted layout keeps only known sections, once each", () => {
+  const estimate = mergeEstimate({ sectionLayout: [{ id: "goal", hidden: true }, { id: "goal" }, { id: "nope" }, "x", { id: "effort", hidden: "yes" }] }, emptyEstimate());
+  assert.deepEqual(estimate.sectionLayout, [{ id: "goal", hidden: true }, { id: "effort", hidden: false }]);
 });

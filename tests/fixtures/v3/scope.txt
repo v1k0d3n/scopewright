@@ -1,0 +1,169 @@
+Harbor & Vale Logistics — Connected Warehouse Vision Proof of Concept
+Prepared by Solstice Field Engineering
+
+This document describes a proof of concept for Harbor & Vale Logistics. Its purpose is to show, in its own environment, whether Solstice Core Platform, Outpost Edge Runtime, Outpost Fleet Manager, Nova Insight, Nova Vision, and Conductor Workflows can meet the goal below, so that Harbor & Vale Logistics has the evidence it needs to make a purchasing decision.
+
+The work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.
+
+1. GOAL
+Prove that Solstice can detect blocked dock doors and forklift near-misses across three distribution centers within two seconds of the event, route alerts to the operations team automatically, and give the analytics team a queryable history of every event, all managed as a single fleet from one console.
+
+2. SUCCESS CRITERIA
+- Blocked dock-door events are detected at all three sites within two seconds, with fewer than one false alert per site per day.
+- Forklift near-miss alerts reach the operations channel through Conductor with the camera clip attached.
+- Every event is queryable in Lakehouse dashboards within one minute of occurring.
+- A configuration change and an over-the-air update roll to all three sites from Fleet Manager with staged canary and rollback.
+
+3. PRODUCTS IN SCOPE
+- Solstice Core Platform: new deployment
+- Outpost Edge Runtime: new deployment
+- Outpost Fleet Manager: new deployment
+- Solstice Streams: new deployment (required foundation)
+- Solstice Lakehouse: new deployment (required foundation)
+- Nova Insight: new deployment
+- Nova Vision: new deployment
+- Conductor Workflows: new deployment
+
+4. INSTALLATION SCOPE
+Solstice Core Platform
+- Control plane footprint: Highly available (3 nodes) (6 hours)
+- Target platform: VMware vSphere (4 hours)
+- Network connectivity: Through a corporate proxy (2 hours)
+- Persistent storage: SAN / NAS via CSI driver (3 hours)
+- Platform identity: OIDC single sign-on (3 hours)
+- Integrate with Harbor & Vale's Okta tenant for platform sign-in (2 hours)
+
+Outpost Edge Runtime
+- Base work package (6 hours)
+- Edge sites in scope: 3 sites (4 hours)
+- Site hardware: Vendor-certified gateways (2 hours)
+- Provisioning: Zero-touch provisioning (5 hours)
+- Site connectivity: Intermittent with store-and-forward (3 hours)
+
+Outpost Fleet Manager
+- Base work package (8 hours)
+- Management scope: Configuration + over-the-air updates (5 hours)
+- Inventory integration: Sync with existing CMDB / ITSM (4 hours)
+
+Solstice Streams
+- Base work package (6 hours)
+- Broker topology: 3 brokers (3 hours)
+- Retention: Tiered to object storage (3 hours)
+- Source connectors: Files and MQTT (3 hours)
+
+Solstice Lakehouse
+- Base work package (10 hours)
+- Object storage: Bring your own S3-compatible store (2 hours)
+- Query compute: Dedicated query cluster (4 hours)
+- Table catalog: Built-in catalog (1 hours)
+
+Nova Insight
+- Base work package (10 hours)
+- Workload: Training + model serving (8 hours)
+- Accelerators: GPU pool on Core workers (4 hours)
+
+Nova Vision
+- Base work package (12 hours)
+- Camera count: 10 cameras (4 hours)
+- Detection models: Custom model training in Nova Insight (8 hours)
+- Inference target: Edge GPU (4 hours)
+- Mask the customer-facing lobby camera region for privacy (1 hours)
+
+Conductor Workflows
+- Base work package (6 hours)
+- Engine deployment: Shared engine on Core (1 hours)
+- Integrations: ITSM ticketing (3 hours)
+
+5. PREREQUISITES
+Solstice Core Platform
+- Control plane VIP: 10.42.0.10 [Provided]
+- Application ingress VIP: 10.42.0.11 [Provided]
+- Node network: 10.42.0.0/24 [Provided]
+- DNS records: core.poc.harborvale.example, *.apps.poc.harborvale.example [Provided]
+- NTP source: ntp.harborvale.example [Provided]
+- SSH public key: Provided by platform team [Provided]
+- Solstice license key: — [Pending]
+- Out-of-band management (optional): — [Not applicable]
+
+Outpost Edge Runtime
+- Site list: Newark DC, Savannah DC, Tacoma cross-dock [Provided]
+- Gateway hardware specs: Outpost G2 gateway, 16 GB, 1 TB NVMe, T4 GPU [Provided]
+- Site network details: VLAN 220, DHCP reservations, outbound 443 only [Provided]
+- Site escort for gateway installation: Facilities to confirm per site [Pending]
+
+Outpost Fleet Manager
+- CMDB / ITSM API access (optional): — [Pending]
+- Maintenance window per site: Sundays 02:00–04:00 local [Provided]
+
+Solstice Streams
+- Initial topic list: dock.events, forklift.telemetry, camera.alerts [Provided]
+- Source system access (optional): — [Pending]
+
+Solstice Lakehouse
+- Object storage bucket: s3://harborvale-poc (MinIO) [Provided]
+- Sample data set: — [Pending]
+
+Nova Insight
+- GPU nodes (optional): 2 × NVIDIA L4 on Core workers [Provided]
+- Data owner sign-off: — [Pending]
+
+Nova Vision
+- Camera inventory: 10 Axis P3265 dome cameras, RTSP, dock doors 1–10 [Provided]
+- Labeled sample footage (optional): — [Pending]
+- Privacy review: Approved by Legal 2026-09-08 [Provided]
+
+Conductor Workflows
+- Integration service account (optional): — [Pending]
+- First three workflows to automate: Dock-door blocked alert, forklift near-miss report, nightly site health summary [Provided]
+
+6. DELIVERY PLAN
+1. Engagement Planning
+- 1.1. Kickoff, access validation, and success criteria (3 hours, Planning)
+- 1.2. Target architecture and site plan (4 hours, Planning)
+- 1.3. Executive readout and handover (3 hours, Testing and Validation)
+2. Core Platform Operations
+- 2.1. Enable monitoring, alerting, and log forwarding (3 hours, Configuration)
+- 2.2. Configure control plane backup and restore drill (4 hours, Configuration)
+4. Automation Workflows
+- 4.1. Build the first three workflows (6 hours, Configuration)
+- 4.3. Run workflows end to end with the operations team (3 hours, Testing and Validation)
+5. Streaming Pipeline
+- 5.1. Create topics, schemas, and access controls (3 hours, Configuration)
+- 5.2. Wire source connectors and validate throughput (4 hours, Testing and Validation)
+6. Lakehouse Analytics
+- 6.1. Land streaming data as open tables (4 hours, Configuration)
+- 6.2. Build three business dashboards (5 hours, Configuration)
+7. Edge Site Enablement
+- 7.1. Build the site image and provisioning profile (4 hours, Deployment)
+- 7.2. Bring up the first site and validate telemetry (4 hours, Deployment)
+- 7.3. Validate store-and-forward during a link outage (3 hours, Testing and Validation)
+8. Fleet Operations
+- 8.1. Define site groups and configuration baselines (3 hours, Configuration)
+- 8.2. Roll an over-the-air update to a canary group (4 hours, Testing and Validation)
+9. Model Development
+- 9.1. Provision workbenches and connect Lakehouse data (3 hours, Configuration)
+- 9.2. Train a baseline model on the sample data (6 hours, Configuration)
+- 9.3. Serve the model and validate latency (4 hours, Testing and Validation)
+10. Vision Use Case
+- 10.1. Onboard pilot cameras and validate ingest (3 hours, Deployment)
+- 10.2. Tune detection for the customer use case (6 hours, Configuration)
+- 10.3. Route alerts through Conductor to operations (3 hours, Configuration)
+- 10.4. Acceptance test against agreed detection targets (4 hours, Testing and Validation)
+
+7. ASSUMPTIONS
+- Harbor & Vale provides VMware capacity, network access, and camera credentials before kickoff.
+- The three pilot sites have a technician available for gateway installation.
+- Sample footage for custom training is delivered by the end of week one.
+- Estimate covers Solstice delivery effort only; calendar duration depends on site access and change windows.
+
+8. OUT OF SCOPE
+- Production hardening, performance tuning, and capacity planning
+- Migration of existing production data or workloads
+- Disaster recovery design and failover testing
+- Integration with the legacy Harbor & Vale data warehouse
+
+At the end of the proof of concept, Solstice Field Engineering and Harbor & Vale Logistics will review the results against the success criteria above. The outcome informs, but does not commit Harbor & Vale Logistics to, a decision on Solstice Core Platform, Outpost Edge Runtime, Outpost Fleet Manager, Nova Insight, Nova Vision, and Conductor Workflows.
+
+By signing below, both parties agree to the scope, prerequisites, and assumptions in this document.
+
+Questions about this document go to the account team.

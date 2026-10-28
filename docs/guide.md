@@ -181,6 +181,14 @@ closing](#5-deliverables), the introduction appears between the title and the
 first section and the closing after the last section; neither is numbered, so
 section numbers do not change.
 
+**Sections** in the same panel lists the numbered sections in the order they
+print. **↑** and **↓** move a section, and turning off **Print** leaves it out
+of the preview, the PDF, and the copied text. Sections are renumbered as they
+move. A section with nothing to print, such as the effort summary while hours
+are hidden, stays in the list with the reason beside it. The order is saved
+with the estimate; **Restore the default order** puts every section back and
+prints them all.
+
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
 for email or a ticket.

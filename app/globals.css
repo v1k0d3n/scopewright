@@ -325,6 +325,18 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .switch span { display: grid; gap: 4px; }
 .switch b { font-size: 13px; color: var(--ink); }
 .switch small { font-size: 11px; line-height: 1.45; }
+.section-layout { display: grid; gap: 10px; margin-bottom: 8px; }
+.section-layout ol { list-style: none; margin: 0; padding: 0; }
+.section-layout li { display: grid; grid-template-columns: 20px 1fr auto auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+.section-layout li.not-printed .section-name b { color: var(--muted-soft); }
+.section-number { font-size: 12px; font-weight: 700; color: var(--brand); text-align: right; font-variant-numeric: tabular-nums; }
+.not-printed .section-number { color: var(--muted-soft); }
+.section-name { display: grid; gap: 2px; min-width: 0; }
+.section-name b { font-size: 13px; font-weight: 600; }
+.section-name small { font-size: 11px; color: var(--muted); }
+.section-layout .row-actions { flex-wrap: nowrap; gap: 6px; }
+.section-layout .row-actions button { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; }
+.section-layout > button.link { justify-self: start; font-size: 12px; }
 .scope-source-note { display: grid; gap: 6px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; }
 .scope-source-note span::before { content: "✓"; margin-right: 8px; color: var(--ok); font-weight: 700; }
 .scope-source-note button { margin-top: 6px; font-size: 12px; }

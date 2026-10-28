@@ -39,6 +39,7 @@ test("every earlier version has an upgrade step to the next", () => {
 test("an upgraded estimate is saved in the current version and prints the same", () => {
   const { catalog, estimate } = render("v1");
   assert.equal(estimate.framing.source, "none");
+  assert.deepEqual(estimate.sectionLayout, [], "an estimate from before section layouts prints in the default order");
   const file = JSON.parse(JSON.stringify(estimateExport(catalog, estimate)));
   assert.equal(file.version, ESTIMATE_VERSION);
   assert.equal(file.writtenBy, WRITTEN_BY);

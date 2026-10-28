@@ -8,7 +8,7 @@
  * document someone already produced must keep printing the same text
  * (tests/fixtures/README.md), and that text predates the blocks.
  */
-import type { Catalog, Estimate, PrerequisiteStatus } from "./types.ts";
+import type { Catalog, Estimate, PrerequisiteStatus, SectionId, SectionPlacement } from "./types.ts";
 import type { EstimateBreakdown } from "./estimate.ts";
 import { TO_BE_DECIDED, calculate, defaultTitle, framedText, outOfScopeLines, placeholderValues, statusLabel } from "./estimate.ts";
 
@@ -25,8 +25,6 @@ export type Block =
   | { kind: "table"; columns: string[]; rows: TableRow[]; numeric?: boolean }
   /** A titled part of a section, such as one product. */
   | { kind: "group"; title: Span[]; blocks: Block[] };
-
-export type SectionId = "goal" | "products" | "installation" | "prerequisites" | "delivery" | "out-of-scope" | "effort" | "success" | "assumptions";
 
 export type DocumentSection = {
   id: SectionId;
@@ -51,8 +49,9 @@ type Context = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakd
 type SectionDefinition = {
   id: SectionId;
   title: string;
-  /** Left out of this document when false. */
+  /** Left out of this document when false, whatever the layout says; `omitted` says why. */
   include?: (context: Context) => boolean;
+  omitted?: string;
   blocks: (context: Context) => Block[];
   text: (context: Context) => string[];
 };
@@ -160,6 +159,7 @@ export const builtInSections: SectionDefinition[] = [
     id: "out-of-scope",
     title: "OUT OF SCOPE",
     include: ({ catalog, estimate }) => outOfScopeLines(catalog, estimate).length > 0,
+    omitted: "Nothing is out of scope yet",
     blocks: ({ catalog, estimate }) => [{ kind: "list", items: outOfScopeLines(catalog, estimate).map((line) => [line]) }],
     text: ({ catalog, estimate }) => [...outOfScopeLines(catalog, estimate).map((line) => `- ${line}`), ""],
   },
@@ -167,6 +167,7 @@ export const builtInSections: SectionDefinition[] = [
     id: "effort",
     title: "EFFORT SUMMARY",
     include: ({ showHours }) => showHours,
+    omitted: "Hours are hidden",
     blocks: ({ breakdown }) => [{
       kind: "table",
       columns: [],
@@ -194,11 +195,42 @@ export const builtInSections: SectionDefinition[] = [
   },
 ];
 
+/**
+ * Every section in the order the estimate prints them. A section the saved
+ * layout does not mention (one added by a later release, say) goes back in
+ * after the section it follows by default.
+ */
+export function sectionLayout(saved: SectionPlacement[] = []): SectionPlacement[] {
+  const layout = saved.filter((item, index) => builtInSections.some((section) => section.id === item.id) && saved.findIndex((other) => other.id === item.id) === index);
+  builtInSections.forEach((section, index) => {
+    if (layout.some((item) => item.id === section.id)) return;
+    const earlier = builtInSections.slice(0, index).map((other) => other.id);
+    layout.splice(layout.findLastIndex((item) => earlier.includes(item.id)) + 1, 0, { id: section.id, hidden: false });
+  });
+  return layout;
+}
+
+/** A section as the layout editor lists it: hidden by the architect, or left out because it has nothing to print. */
+export type SectionOutline = { id: SectionId; title: string; hidden: boolean; omitted: string | null };
+
+export function documentOutline(catalog: Catalog, estimate: Estimate, breakdown = calculate(catalog, estimate)): SectionOutline[] {
+  const context = contextFor(catalog, estimate, breakdown);
+  return sectionLayout(estimate.sectionLayout).map((item) => {
+    const section = definition(item.id);
+    return { id: item.id, title: section.title, hidden: item.hidden, omitted: (section.include?.(context) ?? true) ? null : section.omitted ?? "Nothing to print" };
+  });
+}
+
+const definition = (id: SectionId) => builtInSections.find((section) => section.id === id)!;
+const contextFor = (catalog: Catalog, estimate: Estimate, breakdown: EstimateBreakdown): Context => ({ catalog, estimate, breakdown, showHours: estimate.options?.showHours ?? true });
+
 /** Everything the scope document prints, in order. */
 export function scopeDocument(catalog: Catalog, estimate: Estimate, orgName: string, breakdown = calculate(catalog, estimate)): ScopeDocumentModel {
-  const context: Context = { catalog, estimate, breakdown, showHours: estimate.options?.showHours ?? true };
+  const context = contextFor(catalog, estimate, breakdown);
   const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
-  const sections = builtInSections
+  const sections = sectionLayout(estimate.sectionLayout)
+    .filter((item) => !item.hidden)
+    .map((item) => definition(item.id))
     .filter((section) => section.include?.(context) ?? true)
     .map((section) => ({ id: section.id, title: section.title, blocks: section.blocks(context), text: section.text(context) }));
   return { title: estimate.title || defaultTitle(breakdown), customer: estimate.customer, introduction: framing.introduction, sections, closing: framing.closing };

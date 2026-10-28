@@ -4,6 +4,7 @@ import { useState } from "react";
 import { outOfScopeLines } from "../lib/estimate";
 import { documentText, scopeDocument } from "../lib/document";
 import type { Block, Span } from "../lib/document";
+import { SectionLayout } from "./SectionLayout";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Branding, Catalog, Estimate } from "../lib/types";
 
@@ -38,6 +39,8 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
             <input id="option-show-hours" type="checkbox" role="switch" aria-label="Show hours" checked={showHours} onChange={(event) => update({ options: { ...estimate.options, showHours: event.target.checked } })} />
             <span><b>Show hours</b><small>Turn off to discuss scope and prerequisites without effort. Hides every hour figure and the effort summary, here, in the PDF, and in the copied text.</small></span>
           </label>
+          <h3>Sections</h3>
+          <SectionLayout catalog={catalog} estimate={estimate} breakdown={breakdown} update={update} />
           <div className="scope-source-note">
             <b>Generated from the estimate</b>
             <span>{breakdown.products.length} product{breakdown.products.length === 1 ? "" : "s"} in scope</span>

@@ -1,5 +1,5 @@
-import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
-import { phases, prerequisiteStatuses } from "./types.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, SectionId } from "./types.ts";
+import { phases, prerequisiteStatuses, sectionIds } from "./types.ts";
 import { bool, hours as num, id, list, objectOrNull, oneOf, record, text } from "./sanitize.ts";
 import { CATALOG_FORMAT, CATALOG_VERSION, ESTIMATE_FORMAT, ESTIMATE_VERSION, WRITTEN_BY, checkCatalogFile, checkEstimateFile, storedCatalogVersion, upgradeCatalog, upgradeEstimate } from "./formats.ts";
 
@@ -345,6 +345,8 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
     customOutOfScope: text(s.customOutOfScope, MAX_LONG),
     options: { showHours: bool(record(s.options).showHours, true) },
     framing: mergeFraming(s.framing),
+    // An unknown or repeated section is dropped; the document puts back any that are missing.
+    sectionLayout: list(s.sectionLayout, (item) => { const p = objectOrNull(item); return p && (sectionIds as readonly unknown[]).includes(p.id) ? { id: p.id as SectionId, hidden: bool(p.hidden, false) } : null; }).filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index),
     updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
   };
 }

@@ -89,6 +89,13 @@ export type ScopeOptions = {
   showHours: boolean;
 };
 
+/** The scope document's sections, in their default order. */
+export const sectionIds = ["goal", "products", "installation", "prerequisites", "delivery", "out-of-scope", "effort", "success", "assumptions"] as const;
+export type SectionId = (typeof sectionIds)[number];
+
+/** Where a section prints in the scope document, and whether it prints at all. */
+export type SectionPlacement = { id: SectionId; hidden: boolean };
+
 /**
  * Introduction and closing wording for the scope document, kept in the catalog
  * so a team can maintain agreed wording in one place. Picking one copies its
@@ -175,6 +182,8 @@ export type Estimate = {
   customOutOfScope: string;
   options: ScopeOptions;
   framing: DocumentFraming;
+  /** The order of the scope document's sections, and the ones left out. Empty means the default order with every section printed. */
+  sectionLayout: SectionPlacement[];
   updatedAt: number;
 };
 
