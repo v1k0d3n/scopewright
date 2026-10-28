@@ -256,3 +256,12 @@ test("code and raw HTML blocks end where Markdown ends them, and lists after the
   assert.deepEqual(html.map((block) => block.kind), ["paragraph", "paragraph", "list"]);
   assert.equal(html[2].start, 3);
 });
+
+test("list rules win over indented code, and fenced code keeps its lines inside a list item and in copied text", () => {
+  const indented = markdownSection("Intro:\n    - four spaces\n\t- a tab").blocks;
+  assert.deepEqual(indented.at(-1), { kind: "list", items: [["four spaces"], ["a tab"]], indent: true }, "an indented list line is a list, not code");
+  const nested = markdownSection("- Parent\n  ```\n  - task\n  ```").blocks[0];
+  assert.equal(nested.items[0].join(""), "Parent\n```\n- task\n```", "the fence in the item keeps its lines");
+  const { text } = markdownSection("**Bold**\n\n```\nfirst\n\n**literal**\n```");
+  assert.deepEqual(text, ["Bold", "", "```", "first", "", "**literal**", "```", ""], "a blank line inside code does not split it in the copied text");
+});

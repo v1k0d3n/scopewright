@@ -8,7 +8,6 @@
 import { Lexer, lexer } from "marked";
 import type { Token, Tokens } from "marked";
 import type { Block, ListBlock, Span } from "./document.ts";
-import { paragraphs } from "./estimate.ts";
 
 /** A list line as people type it: an indent, then "-", "*", or "•", or "1." or "1)". */
 const LIST_ITEM = /^([ \t]*)([-*•]|\d{1,3}[.)])\s+(.*)$/;
@@ -57,17 +56,38 @@ function normalize(text: string): { text: string; indented: boolean[] } {
   return { text: out.join("\n"), indented };
 }
 
-/** The lines of the text that Markdown reads as a code or raw HTML block. Its tokens' raw text, end to end, is the text itself. */
+/** Each top-level block Markdown reads, with the lines it spans. Its tokens' raw text, end to end, is the text itself. */
+function blockLines(text: string): { token: Token; first: number; last: number }[] {
+  let line = 0;
+  return lexer(text).map((token) => {
+    const breaks = token.raw.split("\n").length - 1;
+    const range = { token, first: line, last: line + breaks - (token.raw.endsWith("\n") ? 1 : 0) };
+    line += breaks;
+    return range;
+  });
+}
+
+/**
+ * The lines to leave exactly as typed: fenced code at any depth, including
+ * inside a list item, and top-level raw HTML blocks and rules. Indented code
+ * is not among them, so a list line indented four spaces stays a list line.
+ */
 function literalLines(text: string): Set<number> {
   const lines = new Set<number>();
-  let line = 0;
-  for (const token of lexer(text)) {
-    const breaks = token.raw.split("\n").length - 1;
-    if (token.type === "code" || token.type === "html") {
-      const last = line + breaks - (token.raw.endsWith("\n") ? 1 : 0);
-      for (let at = line; at <= last; at += 1) lines.add(at);
+  let fence: { mark: string; length: number } | null = null;
+  text.split("\n").forEach((line, index) => {
+    const marker = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    if (fence) {
+      lines.add(index);
+      // A fence closes only on the same mark, at least as long, with nothing after it.
+      if (marker && marker[1][0] === fence.mark && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
+    } else if (marker && !(marker[1][0] === "`" && marker[2].includes("`"))) {
+      lines.add(index);
+      fence = { mark: marker[1][0], length: marker[1].length };
     }
-    line += breaks;
+  });
+  for (const { token, first, last } of blockLines(text)) {
+    if (token.type === "html" || token.type === "hr") for (let at = first; at <= last; at += 1) lines.add(at);
   }
   return lines;
 }
@@ -156,32 +176,34 @@ function inlineText(tokens: Token[] | undefined): string {
 
 const lineText = (line: string) => inlineText(Lexer.lexInline(line));
 
-/** One block of custom text for the copied text, read the way the page reads it. */
-function tokenText(token: Token): string[] {
-  const lines = (raw: string) => raw.replace(/\n+$/, "").split("\n");
-  switch (token.type) {
-    case "space": return [];
-    case "heading": return [inlineText(token.tokens)];
-    case "table": {
-      const table = token as Tokens.Table;
-      return [table.header.map((cell) => inlineText(cell.tokens)).join(" | "), ...table.rows.map((row) => row.map((cell) => inlineText(cell.tokens)).join(" | "))];
-    }
-    // Code, raw HTML, and rules have no marks to drop.
-    case "code":
-    case "html":
-    case "hr": return lines(token.raw);
-    default: return lines(token.raw).map(lineText);
-  }
-}
-
 /**
  * Custom section text for the copied text: each line as typed, without
  * Markdown's marks, then placeholders filled, so a filled-in value is never
- * changed. Paragraphs are separated by one blank line.
+ * changed. Code, raw HTML, and rules stay exactly as typed; a heading loses
+ * its "#"; a Markdown table prints like a table block. Runs of blank lines
+ * outside code become one, and the text is trimmed of blank lines at its ends.
  */
 export function markdownText(text: string, fill: Fill): string[] {
-  return paragraphs(text).flatMap((paragraph, index) => {
-    const lines = lexer(paragraph).flatMap(tokenText).map(fill);
-    return index ? ["", ...lines] : lines;
+  const lines = text.split("\n");
+  const literal = literalLines(text);
+  const replaced = new Map<number, string[]>();
+  for (const { token, first, last } of blockLines(text)) {
+    if (literal.has(first)) continue;
+    if (token.type === "heading") replaced.set(first, [inlineText(token.tokens)]);
+    else if (token.type === "table") {
+      const table = token as Tokens.Table;
+      replaced.set(first, [table.header.map((cell) => inlineText(cell.tokens)).join(" | "), ...table.rows.map((row) => row.map((cell) => inlineText(cell.tokens)).join(" | "))]);
+    } else continue;
+    for (let at = first + 1; at <= last; at += 1) replaced.set(at, []);
+  }
+  const out: string[] = [];
+  lines.forEach((line, index) => {
+    if (replaced.has(index)) { out.push(...replaced.get(index)!.map(fill)); return; }
+    if (literal.has(index)) { out.push(fill(line)); return; }
+    const words = lineText(line).trimEnd();
+    if (!words.trim()) { if (out.length && out.at(-1) !== "") out.push(""); return; }
+    out.push(fill(words));
   });
+  while (out.at(-1) === "") out.pop();
+  return out;
 }
