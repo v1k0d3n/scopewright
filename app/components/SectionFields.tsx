@@ -20,6 +20,7 @@ const move = <T,>(items: T[], from: number, to: number) => { if (to < 0 || to >=
 export function SectionFields({ value, onChange, readOnly = false, titleRef }: Props) {
   const { title, blocks } = value;
   const setBlocks = (next: CustomBlock[]) => onChange({ title, blocks: next });
+  const full = blocks.length >= SECTION_LIMITS.blocks;
   const setBlock = (index: number, block: CustomBlock) => setBlocks(blocks.map((item, at) => (at === index ? block : item)));
   const unknown = unknownPlaceholders([title, ...blocks.flatMap((block) => (block.kind === "text" ? [block.text] : [...block.columns, ...block.rows.flat()]))].join("\n"));
   return (
@@ -47,8 +48,9 @@ export function SectionFields({ value, onChange, readOnly = false, titleRef }: P
       {unknown.length > 0 && <p className="modal-note needs-answer">Not a placeholder, so it prints as typed: {unknown.map((name) => `{${name}}`).join(" ")}</p>}
       {!readOnly && (
         <div className="section-editor-add">
-          <button type="button" className="secondary" onClick={() => setBlocks([...blocks, { kind: "text", text: "" }])}>+ Text</button>
-          <button type="button" className="secondary" onClick={() => setBlocks([...blocks, { kind: "table", columns: ["", ""], rows: [["", ""]] }])}>+ Table</button>
+          <button type="button" className="secondary" disabled={full} onClick={() => setBlocks([...blocks, { kind: "text", text: "" }])}>+ Text</button>
+          <button type="button" className="secondary" disabled={full} onClick={() => setBlocks([...blocks, { kind: "table", columns: ["", ""], rows: [["", ""]] }])}>+ Table</button>
+          {full && <small>A section holds up to {SECTION_LIMITS.blocks} blocks.</small>}
         </div>
       )}
     </fieldset>

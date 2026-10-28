@@ -360,7 +360,8 @@ select.status-not-applicable, td.status-not-applicable, span.status-not-applicab
 .section-table .column-actions th { padding-bottom: 0; text-align: right; }
 .section-table input { width: 100%; min-width: 90px; padding: 7px 8px; font-size: 13px; }
 .section-table button.icon { width: 26px; height: 26px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 0; color: var(--muted); }
-.section-editor-add { display: flex; gap: 8px; }
+.section-editor-add { display: flex; gap: 8px; align-items: center; }
+.section-editor-add small { font-size: 11px; color: var(--muted); }
 .section-editor-add button { padding: 7px 12px; font-size: 12px; }
 .section-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .section-fields > label { display: grid; gap: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }

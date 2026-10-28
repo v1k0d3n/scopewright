@@ -177,6 +177,10 @@ test("files keep exactly what the section editors allow, so nothing typed is los
   assert.equal(section.blocks[0].text.length, SECTION_LIMITS.text);
   assert.equal(section.blocks[1].columns[0].length, SECTION_LIMITS.heading);
   assert.equal(section.blocks[1].rows[0][0].length, SECTION_LIMITS.cell);
+  const many = (n, item) => Array.from({ length: n + 1 }, (_, index) => item(index));
+  const estimate = mergeEstimate({ customSections: many(SECTION_LIMITS.sections, (index) => ({ id: `s${index}`, title: "S", blocks: many(SECTION_LIMITS.blocks, () => ({ kind: "text", text: "x" })) })) }, emptyEstimate());
+  assert.equal(estimate.customSections.length, SECTION_LIMITS.sections);
+  assert.equal(estimate.customSections[0].blocks.length, SECTION_LIMITS.blocks);
   const [template] = mergeCatalog({ ...emptyCatalog, sectionTemplates: [{ id: "t", title: "T", category: long(SECTION_LIMITS.category), description: long(SECTION_LIMITS.description), blocks: [] }] }, emptyCatalog).sectionTemplates;
   assert.equal(template.category.length, SECTION_LIMITS.category);
   assert.equal(template.description.length, SECTION_LIMITS.description);

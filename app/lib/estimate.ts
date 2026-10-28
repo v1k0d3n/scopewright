@@ -350,7 +350,7 @@ const MAX_MAP = 2_000;
 const MAX_LONG = 20_000;
 
 /** What a custom section or section template keeps when it is read; the editors stop at the same limits, so nothing typed is lost on reload. */
-export const SECTION_LIMITS = { title: 160, category: 60, description: 300, text: MAX_LONG, heading: 120, cell: 500, columns: 8, rows: 200 } as const;
+export const SECTION_LIMITS = { sections: 50, blocks: 50, title: 160, category: 60, description: 300, text: MAX_LONG, heading: 120, cell: 500, columns: 8, rows: 200 } as const;
 
 /** Text and tables, every table row as wide as its columns. */
 function mergeBlocks(value: unknown): CustomBlock[] {
@@ -362,7 +362,7 @@ function mergeBlocks(value: unknown): CustomBlock[] {
     if (!columns.length) return null;
     const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], SECTION_LIMITS.cell)) : null)).slice(0, SECTION_LIMITS.rows);
     return { kind: "table", columns, rows };
-  }).slice(0, 50);
+  }).slice(0, SECTION_LIMITS.blocks);
 }
 
 /** Custom sections, ids unique. A locked copy is never also edited. */
@@ -372,7 +372,7 @@ function mergeCustomSections(value: unknown): CustomSection[] {
     const templateId = id(c.templateId, "");
     const locked = Boolean(templateId) && bool(c.locked, false);
     return { id: id(c.id, `section-${index}`), title: text(c.title, SECTION_LIMITS.title), blocks: mergeBlocks(c.blocks), templateId, templateName: templateId ? text(c.templateName, SECTION_LIMITS.title) : "", edited: Boolean(templateId) && !locked && bool(c.edited, false), locked };
-  }).slice(0, 50).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index);
+  }).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index).slice(0, SECTION_LIMITS.sections);
 }
 
 /** An unknown or repeated section is dropped; the document puts back any that are missing. */

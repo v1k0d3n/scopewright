@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { UNTITLED_SECTION, builtInSections, documentOutline } from "../lib/document";
 import type { SectionOutline } from "../lib/document";
-import { blankSection, sectionFrom, sectionTemplateChanged } from "../lib/estimate";
+import { SECTION_LIMITS, blankSection, sectionFrom, sectionTemplateChanged } from "../lib/estimate";
 import type { EstimateBreakdown } from "../lib/estimate";
 import type { Catalog, CustomSection, Estimate, SectionTemplate } from "../lib/types";
 import { AddSectionDialog } from "./AddSectionDialog";
@@ -70,7 +70,7 @@ export function SectionLayout({ catalog, estimate, breakdown, update }: Props) {
         })}
       </ol>
       <div className="section-layout-actions">
-        <button type="button" className="secondary" onClick={() => (offered.length ? setAdding(true) : add(null))}>+ Add section</button>
+        <button type="button" className="secondary" disabled={customSections.length >= SECTION_LIMITS.sections} title={customSections.length >= SECTION_LIMITS.sections ? `An estimate holds up to ${SECTION_LIMITS.sections} custom sections` : undefined} onClick={() => (offered.length ? setAdding(true) : add(null))}>+ Add section</button>
         {!isDefault && <button type="button" className="link" title="Custom sections move to the end" onClick={() => update({ sectionLayout: [] })}>Restore the default order</button>}
       </div>
       {adding && <AddSectionDialog templates={offered} onPick={add} onCancel={() => setAdding(false)} />}
