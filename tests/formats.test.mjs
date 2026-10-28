@@ -4,9 +4,10 @@ import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { defaultCatalog, emptyEstimate } from "../app/lib/defaults.ts";
-import { defaultTitle, estimateExport, framedText, framingFrom, isNewerStoredCatalog, mergeCatalog, mergeEstimate, parseEstimateExport, placeholderValues, calculate, readCatalogFile, readEstimateFile, readStoredCatalog, removeFromCatalog, scopeText, templateChanged, unknownPlaceholders } from "../app/lib/estimate.ts";
+import { estimateExport, isNewerStoredCatalog, mergeCatalog, mergeEstimate, parseEstimateExport, placeholderValues, calculate, readCatalogFile, readEstimateFile, readStoredCatalog, sectionFrom, sectionTemplateChanged } from "../app/lib/estimate.ts";
+import { scopeText } from "../app/lib/document.ts";
 import { CATALOG_VERSION, ESTIMATE_VERSION, RELOAD_NEWER, RELOAD_OLDER, WRITTEN_BY, catalogDocument, catalogUpgrades, catalogWriteProblem, estimateUpgrades } from "../app/lib/formats.ts";
-import { lintCatalog, lintCatalogFile } from "../app/lib/lint.ts";
+import { lintCatalogFile } from "../app/lib/lint.ts";
 
 const fixture = (version, name) => readFileSync(new URL(`./fixtures/${version}/${name}`, import.meta.url), "utf8");
 const json = (version, name) => JSON.parse(fixture(version, name));
@@ -37,7 +38,8 @@ test("every earlier version has an upgrade step to the next", () => {
 
 test("an upgraded estimate is saved in the current version and prints the same", () => {
   const { catalog, estimate } = render("v1");
-  assert.equal(estimate.framing.source, "none");
+  assert.deepEqual(estimate.customSections, [], "an estimate with no introduction or closing gains no sections");
+  assert.deepEqual(estimate.sectionLayout, [], "an estimate from before section layouts prints in the default order");
   const file = JSON.parse(JSON.stringify(estimateExport(catalog, estimate)));
   assert.equal(file.version, ESTIMATE_VERSION);
   assert.equal(file.writtenBy, WRITTEN_BY);
@@ -57,7 +59,7 @@ test("an estimate from a newer Scopewright opens view-only, never as an editable
 test("catalog files: older ones upgrade, newer ones are refused with the reason", () => {
   const v1 = json("v1", "catalog.json");
   const read = readCatalogFile(v1, defaultCatalog);
-  assert.deepEqual(read.catalog.documentTemplates, []);
+  assert.deepEqual(read.catalog.sectionTemplates, []);
   assert.ok("catalog" in readCatalogFile({ catalog: v1.catalog }, defaultCatalog), "a file without format or version is version 1");
   assert.match(readCatalogFile({ ...v1, version: CATALOG_VERSION + 1 }, defaultCatalog).problem, /newer Scopewright/);
   assert.match(readCatalogFile({ ...v1, version: 1.5 }, defaultCatalog).problem, /whole number/);
@@ -77,9 +79,9 @@ test("a stored shared catalog of any earlier version still reads, and older page
   const sections = json("v1", "catalog.json").catalog;
   const old = readStoredCatalog(sections, defaultCatalog);
   assert.equal(old.products.length, sections.products.length);
-  assert.deepEqual(old.documentTemplates, []);
-  const stored = JSON.parse(JSON.stringify(catalogDocument({ ...old, documentTemplates: [{ id: "t", name: "T", introduction: "Hi", closing: "", enabled: true }] })));
-  assert.equal(readStoredCatalog(stored, defaultCatalog).documentTemplates.length, 1);
+  assert.deepEqual(old.sectionTemplates, []);
+  const stored = JSON.parse(JSON.stringify(catalogDocument({ ...old, sectionTemplates: [{ id: "t", title: "T", category: "", blocks: [], enabled: true, locked: false }] })));
+  assert.equal(readStoredCatalog(stored, defaultCatalog).sectionTemplates.length, 1);
   // What a page from before versions does with it: the sections are still at the top level.
   assert.equal(mergeCatalog(stored, defaultCatalog).products.length, sections.products.length);
   assert.equal(isNewerStoredCatalog(stored), false);
@@ -102,55 +104,45 @@ test("the workspace API refuses a catalog save from another version with 409", a
 const solstice = render("v1").catalog;
 const template = { id: "purpose", name: "Purpose of the proof of concept", introduction: "This proof of concept helps {customer} decide on {products}.\n\nIt is run by {organization}.", closing: "{title} ends with a decision. {unknown} stays.", enabled: true, locked: false };
 const base = { ...emptyEstimate(), customer: "Acme", products: ["lakehouse", "insight"] };
+const framing = { source: "template", templateId: "purpose", templateName: template.name, introduction: template.introduction, closing: template.closing, edited: false, locked: false };
 
-test("a template's wording is copied into the estimate and filled in when printed", () => {
-  const estimate = { ...base, framing: framingFrom(template) };
-  const values = placeholderValues(estimate, calculate(solstice, estimate), "Org");
-  assert.equal(values.products, "Solstice Lakehouse and Nova Insight", "the products picked, not the foundations they pull in");
-  const printed = framedText(estimate, values);
-  assert.deepEqual(printed.introduction, ["This proof of concept helps Acme decide on Solstice Lakehouse and Nova Insight.", "It is run by Org."]);
-  assert.deepEqual(printed.closing, [`${defaultTitle(calculate(solstice, estimate))} ends with a decision. {unknown} stays.`]);
+test("{products} names the products picked, not the foundations they pull in", () => {
+  assert.equal(placeholderValues(base, calculate(solstice, base), "Org").products, "Solstice Lakehouse and Nova Insight");
+});
+
+test("an earlier introduction and closing become the first and last custom sections, with their wording", () => {
+  const estimate = mergeEstimate({ ...base, framing }, emptyEstimate());
+  assert.deepEqual(estimate.customSections.map(({ id, title, templateId, templateName, edited, locked }) => ({ id, title, templateId, templateName, edited, locked })), [
+    { id: "introduction", title: "Introduction", templateId: "purpose-introduction", templateName: "Introduction", edited: false, locked: false },
+    { id: "closing", title: "Closing", templateId: "purpose-closing", templateName: "Closing", edited: false, locked: false },
+  ]);
+  assert.deepEqual(estimate.customSections[0].blocks, [{ kind: "text", text: template.introduction }]);
+  assert.deepEqual([estimate.sectionLayout[0].id, estimate.sectionLayout.at(-1).id], ["introduction", "closing"]);
   const text = scopeText(solstice, estimate, "Org");
-  assert.ok(text.indexOf("This proof of concept helps Acme") < text.indexOf("1. GOAL"), "the introduction comes before the numbered sections");
-  assert.ok(text.trimEnd().endsWith("{unknown} stays."), "the closing comes last");
-  assert.deepEqual(unknownPlaceholders(template.closing), ["unknown"]);
-  assert.deepEqual(framedText({ ...estimate, framing: { ...estimate.framing, source: "none" } }, values), { introduction: [], closing: [] });
+  assert.match(text, /\n1\. INTRODUCTION\nThis proof of concept helps Acme decide on Solstice Lakehouse and Nova Insight\.\n\nIt is run by Org\.\n\n2\. GOAL\n/);
+  assert.match(text, /\d+\. CLOSING\n.+ ends with a decision\. \{unknown\} stays\.$/);
 });
 
-test("a catalog edit never changes an estimate's wording, but is offered", () => {
-  const estimate = { ...base, framing: framingFrom(template) };
-  const revised = { ...solstice, documentTemplates: [{ ...template, introduction: "Revised wording." }] };
-  assert.equal(templateChanged({ ...solstice, documentTemplates: [template] }, estimate.framing), null);
-  assert.equal(templateChanged(revised, estimate.framing)?.introduction, "Revised wording.");
-  assert.match(scopeText(revised, estimate, "Org"), /This proof of concept helps Acme/, "printed from the estimate's copy");
-  assert.equal(templateChanged(revised, { ...estimate.framing, edited: true }), null, "an edited copy is the architect's own");
-  assert.match(scopeText({ ...solstice, documentTemplates: [] }, estimate, "Org"), /This proof of concept helps Acme/, "deleting the template changes nothing either");
+test("an earlier introduction keeps its lock, an edited one stays edited, and a saved layout keeps its order", () => {
+  assert.equal(mergeEstimate({ framing: { ...framing, locked: true, edited: true } }, emptyEstimate()).customSections[0].edited, false, "a locked copy cannot claim to be edited");
+  assert.equal(mergeEstimate({ framing: { ...framing, locked: true } }, emptyEstimate()).customSections[0].locked, true);
+  assert.equal(mergeEstimate({ framing: { ...framing, source: "custom", locked: true } }, emptyEstimate()).customSections[0].templateId, "", "wording written for the estimate came from no template");
+  assert.deepEqual(mergeEstimate({ framing: { source: "nope", introduction: "x" } }, emptyEstimate()).customSections, [], "an unknown source is none");
+  assert.deepEqual(mergeEstimate({ framing: { source: "custom", introduction: "  ", closing: "Bye" } }, emptyEstimate()).customSections.map((item) => item.id), ["closing"], "an empty part adds no section");
+  const layout = mergeEstimate({ framing, sectionLayout: [{ id: "assumptions" }, { id: "goal", hidden: true }] }, emptyEstimate()).sectionLayout;
+  assert.deepEqual(layout, [{ id: "introduction", hidden: false }, { id: "assumptions", hidden: false }, { id: "goal", hidden: true }, { id: "closing", hidden: false }]);
 });
 
-test("locked wording is copied locked, never marked edited, and a change of lock is offered", () => {
-  const locked = { ...template, locked: true };
-  const framing = framingFrom(locked);
-  assert.equal(framing.locked, true);
-  assert.equal(mergeEstimate({ framing: { ...framing, edited: true } }, emptyEstimate()).framing.edited, false, "a locked copy cannot claim to be edited");
-  assert.equal(mergeEstimate({ framing: { ...framing, source: "custom" } }, emptyEstimate()).framing.locked, false, "only a template's wording can be locked");
-  assert.equal(templateChanged({ ...solstice, documentTemplates: [locked] }, framingFrom(template))?.locked, true, "locking a template is offered to estimates that use it");
-  assert.equal(templateChanged({ ...solstice, documentTemplates: [locked] }, { ...framingFrom(template), edited: true })?.locked, true, "even to estimates that edited their copy");
-  assert.equal(mergeCatalog({ ...solstice, documentTemplates: [{ ...template, locked: undefined }] }, defaultCatalog).documentTemplates[0].locked, false, "unlocked unless the catalog says so");
-});
-
-test("introduction and closing survive a save and reload, and junk is cleaned", () => {
-  const estimate = { ...base, framing: { ...framingFrom(template), edited: true } };
-  const back = parseEstimateExport(JSON.parse(JSON.stringify(estimateExport(solstice, estimate))), emptyEstimate());
-  assert.deepEqual(back.framing, estimate.framing);
-  assert.deepEqual(mergeEstimate({ framing: { source: "custom", templateId: "x", introduction: "Mine", closing: 7, edited: true } }, emptyEstimate()).framing, { source: "custom", templateId: "", templateName: "", introduction: "Mine", closing: "", edited: false, locked: false });
-  assert.equal(mergeEstimate({ framing: { source: "nope", introduction: "x" } }, emptyEstimate()).framing.introduction, "", "an unknown source is none");
-});
-
-test("templates in the catalog: merged, removed, and checked", () => {
-  const catalog = mergeCatalog({ ...solstice, documentTemplates: [template, { id: "empty", name: "Empty", enabled: false }, "junk"] }, defaultCatalog);
-  assert.deepEqual(catalog.documentTemplates.map((item) => [item.id, item.enabled]), [["purpose", true], ["empty", false]]);
-  assert.deepEqual(removeFromCatalog(catalog, { documentTemplates: ["purpose"] }).documentTemplates.map((item) => item.id), ["empty"]);
-  const text = lintCatalog(catalog, defaultCatalog).map((m) => m.text).join("\n");
-  assert.match(text, /"purpose": \{unknown\} is not a placeholder/);
-  assert.match(text, /"empty": no introduction and no closing/);
+test("earlier introduction and closing templates become section templates grouped under their name, and a converted copy is not offered an update", () => {
+  const catalog = mergeCatalog({ ...solstice, documentTemplates: [template, { id: "locked", name: "Locked", introduction: "", closing: "Signed.", enabled: false, locked: true }, "junk"] }, defaultCatalog);
+  assert.deepEqual(catalog.sectionTemplates.map((t) => [t.id, t.title, t.category, t.enabled, t.locked]), [
+    ["purpose-introduction", "Introduction", "Purpose of the proof of concept", true, false],
+    ["purpose-closing", "Closing", "Purpose of the proof of concept", true, false],
+    ["locked-closing", "Closing", "Locked", false, true],
+  ]);
+  const converted = mergeEstimate({ framing }, emptyEstimate()).customSections[0];
+  assert.equal(sectionTemplateChanged(catalog, converted), null);
+  assert.deepEqual(sectionFrom(catalog.sectionTemplates[0], converted.id), converted, "the same as adding the converted template today");
+  const v1 = json("v1", "catalog.json");
+  assert.match(lintCatalogFile({ ...v1, catalog: { ...v1.catalog, documentTemplates: [template] } }).map((m) => m.text).join("\n"), /documentTemplates is from an earlier format/);
 });

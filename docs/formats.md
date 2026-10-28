@@ -9,7 +9,10 @@ for anyone changing a format. The code lives in `app/lib/formats.ts`.
 ## The promise
 
 - **An older file always opens.** It is upgraded as it is read, and prints
-  the same scope document it printed before.
+  the same scope document it printed before. The one recorded exception is
+  the introduction and closing of estimate format 2, which print as numbered
+  sections since format 3 (see the version history and
+  `tests/fixtures/README.md`).
 - **A newer file is never damaged.** Scopewright reads only the parts of a
   file it understands. Saving a file from a newer release would silently drop
   the rest, so it never does that: an estimate opens view-only, a catalog
@@ -20,9 +23,9 @@ for anyone changing a format. The code lives in `app/lib/formats.ts`.
 
 | File | `format` | Current `version` | Where it lives |
 |------|----------|-------------------|----------------|
-| Estimate | `scopewright-estimate` | 2 | Saved estimates (this browser, a folder, Google Drive) and exports |
-| Catalog export | `scopewright-catalog` | 2 | Settings → Export / Import, `packs/` |
-| Shared catalog | `scopewright-catalog` | 2 | The server's `data/catalog.json` |
+| Estimate | `scopewright-estimate` | 3 | Saved estimates (this browser, a folder, Google Drive) and exports |
+| Catalog export | `scopewright-catalog` | 3 | Settings → Export / Import, `packs/` |
+| Shared catalog | `scopewright-catalog` | 3 | The server's `data/catalog.json` |
 | Theme pack | `scopewright-theme` | 1 | Settings → Theme pack (a zip with `theme.json`) |
 | Shared brand | none | none | The server's `data/branding.json` (not versioned yet) |
 
@@ -42,8 +45,10 @@ can still read it.
 |--------|---------|---------|--------|
 | Estimate | 1 | 0.1 | First version. |
 | Estimate | 2 | 0.3 | `framing`: the estimate's own introduction and closing. |
+| Estimate | 3 | 0.3 | `sectionLayout`: the order of the scope document's sections, and the ones left out. `customSections`: sections written for the estimate, made of text and tables. They replace `framing`: an earlier introduction and closing open as custom sections, first and last. |
 | Catalog | 1 | 0.1 | First version. The shared catalog had no `format` or `version`; a file without them is version 1. |
 | Catalog | 2 | 0.3 | `documentTemplates`: introduction and closing templates. |
+| Catalog | 3 | 0.3 | `sectionTemplates`: custom sections teams reuse, grouped by category. They replace `documentTemplates`, which import as section templates. |
 | Theme | 1 | 0.1 | First version. |
 
 ## When a file and the app disagree
@@ -77,9 +82,9 @@ newer than the page.
 An estimate refers to the catalog by id, and its hours, product names, and
 wording are recomputed from the current catalog when it is opened.
 [authoring.md](authoring.md#estimate-files-are-not-catalogs) lists how
-estimates handle catalog items that were removed or turned off. The
-introduction and closing are the exception: they are copied into the
-estimate, so they print the same whatever later happens to the template.
+estimates handle catalog items that were removed or turned off. Custom
+sections are the exception: they are copied into the estimate, so they print
+the same whatever later happens to the template they came from.
 
 ## Changing a format
 

@@ -1,6 +1,6 @@
-import type { Catalog, DeliverableGroup, DeliverableTask, DocumentFraming, DocumentTemplate, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product } from "./types.ts";
-import { phases, prerequisiteStatuses } from "./types.ts";
-import { bool, hours as num, id, list, objectOrNull, oneOf, record, text } from "./sanitize.ts";
+import type { Catalog, DeliverableGroup, DeliverableTask, Estimate, InstallationChoice, InstallationField, PrerequisiteAnswer, PrerequisiteItem, PrerequisiteStatus, Product, CustomBlock, CustomSection, SectionPlacement, SectionTemplate } from "./types.ts";
+import { phases, prerequisiteStatuses, sectionIds } from "./types.ts";
+import { bool, hours as num, id, list, objectOrNull, record, text } from "./sanitize.ts";
 import { CATALOG_FORMAT, CATALOG_VERSION, ESTIMATE_FORMAT, ESTIMATE_VERSION, WRITTEN_BY, checkCatalogFile, checkEstimateFile, storedCatalogVersion, upgradeCatalog, upgradeEstimate } from "./formats.ts";
 
 export { CATALOG_FORMAT, ESTIMATE_FORMAT };
@@ -171,51 +171,6 @@ export function outOfScopeLines(catalog: Catalog, estimate: Estimate): string[] 
   return [...chosen, ...custom];
 }
 
-/** Plain-text rendering of the scope document, for pasting into email or a ticket. */
-export function scopeText(catalog: Catalog, estimate: Estimate, orgName: string): string {
-  const breakdown = calculate(catalog, estimate);
-  const title = estimate.title || defaultTitle(breakdown);
-  const showHours = estimate.options?.showHours ?? true;
-  const h = (hours: number, extra = "") => (showHours ? ` (${hours} hours${extra})` : extra ? ` (${extra.replace(/^, /, "")})` : "");
-  let n = 0;
-  const section = (name: string) => `${++n}. ${name}`;
-  const lines: string[] = [`${estimate.customer || "Customer"} — ${title}`, `Prepared by ${orgName}`, ""];
-  const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
-  if (framing.introduction.length) lines.push(...framing.introduction.flatMap((paragraph) => [paragraph, ""]));
-  lines.push(section("GOAL"), estimate.goal || "Goal to be defined.", "");
-  lines.push(section("PRODUCTS IN SCOPE"));
-  for (const item of breakdown.products) lines.push(`- ${item.product.name}: ${item.existing ? "existing environment" : "new deployment"}${item.foundation ? " (required foundation)" : ""}`);
-  lines.push("", section("INSTALLATION SCOPE"));
-  for (const item of breakdown.products) {
-    lines.push(item.product.name);
-    if (item.existing) lines.push("- Existing environment validated; no installation effort.");
-    if (item.baseHours && showHours) lines.push(`- Base work package${h(item.baseHours)}`);
-    for (const decision of item.decisions) lines.push(`- ${decision.field.label}: ${decision.choice.label}${h(decision.choice.hours)}`);
-    for (const field of item.unanswered) lines.push(`- ${field.label}: ${TO_BE_DECIDED}`);
-    for (const line of estimate.details[item.product.id] ?? []) if (line.description) lines.push(`- ${line.description}${h(line.hours)}`);
-    lines.push("");
-  }
-  lines.push(section("PREREQUISITES"));
-  for (const item of breakdown.prerequisites) {
-    lines.push(item.product.name);
-    for (const line of item.items) lines.push(`- ${line.label}${line.required ? "" : " (optional)"}: ${line.value || "—"} [${statusLabel(line.status)}]`);
-    lines.push("");
-  }
-  lines.push(section("DELIVERY PLAN"));
-  for (const item of breakdown.deliverables) {
-    lines.push(`${item.group.scopeNumber ? `${item.group.scopeNumber}. ` : ""}${item.group.name}`);
-    for (const task of item.tasks) lines.push(`- ${task.scopeNumber ? `${task.scopeNumber}. ` : ""}${task.name}${h(task.hours, `, ${task.phase}`)}`);
-  }
-  lines.push("");
-  const excluded = outOfScopeLines(catalog, estimate);
-  if (excluded.length) lines.push(section("OUT OF SCOPE"), ...excluded.map((line) => `- ${line}`), "");
-  if (showHours) lines.push(section("EFFORT SUMMARY"), `Installation: ${breakdown.installationHours} hours`, `Deliverables: ${breakdown.deliverableHours} hours`, `Total: ${breakdown.total} hours (planning range ${breakdown.low}–${breakdown.high})`, "");
-  lines.push(section("SUCCESS CRITERIA"), ...estimate.successCriteria.split("\n").filter(Boolean).map((line) => `- ${line}`), "");
-  lines.push(section("ASSUMPTIONS"), ...estimate.assumptions.split("\n").filter(Boolean).map((line) => `- ${line}`));
-  if (framing.closing.length) lines.push("", ...framing.closing.flatMap((paragraph, index) => (index ? ["", paragraph] : [paragraph])));
-  return lines.join("\n");
-}
-
 /** Words a template can use; they are filled in from the estimate when the document is printed. */
 export const PLACEHOLDERS = ["customer", "title", "products", "organization"] as const;
 export type PlaceholderValues = Record<(typeof PLACEHOLDERS)[number], string>;
@@ -237,28 +192,19 @@ export function placeholderValues(estimate: Estimate, breakdown: EstimateBreakdo
 /** Paragraphs are separated by a blank line; a single line break stays inside its paragraph. */
 export const paragraphs = (value: string): string[] => value.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
 
-/** The introduction and closing as printed: placeholders filled, split into paragraphs. Empty when the estimate has none. */
-export function framedText(estimate: Estimate, values: PlaceholderValues): { introduction: string[]; closing: string[] } {
-  const framing = estimate.framing;
-  if (!framing || framing.source === "none") return { introduction: [], closing: [] };
-  return { introduction: paragraphs(fillPlaceholders(framing.introduction, values)), closing: paragraphs(fillPlaceholders(framing.closing, values)) };
-}
+/** A catalog section template copied into an estimate as a new custom section. */
+export const sectionFrom = (template: SectionTemplate, sectionId: string): CustomSection => ({ id: sectionId, title: template.title, blocks: structuredClone(template.blocks), templateId: template.id, templateName: template.title, edited: false, locked: template.locked });
 
-export const noFraming: DocumentFraming = { source: "none", templateId: "", templateName: "", introduction: "", closing: "", edited: false, locked: false };
+/** A custom section written from scratch. */
+export const blankSection = (sectionId: string): CustomSection => ({ id: sectionId, title: "", blocks: [{ kind: "text", text: "" }], templateId: "", templateName: "", edited: false, locked: false });
 
-/** Copy a catalog template's wording into an estimate. */
-export const framingFrom = (template: DocumentTemplate): DocumentFraming => ({ source: "template", templateId: template.id, templateName: template.name, introduction: template.introduction, closing: template.closing, edited: false, locked: template.locked });
-
-/**
- * The catalog's template, when it now reads differently from the estimate's unedited copy (or has been locked or unlocked since).
- * An edited copy is the architect's own, so only a template that has since been locked is offered to it.
- */
-export function templateChanged(catalog: Catalog, framing: DocumentFraming): DocumentTemplate | null {
-  if (framing.source !== "template") return null;
-  const template = (catalog.documentTemplates ?? []).find((item) => item.id === framing.templateId);
+/** The catalog's template, when it now differs from the section's unedited copy. An edited copy is the architect's own, so only a template that has since been locked is offered to it. */
+export function sectionTemplateChanged(catalog: Catalog, section: CustomSection): SectionTemplate | null {
+  if (!section.templateId) return null;
+  const template = (catalog.sectionTemplates ?? []).find((item) => item.id === section.templateId);
   if (!template) return null;
-  if (framing.edited) return template.locked ? template : null;
-  return template.introduction !== framing.introduction || template.closing !== framing.closing || template.locked !== framing.locked ? template : null;
+  if (section.edited) return template.locked ? template : null;
+  return template.title !== section.title || JSON.stringify(template.blocks) !== JSON.stringify(section.blocks) || template.locked !== section.locked ? template : null;
 }
 
 /** Printed in place of an installation answer the catalog no longer offers. */
@@ -307,17 +253,18 @@ export function mergeCatalog(stored: unknown, initial: Catalog): Catalog {
     const label = text(o.label, 200);
     return label ? { id: id(o.id, `oos-${index}`), label } : null;
   });
-  const documentTemplates = s.documentTemplates === undefined ? initial.documentTemplates ?? [] : list(s.documentTemplates, (item, index) => {
+  const legacy = list(s.documentTemplates, (item) => objectOrNull(item)).flatMap(legacyTemplates);
+  const sectionTemplates = s.sectionTemplates === undefined && !legacy.length ? initial.sectionTemplates ?? [] : list([...legacy, ...(Array.isArray(s.sectionTemplates) ? s.sectionTemplates : [])], (item, index) => {
     const t = objectOrNull(item); if (!t) return null;
-    return { id: id(t.id, `template-${index}`), name: text(t.name, 120, `Template ${index + 1}`), description: text(t.description, 300) || undefined, introduction: text(t.introduction, MAX_LONG), closing: text(t.closing, MAX_LONG), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
+    return { id: id(t.id, `section-template-${index}`), title: text(t.title, SECTION_LIMITS.title), category: text(t.category, SECTION_LIMITS.category), description: text(t.description, SECTION_LIMITS.description) || undefined, blocks: mergeBlocks(t.blocks), enabled: bool(t.enabled, true), locked: bool(t.locked, false) };
   });
-  return { products, installation, prerequisites, groups, solutions, outOfScope, documentTemplates };
+  return { products, installation, prerequisites, groups, solutions, outOfScope, sectionTemplates };
 }
 
 /** A question or prerequisite: its id is only unique within its product. */
 export type ProductItem = { productId: string; itemId: string };
 /** What to delete from a catalog. */
-export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; documentTemplates?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
+export type CatalogRemoval = { products?: string[]; solutions?: string[]; groups?: string[]; outOfScope?: string[]; sectionTemplates?: string[]; fields?: ProductItem[]; prerequisites?: ProductItem[] };
 
 /** Delete items by id. A deleted product takes its questions, prerequisites, and deliverable groups with it, and drops out of foundations and solutions. */
 export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Catalog {
@@ -325,7 +272,7 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
   const solutions = new Set(removal.solutions);
   const groups = new Set(removal.groups);
   const outOfScope = new Set(removal.outOfScope);
-  const templates = new Set(removal.documentTemplates);
+  const sectionTemplates = new Set(removal.sectionTemplates);
   // Ids may contain ":", so pairs are compared as pairs, never as a joined string.
   const perProduct = <T extends { id: string }>(schema: Record<string, T[]>, drop: ProductItem[] = []) => Object.fromEntries(Object.entries(schema).filter(([productId]) => !products.has(productId)).map(([productId, items]) => [productId, items.filter((item) => !drop.some((pair) => pair.productId === productId && pair.itemId === item.id))]));
   return {
@@ -335,7 +282,7 @@ export function removeFromCatalog(catalog: Catalog, removal: CatalogRemoval): Ca
     groups: catalog.groups.filter((group) => !groups.has(group.id) && !products.has(group.productId)),
     solutions: catalog.solutions.filter((solution) => !solutions.has(solution.id)).map((solution) => ({ ...solution, products: solution.products.filter((id) => !products.has(id)) })),
     outOfScope: catalog.outOfScope.filter((item) => !outOfScope.has(item.id)),
-    documentTemplates: (catalog.documentTemplates ?? []).filter((item) => !templates.has(item.id)),
+    sectionTemplates: (catalog.sectionTemplates ?? []).filter((item) => !sectionTemplates.has(item.id)),
   };
 }
 
@@ -372,6 +319,11 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
   const s = record(stored);
   const statuses = prerequisiteStatuses as readonly string[];
   const status = (value: unknown): PrerequisiteStatus => (statuses.includes(value as string) ? (value as PrerequisiteStatus) : "pending");
+  const legacy = legacyFraming(s.framing);
+  const customSections = mergeCustomSections([...legacy.first, ...(Array.isArray(s.customSections) ? s.customSections : []), ...legacy.last]);
+  // An old introduction prints first and an old closing last; everything else keeps its saved order.
+  const saved = Array.isArray(s.sectionLayout) && s.sectionLayout.length ? s.sectionLayout : legacy.first.length || legacy.last.length ? sectionIds.map((sectionId) => ({ id: sectionId })) : [];
+  const layout = [...legacy.first, ...saved, ...legacy.last].map((item) => ({ id: record(item).id, hidden: bool(record(item).hidden, false) }));
   const strMap = (value: unknown, allowed: (v: unknown) => boolean) => Object.fromEntries(Object.entries(record(value)).filter(([key, v]) => key.length <= 240 && allowed(v)).slice(0, MAX_MAP));
   return {
     customer: text(s.customer, 200, initial.customer),
@@ -389,19 +341,75 @@ export function mergeEstimate(stored: unknown, initial: Estimate): Estimate {
     outOfScope: list(s.outOfScope, (oid) => (typeof oid === "string" ? id(oid, "") || null : null)),
     customOutOfScope: text(s.customOutOfScope, MAX_LONG),
     options: { showHours: bool(record(s.options).showHours, true) },
-    framing: mergeFraming(s.framing),
+    sectionLayout: mergeLayout(layout, customSections),
+    customSections,
     updatedAt: typeof s.updatedAt === "number" && Number.isFinite(s.updatedAt) ? s.updatedAt : 0,
   };
 }
 const MAX_MAP = 2_000;
 const MAX_LONG = 20_000;
 
-function mergeFraming(value: unknown): DocumentFraming {
+/** What a custom section or section template keeps when it is read; the editors stop at the same limits, so nothing typed is lost on reload. */
+export const SECTION_LIMITS = { sections: 50, blocks: 50, title: 160, category: 60, description: 300, text: MAX_LONG, heading: 120, cell: 500, columns: 8, rows: 200 } as const;
+
+/** Text and tables, every table row as wide as its columns. */
+function mergeBlocks(value: unknown): CustomBlock[] {
+  return list(value, (entry): CustomBlock | null => {
+    const b = objectOrNull(entry); if (!b) return null;
+    if (b.kind === "text") return { kind: "text", text: text(b.text, SECTION_LIMITS.text) };
+    if (b.kind !== "table") return null;
+    const columns = list(b.columns, (column) => text(column, SECTION_LIMITS.heading)).slice(0, SECTION_LIMITS.columns);
+    if (!columns.length) return null;
+    const rows = list(b.rows, (row) => (Array.isArray(row) ? columns.map((_, cell) => text(row[cell], SECTION_LIMITS.cell)) : null)).slice(0, SECTION_LIMITS.rows);
+    return { kind: "table", columns, rows };
+  }).slice(0, SECTION_LIMITS.blocks);
+}
+
+/** Custom sections, ids unique. A locked copy is never also edited. */
+function mergeCustomSections(value: unknown): CustomSection[] {
+  return list(value, (item, index) => {
+    const c = objectOrNull(item); if (!c) return null;
+    const templateId = id(c.templateId, "");
+    const locked = Boolean(templateId) && bool(c.locked, false);
+    return { id: id(c.id, `section-${index}`), title: text(c.title, SECTION_LIMITS.title), blocks: mergeBlocks(c.blocks), templateId, templateName: templateId ? text(c.templateName, SECTION_LIMITS.title) : "", edited: Boolean(templateId) && !locked && bool(c.edited, false), locked };
+  }).filter((section, index, all) => all.findIndex((other) => other.id === section.id) === index).slice(0, SECTION_LIMITS.sections);
+}
+
+/** An unknown or repeated section is dropped; the document puts back any that are missing. */
+function mergeLayout(value: unknown, customSections: CustomSection[]): SectionPlacement[] {
+  const known = new Set<string>([...sectionIds, ...customSections.map((section) => section.id)]);
+  return list(value, (item) => { const p = objectOrNull(item); return p && typeof p.id === "string" && known.has(p.id) ? { id: p.id, hidden: bool(p.hidden, false) } : null; })
+    .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index);
+}
+
+/**
+ * Before custom sections, an estimate had one introduction and one closing
+ * (estimate format 2), and the catalog kept templates for them (catalog
+ * format 2). Wherever they are still found, in a file, a browser draft, or
+ * the shared catalog, they become an "Introduction" custom section printed
+ * first and a "Closing" one printed last, with the same wording; they are
+ * numbered like any other section.
+ */
+const LEGACY_PARTS = [["introduction", "Introduction"], ["closing", "Closing"]] as const;
+
+function legacyFraming(value: unknown): { first: Record<string, unknown>[]; last: Record<string, unknown>[] } {
   const f = record(value);
-  const source = oneOf(f.source, ["none", "template", "custom"] as const, "none");
-  if (source === "none") return noFraming;
-  const locked = source === "template" && bool(f.locked, false);
-  return { source, templateId: source === "template" ? id(f.templateId, "") : "", templateName: source === "template" ? text(f.templateName, 120) : "", introduction: text(f.introduction, MAX_LONG), closing: text(f.closing, MAX_LONG), edited: source === "template" && !locked && bool(f.edited, false), locked };
+  if (f.source !== "template" && f.source !== "custom") return { first: [], last: [] };
+  const templateId = f.source === "template" ? id(f.templateId, "") : "";
+  const part = ([key, title]: (typeof LEGACY_PARTS)[number]) => {
+    const words = text(f[key], MAX_LONG);
+    return words.trim() ? [{ id: key, title, blocks: [{ kind: "text", text: words }], templateId: templateId && `${templateId}-${key}`, templateName: title, edited: f.edited, locked: f.locked }] : [];
+  };
+  return { first: part(LEGACY_PARTS[0]), last: part(LEGACY_PARTS[1]) };
+}
+
+/** An old introduction and closing template, as up to two section templates grouped under its name. */
+function legacyTemplates(template: Record<string, unknown>, index: number): Record<string, unknown>[] {
+  const templateId = id(template.id, `template-${index}`);
+  return LEGACY_PARTS.flatMap(([key, title]) => {
+    const words = text(template[key], MAX_LONG);
+    return words.trim() ? [{ id: `${templateId}-${key}`, title, category: text(template.name, 60, "Introduction and closing"), description: text(template.description, 300) || undefined, blocks: [{ kind: "text", text: words }], enabled: template.enabled, locked: template.locked }] : [];
+  });
 }
 
 /** A portable, versioned estimate file. The summary is informational, for humans reading the JSON. */

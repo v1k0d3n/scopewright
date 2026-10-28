@@ -4,7 +4,9 @@ A complete example Scopewright workspace: a made-up infrastructure vendor with n
 products across five portfolios, a real dependency graph (Nova Vision needs
 both Outpost Edge and Nova Insight, which needs Lakehouse, which needs
 Streams, which needs Core), installation decisions with hours, prerequisites,
-deliverable groups, four solution cards, and five common out-of-scope items.
+deliverable groups, four solution cards, five common out-of-scope items, and
+five section templates for the scope document (purpose, agreement, contacts,
+responsibilities, and an engagement schedule).
 
 | File | Import from |
 |------|-------------|

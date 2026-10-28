@@ -89,23 +89,55 @@ export type ScopeOptions = {
   showHours: boolean;
 };
 
+/** The scope document's sections, in their default order. */
+export const sectionIds = ["goal", "products", "installation", "prerequisites", "delivery", "out-of-scope", "effort", "success", "assumptions"] as const;
+export type SectionId = (typeof sectionIds)[number];
+
+/** Where a section prints in the scope document, and whether it prints at all. The id is a built-in SectionId or a custom section's id. */
+export type SectionPlacement = { id: string; hidden: boolean };
+
 /**
- * Introduction and closing wording for the scope document, kept in the catalog
- * so a team can maintain agreed wording in one place. Picking one copies its
- * wording into the estimate.
+ * Part of a custom section. Text keeps the same rules as the introduction and
+ * closing: a blank line between paragraphs, and placeholders such as
+ * {customer} filled in when printed. Lines starting with "- " print as a list.
  */
-export type DocumentTemplate = {
+export type CustomBlock =
+  | { kind: "text"; text: string }
+  /** Every row has one cell per column. */
+  | { kind: "table"; columns: string[]; rows: string[][] };
+
+/**
+ * A section written for this estimate, such as contacts or a schedule, or
+ * copied from a catalog template. Like the introduction and closing, a copy
+ * never changes when the template does.
+ */
+export type CustomSection = {
   id: string;
-  name: string;
+  title: string;
+  blocks: CustomBlock[];
+  /** The catalog template it was copied from; empty when written from scratch. */
+  templateId: string;
+  /** That template's title when it was copied, so it can be named even after the catalog drops it. */
+  templateName: string;
+  /** True once the copy has been changed for this estimate. Never true for a locked copy. */
+  edited: boolean;
+  /** Copied from a locked template: it cannot be edited in this estimate. */
+  locked: boolean;
+};
+
+/** A custom section kept in the catalog so teams can reuse it, such as a contacts table. */
+export type SectionTemplate = {
+  id: string;
+  /** Printed as the section's heading; placeholders are filled in. */
+  title: string;
+  /** Groups templates in the Add section list, e.g. by kind of engagement or by team. */
+  category: string;
   /** When to use it, shown to the person choosing. */
   description?: string;
-  /** Printed after the title, before the numbered sections. May be empty. */
-  introduction: string;
-  /** Printed after the last section, before the signatures. May be empty. */
-  closing: string;
-  /** Only enabled templates are offered in the Deliverables step. */
+  blocks: CustomBlock[];
+  /** Only enabled templates are offered when adding a section. */
   enabled: boolean;
-  /** Wording that must be used exactly as written: estimates that pick it cannot edit it. */
+  /** Estimates that pick it use it exactly as written. */
   locked: boolean;
 };
 
@@ -119,28 +151,8 @@ export type Catalog = {
   solutions: SolutionTemplate[];
   /** Common out-of-scope items for this workspace; may be empty. */
   outOfScope: OutOfScopeItem[];
-  /** Introduction and closing templates offered in the Deliverables step; may be empty. */
-  documentTemplates: DocumentTemplate[];
-};
-
-/**
- * The estimate's own introduction and closing. The wording is copied in when a
- * template is picked, so a later catalog edit never changes a document that was
- * already sent; placeholders such as {customer} are filled in when it is printed.
- */
-export type DocumentFraming = {
-  /** "none" prints nothing; "template" came from the catalog; "custom" was written for this estimate. */
-  source: "none" | "template" | "custom";
-  /** The catalog template it was copied from, when source is "template". */
-  templateId: string;
-  /** That template's name when it was copied, so it can be shown even after the catalog drops it. */
-  templateName: string;
-  introduction: string;
-  closing: string;
-  /** True once the copied wording has been changed for this estimate. Never true for locked wording. */
-  edited: boolean;
-  /** Copied from the template: the wording cannot be edited in this estimate. */
-  locked: boolean;
+  /** Custom sections offered on the Scope documents page; may be empty. */
+  sectionTemplates: SectionTemplate[];
 };
 
 export type EnvironmentState = "new" | "existing";
@@ -174,7 +186,10 @@ export type Estimate = {
   /** Engagement-specific out-of-scope items, one per line. */
   customOutOfScope: string;
   options: ScopeOptions;
-  framing: DocumentFraming;
+  /** The order of the scope document's sections, and the ones left out. Empty means the default order with every section printed. */
+  sectionLayout: SectionPlacement[];
+  /** Sections written for this estimate; sectionLayout says where they print. */
+  customSections: CustomSection[];
   updatedAt: number;
 };
 

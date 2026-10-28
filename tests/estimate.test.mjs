@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { emptyEstimate } from "../app/lib/defaults.ts";
-import { availableGroups, calculate, catalogChanges, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, needsAttention, removeFromCatalog, resolveProducts, scopeText } from "../app/lib/estimate.ts";
+import { availableGroups, calculate, catalogChanges, estimateExport, mergeCatalog, mergeEstimate, parseEstimateExport, needsAttention, removeFromCatalog, resolveProducts } from "../app/lib/estimate.ts";
+import { scopeText } from "../app/lib/document.ts";
 
 /** The fictitious Solstice pack is the reference catalog; the app itself ships empty. */
 const emptyCatalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [] };

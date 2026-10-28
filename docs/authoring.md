@@ -12,13 +12,14 @@ the file format, the conventions, and how to check your work. It is written
 so that a language model can follow it directly; every rule is stated
 explicitly, and a complete example is included.
 
-**The output is exactly this shape, and nothing else.** Five sections inside a
-`catalog` object; no other top-level keys, no sections of your own:
+**The output is exactly this shape, and nothing else.** Five required
+sections and two optional ones inside a `catalog` object; no other top-level
+keys, no sections of your own:
 
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [],
     "installation": {},
@@ -26,13 +27,13 @@ explicitly, and a complete example is included.
     "groups": [],
     "solutions": [],
     "outOfScope": [],
-    "documentTemplates": []
+    "sectionTemplates": []
   }
 }
 ```
 
-(`outOfScope` and `documentTemplates` are optional; the other five sections
-are required. Files with `"version": 1` still import; see
+(`outOfScope` and `sectionTemplates` are optional; the other five sections
+are required. Files with an earlier `"version"` still import; see
 [formats.md](formats.md) for how versions work.)
 
 Check a file before importing it: `npm run catalog:check -- my-catalog.json`
@@ -106,7 +107,7 @@ A catalog is one JSON file:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [ ... ],
     "installation": { "<productId>": [ ... ] },
@@ -118,8 +119,8 @@ A catalog is one JSON file:
 ```
 
 All five sections are required (use `[]` or `{}` when empty); `outOfScope`
-and `documentTemplates` may be added. `version` is the catalog format
-version, currently `2`; Scopewright refuses a file with a higher version
+and `sectionTemplates` may be added. `version` is the
+catalog format version, currently `3`; Scopewright refuses a file with a higher version
 than it understands rather than lose what it cannot read
 ([formats.md](formats.md)). Field by field:
 
@@ -188,36 +189,48 @@ Engagement step; the ones the architect ticks are printed in the scope
 document's "Out of scope" section, along with any free-text items added for
 that engagement.
 
-### `documentTemplates[]` (optional)
+### `sectionTemplates[]` (optional)
 
 | Field | Type | Required | Meaning |
 |-------|------|----------|---------|
 | `id` | string, unique | yes | |
-| `name` | string | yes | Shown in the Deliverables step's list. |
-| `description` | string | no | When to use it, e.g. "Explains that a successful proof of concept helps the customer make their decision". |
-| `introduction` | string | yes (may be `""`) | Printed after the title, before the numbered sections. |
-| `closing` | string | yes (may be `""`) | Printed after the last section, before the signatures. |
-| `enabled` | boolean | yes | `true` offers it in the Deliverables step. |
-| `locked` | boolean | no (default `false`) | `true` means estimates use the wording exactly as written: architects cannot edit it. |
+| `title` | string | yes | Printed as the section's heading; placeholders are filled in. |
+| `category` | string | yes (may be `""`) | Groups templates in the Add section list, for example by kind of engagement or by team. |
+| `description` | string | no | When to use it, shown to the person choosing. |
+| `blocks` | array | yes | The section's content, in order: `{ "kind": "text", "text": "..." }` or `{ "kind": "table", "columns": ["..."], "rows": [["..."]] }`. |
+| `enabled` | boolean | yes | `true` offers it when an architect adds a section. |
+| `locked` | boolean | no (default `false`) | `true` means estimates use it exactly as written. |
 
-Introduction and closing wording for the scope document, for example the
-purpose of a proof of concept, worded the way your team has agreed. Separate paragraphs with
-a blank line (`\n\n` in JSON). These placeholders are filled in from each
-estimate when the document is printed: `{customer}`, `{title}`,
-`{products}` (the products the architect picked, as "A, B, and C"), and
-`{organization}` (the organization name in Settings). Anything else in
-braces prints as typed, and `catalog:check` warns about it.
+Custom sections a team reuses, such as the purpose of a proof of concept,
+contacts, a responsibility matrix, or a schedule. Text follows these rules:
 
-Picking a template copies its wording into the estimate, so editing or
-deleting a template never changes an estimate that already uses it; an
-estimate using a template whose wording changed offers the new wording
-(an estimate that edited its copy is offered only a template that has since
-been locked).
-Architects may edit their copy unless the template is `locked`; a locked
-template's copy is locked too, and its placeholders are still filled in.
-An assistant building a catalog from product documentation should leave
-this section out: this wording usually comes from your own team, not from
-product documentation.
+- A blank line (`\n\n` in JSON) separates paragraphs; a single line break
+  stays inside its paragraph.
+- A line that starts with `- ` (or `* `, `• `) is a bullet, and one that
+  starts with `1. ` (or `1) `) is a numbered item; a numbered list starts at
+  the first number given. A line indented by two spaces or a tab belongs to a
+  list under the line above.
+- `{customer}`, `{title}`, `{products}` (the products the architect picked,
+  as "A, B, and C"), and `{organization}` (the organization name in Settings)
+  are filled in from each estimate when the document is printed, in titles,
+  text, and table cells. Anything else in braces prints as typed, and
+  `catalog:check` warns about it.
+
+A table has one to eight `columns` (its headings) and up to 200 `rows`, and
+every row has one cell per column: extra cells are dropped and missing ones
+are empty. A table whose headings are all empty prints without a heading row.
+
+Adding a template to an estimate copies it: a later change is offered, never
+applied (a copy the architect edited is offered only a template that has
+since been locked), and a locked template's copy cannot be edited. An
+assistant building a catalog from product documentation should leave this
+section out: this wording usually comes from your own team, not from product
+documentation.
+
+A catalog from catalog format 2 may have `documentTemplates`, introduction and
+closing wording. They still import: each introduction and closing becomes a
+section template titled "Introduction" or "Closing", grouped under the
+template's name, and `catalog:check` suggests moving them.
 
 ## Estimate files are not catalogs
 
@@ -231,7 +244,7 @@ context, this is its shape:
 ```json
 {
   "format": "scopewright-estimate",
-  "version": 2,
+  "version": 3,
   "writtenBy": "Scopewright 0.3.0",
   "exportedAt": "2026-09-19T12:00:00.000Z",
   "summary": { "customer": "...", "title": "...", "products": ["..."], "totalHours": 96, "pendingPrerequisites": 2 },
@@ -248,7 +261,8 @@ context, this is its shape:
     "outOfScope": ["<outOfScope item id>"],
     "customOutOfScope": "free text, one per line",
     "options": { "showHours": true },
-    "framing": { "source": "template", "templateId": "<documentTemplates id>", "templateName": "...", "introduction": "...", "closing": "...", "edited": false, "locked": false },
+    "sectionLayout": [{ "id": "goal", "hidden": false }, { "id": "<custom section id>", "hidden": false }],
+    "customSections": [{ "id": "<custom section id>", "title": "...", "blocks": [{ "kind": "text", "text": "..." }], "templateId": "<sectionTemplates id, or empty>", "templateName": "...", "edited": false, "locked": false }],
     "updatedAt": 1789840000000
   }
 }
@@ -275,14 +289,23 @@ convenience for listings. Ids that no longer resolve are handled as follows:
 - A **task**, **prerequisite**, or **out-of-scope item** that no longer
   exists is left out.
 
-`framing` holds the estimate's own copy of its introduction and closing
-(`source` is `"none"`, `"template"`, or `"custom"`). It is a copy, not a
-reference, so it prints the same whatever later happens to the template.
+`customSections` holds the estimate's own copy of each custom section, with
+`blocks` as in [`sectionTemplates`](#sectiontemplates-optional).
+`sectionLayout` is the order sections print in, with `hidden` for the ones
+left out; each `id` is a custom section's id or one of the generated
+sections: `goal`, `products`, `installation`, `prerequisites`, `delivery`,
+`out-of-scope`, `effort`, `success`, `assumptions`. An empty list means the
+default order, in that sequence, with custom sections last. A generated
+section the list leaves out goes back in its default place, and a custom
+one goes last. A custom section copied from a template is a copy, not a reference, so
+it prints the same whatever later happens to the template.
 
 `outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0, and
-`framing` in estimate format 2. Older files without them open normally and
-get the defaults: nothing out of scope, hours shown, no introduction or
-closing. [formats.md](formats.md) describes every version.
+`sectionLayout` and `customSections` in estimate format 3. Older files open
+normally and get the defaults: nothing out of scope, hours shown, sections in
+the default order. An estimate format 2 file's `framing` (its introduction and
+closing) opens as custom sections named "Introduction", printed first, and
+"Closing", printed last. [formats.md](formats.md) describes every version.
 
 ## Conventions
 
@@ -327,7 +350,7 @@ and tone. A minimal two-product excerpt:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [
       { "id": "core", "name": "Solstice Core Platform", "short": "Core", "portfolio": "Platform", "mark": "SC", "hours": 0,
@@ -392,13 +415,15 @@ structure was invented instead of using the five sections.
 
 ## Checklist before importing
 
-- Valid JSON; `format` is `scopewright-catalog`, `version` is `2` (or `1`
-  for a file without `documentTemplates`).
+- Valid JSON; `format` is `scopewright-catalog`, `version` is `3` (older
+  versions still import; see [formats.md](formats.md)).
 - Every `requires`, `productId`, and solution product names an existing
   product id; no product requires itself or forms a cycle.
 - Every question has at least one choice; every choice and task has a
   numeric `hours`.
 - Every task `phase` is one of the five phases, spelled exactly.
+- Every section template has a `title`, at least one block, and tables of one
+  to eight columns with one cell per column in every row.
 - ids are unique where the tables above say unique.
 - No customer data, hostnames, credentials, or prices.
 
