@@ -265,3 +265,8 @@ test("list rules win over indented code, and fenced code keeps its lines inside 
   const { text } = markdownSection("**Bold**\n\n```\nfirst\n\n**literal**\n```");
   assert.deepEqual(text, ["Bold", "", "```", "first", "", "**literal**", "```", ""], "a blank line inside code does not split it in the copied text");
 });
+
+test("copied text: bold across lines loses its marks, and a fence inside a quote stays as typed", () => {
+  assert.deepEqual(markdownSection("**Bold that\nspans lines** done").text, ["Bold that", "spans lines done", ""]);
+  assert.deepEqual(markdownSection("> ```\n> **literal**\n> ```").text, ["> ```", "> **literal**", "> ```", ""]);
+});

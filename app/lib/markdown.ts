@@ -69,14 +69,15 @@ function blockLines(text: string): { token: Token; first: number; last: number }
 
 /**
  * The lines to leave exactly as typed: fenced code at any depth, including
- * inside a list item, and top-level raw HTML blocks and rules. Indented code
+ * inside a list item or a quote, and top-level raw HTML blocks and rules. Indented code
  * is not among them, so a list line indented four spaces stays a list line.
  */
 function literalLines(text: string): Set<number> {
   const lines = new Set<number>();
   let fence: { mark: string; length: number } | null = null;
   text.split("\n").forEach((line, index) => {
-    const marker = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    // A fence may sit in a quote ("> ```"), and the quote's marks come first.
+    const marker = /^(?:\s*>)*\s*(`{3,}|~{3,})(.*)$/.exec(line);
     if (fence) {
       lines.add(index);
       // A fence closes only on the same mark, at least as long, with nothing after it.
@@ -190,6 +191,13 @@ export function markdownText(text: string, fill: Fill): string[] {
   for (const { token, first, last } of blockLines(text)) {
     if (literal.has(first)) continue;
     if (token.type === "heading") replaced.set(first, [inlineText(token.tokens)]);
+    else if (token.type === "paragraph") {
+      // Read the paragraph whole, so bold or italic that spans lines loses its marks too.
+      const read = inlineText(token.tokens).split("\n");
+      if (read.length !== last - first + 1) continue;
+      read.forEach((value, at) => replaced.set(first + at, [value]));
+      continue;
+    }
     else if (token.type === "table") {
       const table = token as Tokens.Table;
       replaced.set(first, [table.header.map((cell) => inlineText(cell.tokens)).join(" | "), ...table.rows.map((row) => row.map((cell) => inlineText(cell.tokens)).join(" | "))]);
