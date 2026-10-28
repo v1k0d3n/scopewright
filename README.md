@@ -54,7 +54,9 @@ Prerequisites per product       ──►   4. Prerequisites               ─�
 Deliverable groups              ──►   5. Deliverables                ─┤     criteria, assumptions, sign-off
   tied to a product                     (only groups for the          │     lines, brand. Hours can be
   tasks → phase → hours                  products in the engagement)  │     hidden for a scope-only copy.
-                                      6. Review                      ─┘
+                                      6. Review                      ─┘     Sections can be moved, left out,
+Section templates               ──►   Scope documents: + Add section ──►    or added: text and tables of
+  text and tables, by category          (blank or from a template)          your own, from templates.
 Saved estimates (Workspace): save locations, what is saved there, open one back into the builder
 Settings (Manage): identity, logo, colors, fonts → the app and every document
 ```
@@ -79,14 +81,18 @@ Settings (Manage): identity, logo, colors, fonts → the app and every document
   offered as checkboxes in the Engagement step, next to free text for
   anything specific to the engagement.
 - **The scope document** is generated from all of the above and prints to
-  PDF. Its **Show hours** option removes every hour figure and the effort
-  summary, for discussing scope and prerequisites without effort.
+  PDF. Its sections can be moved and left out, and custom sections of text
+  and tables (with bullets, numbered lists, and placeholders such as
+  `{customer}`) added alongside them. Its **Show hours** option removes every
+  hour figure and the effort summary, for discussing scope and prerequisites
+  without effort.
 - **Saved estimates** are files in a place the architect chooses. The
   builder's **Estimate** menu has New, Import, Export, Save, and Save as; an
   estimate that someone has open is locked for everyone else.
 
-The hour math lives in `app/lib/estimate.ts` and is covered by `tests/`,
-which use `packs/solstice/catalog.json` as their reference catalog.
+The hour math lives in `app/lib/estimate.ts` and the document's sections in
+`app/lib/document.ts`, both covered by `tests/`, which use
+`packs/solstice/catalog.json` as their reference catalog.
 
 ## Persistence
 

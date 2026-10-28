@@ -9,7 +9,10 @@ for anyone changing a format. The code lives in `app/lib/formats.ts`.
 ## The promise
 
 - **An older file always opens.** It is upgraded as it is read, and prints
-  the same scope document it printed before.
+  the same scope document it printed before. The one recorded exception is
+  the introduction and closing of estimate format 2, which print as numbered
+  sections since format 3 (see the version history and
+  `tests/fixtures/README.md`).
 - **A newer file is never damaged.** Scopewright reads only the parts of a
   file it understands. Saving a file from a newer release would silently drop
   the rest, so it never does that: an estimate opens view-only, a catalog

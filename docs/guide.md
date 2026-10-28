@@ -132,46 +132,91 @@ Installation details. **Open scope document** saves the draft and moves on.
 ![Scope document](img/006-scope-document.png)
 
 The scope document is generated from the estimate and is the paperwork the
-customer, the account team, and the delivery team sign off on. This page is
-the final review: the narrative is written in the Engagement step, and the
-panel on the left holds presentation **options**. **Show hours** can be
-turned off to discuss scope and prerequisites without effort; it removes
-every hour figure and the effort summary from the preview, the PDF, and the
-copied text, and is saved with the estimate. The document has up to nine
-sections, numbered as they appear: goal, products in scope, installation
-scope, prerequisites with values and status, delivery plan with numbered
-deliverables, out of scope, effort summary with the planning range, success
-criteria, and assumptions, followed by sign-off lines and the footer from
-Settings. Custom sections, described below, add your own.
+customer, the account team, and the delivery team sign off on. The preview on
+the right is the document; the panel on the left controls what it contains
+and in what order.
 
-**Sections** in the same panel lists the numbered sections in the order they
-print. **↑** and **↓** move a section, and turning off **Print** leaves it out
-of the preview, the PDF, and the copied text. Sections are renumbered as they
-move. A section with nothing to print, such as the effort summary while hours
-are hidden, stays in the list with the reason beside it. The order is saved
-with the estimate; **Restore the default order** puts every section back and
-prints them all.
+The document is built from numbered **sections**. Nine are generated from the
+estimate: goal, products in scope, installation scope, prerequisites with
+values and status, delivery plan with numbered deliverables, out of scope,
+effort summary with the planning range, success criteria, and assumptions.
+You can add your own **custom sections** next to them. Sign-off lines and the
+footer from Settings close the document.
 
-**+ Add section** writes a section of your own, such as contacts, a schedule,
-or who is responsible for what, either blank or from one of your team's
-[section templates](#section-templates), listed by category. It gets a title
-and any mix of text and tables, and moves and prints like any other section.
-A template is copied into the estimate: when the catalog's version changes,
-the section's editor offers the new one, and a locked template's copy cannot
-be edited. In text, a blank line starts a new paragraph, `{customer}`,
-`{title}`, `{products}`, and `{organization}` are filled in from the estimate
-(anything else in braces prints as typed, and the editor points it out),
-lines starting
-with `- ` print as bullets, and lines starting with `1. ` print as a numbered
-list that starts at the number you type. Indent a line by two spaces to put
-it in a list under the line above. A table has up to eight columns; the first row of
-the editor is the heading. Select a custom section's name in the list to edit
-or delete it. Custom sections belong to the estimate, so they are saved,
-exported, and copied as text with it.
+### Options
+
+**Show hours** can be turned off to discuss scope and prerequisites without
+effort. It removes every hour figure and the effort summary from the preview,
+the PDF, and the copied text, and is saved with the estimate.
+
+### Arranging sections
+
+<!-- screenshot needed: img/006b-scope-sections.png (the Sections list with one section moved, one not printed, and a custom section) -->
+
+**Sections** lists every section in the order it prints. **↑** and **↓** move
+a section; turning off **Print** leaves it out of the preview, the PDF, and
+the copied text. Sections are numbered as they print, so moving or leaving
+one out never leaves a gap. A section with nothing to print stays in the
+list with the reason beside it, for example the effort summary while hours
+are hidden, or out of scope when nothing is out of scope.
+
+The order is saved with the estimate. **Restore the default order** puts the
+nine generated sections back in their usual order, followed by your custom
+sections, and prints them all.
+
+### Custom sections
+
+<!-- screenshot needed: img/006c-custom-section.png (the custom section editor with a text block and a table) -->
+
+**+ Add section** adds a section of your own, such as contacts, a schedule,
+or who is responsible for what. When the catalog offers
+[section templates](#section-templates), it first asks
+whether to start from a **Blank section** or one of the templates, listed by
+category.
+
+A custom section has a **Title** and any mix of **Text** and **Table**
+blocks, in order. **+ Text** and **+ Table** add a block; **↑** and **↓**
+move it; **Remove** deletes it. Changes show in the preview as you type, and
+**Done** closes the editor. To change a custom section later, select its name
+in the Sections list. **Delete section** removes it from the estimate after
+asking.
+
+In a text block:
+
+| You type | It prints |
+|----------|-----------|
+| A blank line | A new paragraph. A single line break stays inside its paragraph. |
+| `- ` at the start of a line (or `* `, `• `) | A bullet. |
+| `1. ` or `1) ` at the start of a line | A numbered list, starting at the number you type. |
+| Two spaces (or a tab) before `- ` or `1. ` | A list inside the item on the line above. |
+| `{customer}`, `{title}`, `{products}`, `{organization}` | The customer name, the engagement title, the products picked, and the organization name in Settings. They work in the title and in tables too, and follow later changes to the estimate. |
+
+Anything else in braces prints as typed, and the editor points it out.
+
+A table has a heading row and up to eight columns. **+ Row** and
+**+ Column** add to it, and **×** removes a row or a column. A table whose
+headings are all empty prints without a heading row.
+
+A section added from a template is a copy, so later changes to the catalog
+never change it on their own. Under its name, the Sections list shows where it
+came from, and whether it is **edited**, **locked**, or has an **update
+available**. When the template changes, the editor says so and offers **Use
+the catalog version**; a copy you edited is offered only a template that has
+since been locked. **Restore the template version** undoes your edits. A
+copy of a locked template is used exactly as written: it can be moved, left
+out, or deleted, but not edited.
+
+Custom sections belong to the estimate: they are saved, exported, and
+imported with it.
+
+### Printing and copying
 
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
-for email or a ticket.
+for email or a ticket. In it, custom text prints as you typed it, with the
+placeholders filled in, and a
+table prints its headings on one line (`Role | Name | Contact`) and each row
+as a line starting with `- `.
 
 ## Weekly updates
 
@@ -332,7 +377,7 @@ Building a catalog from scratch, by hand or with an AI assistant? Read
 and the conventions, and includes a prompt to hand to an AI tool.
 
 The catalog is the shared source of everything an estimate can contain. It
-has six tabs, and each tab drives one part of the estimate workflow.
+has seven tabs, and each tab drives one part of the estimate workflow.
 
 ### Products
 
@@ -379,7 +424,6 @@ engagement-specific ones there.
 
 ![Catalog: deliverables](img/014-catalog-deliverables.png)
 
-
 Deliverable **groups** have a section number, a name, a category, and the
 product they belong to ("Any product" for engagement-wide work such as
 kickoff and readout). Each **task** has an item number, a delivery phase,
@@ -397,11 +441,14 @@ appear as checkboxes in the Engagement step.
 
 ### Section templates
 
+<!-- screenshot needed: img/016-catalog-section-templates.png (a section template opened for editing, with its category) -->
+
 Custom sections your teams use again and again: contacts, a responsibility
 matrix, an engagement schedule, or anything else made of text and tables.
 Each has a title, a **category** that groups it in the Add section list (for
 example the kind of engagement, or the team that uses it), and an optional
-note on when to use it. **Offer in workflow** controls whether it is listed
+note on when to use it, and the same title, text, and table editor as a
+[custom section](#custom-sections). **Offer in workflow** controls whether it is listed
 when an architect adds a section; one that is not offered stays in the
 catalog. **Lock wording** is for wording that must be used exactly as
 written, for example a statement your organization has approved: an estimate
@@ -409,14 +456,17 @@ that adds a locked template cannot edit its copy. Without it, a template is a
 starting point that architects adapt. Adding a template copies it, so
 editing, turning off, or deleting it never changes an estimate that already
 uses it; an unedited copy is offered the new version, and an edited one is
-offered it only once the template is locked. A catalog from before section
+offered it only once the template is locked. The arrows set the order of the
+list, and **Delete template** asks before deleting. A catalog from before section
 templates that has introduction and closing templates imports them as
 section templates, grouped under each template's name. The Solstice pack
-includes five to start from.
+includes five to start from: Purpose, Agreement, Contacts, Responsibilities,
+and Engagement schedule.
 
 ### Deleting catalog items
 
-Every tab deletes the same way. Tick the checkbox beside each product,
+The first six tabs delete the same way (a section template is deleted from
+its own card). Tick the checkbox beside each product,
 solution, question, prerequisite, deliverable group, or out-of-scope item you
 want gone (or tick **Select all** in the bar above the list), then choose
 **Delete selected**. A confirmation lists what will be deleted, and what goes
@@ -471,8 +521,8 @@ Theme packs can also be built from a directory with
 
 `packs/solstice` is a complete fictitious vendor: nine products with a real
 dependency graph, installation decisions with hours, prerequisites, deliverables, four
-solutions, a teal-and-amber theme, and a sample estimate for a fictitious
-customer.
+solutions, five section templates, a teal-and-amber theme, and a sample
+estimate for a fictitious customer.
 
 1. `npm run pack:theme -- packs/solstice` produces `packs/solstice.zip`.
    In Settings, **Import .zip** under Theme pack.

@@ -12,8 +12,9 @@ the file format, the conventions, and how to check your work. It is written
 so that a language model can follow it directly; every rule is stated
 explicitly, and a complete example is included.
 
-**The output is exactly this shape, and nothing else.** Five sections inside a
-`catalog` object; no other top-level keys, no sections of your own:
+**The output is exactly this shape, and nothing else.** Five required
+sections and two optional ones inside a `catalog` object; no other top-level
+keys, no sections of your own:
 
 ```json
 {
@@ -32,7 +33,7 @@ explicitly, and a complete example is included.
 ```
 
 (`outOfScope` and `sectionTemplates` are optional; the other five sections
-are required. Files with `"version": 1` still import; see
+are required. Files with an earlier `"version"` still import; see
 [formats.md](formats.md) for how versions work.)
 
 Check a file before importing it: `npm run catalog:check -- my-catalog.json`
@@ -106,7 +107,7 @@ A catalog is one JSON file:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [ ... ],
     "installation": { "<productId>": [ ... ] },
@@ -201,20 +202,30 @@ that engagement.
 | `locked` | boolean | no (default `false`) | `true` means estimates use it exactly as written. |
 
 Custom sections a team reuses, such as the purpose of a proof of concept,
-contacts, a responsibility matrix, or a schedule. In text, separate
-paragraphs with a blank line (`\n\n` in JSON). These placeholders are
-filled in from each estimate when the document is printed: `{customer}`,
-`{title}`, `{products}` (the products the architect picked, as "A, B, and
-C"), and `{organization}` (the organization name in Settings); anything else
-in braces prints as typed, and `catalog:check` warns about it. Lines that start with `- ` print
-as bullets and lines that start with `1. ` as a numbered list, and a line
-indented by two spaces nests under the line above. A table has one to eight `columns`, and every row has one cell per
-column (extra cells are dropped, missing ones are empty). Adding a template
-to an estimate copies it: a later change is offered, never applied (a copy
-the architect edited is offered only a template that has since been locked),
-and a locked template's copy cannot be edited. An assistant building a
-catalog from product documentation should leave this section out: this
-wording usually comes from your own team, not from product documentation.
+contacts, a responsibility matrix, or a schedule. Text follows these rules:
+
+- A blank line (`\n\n` in JSON) separates paragraphs; a single line break
+  stays inside its paragraph.
+- A line that starts with `- ` (or `* `, `• `) is a bullet, and one that
+  starts with `1. ` (or `1) `) is a numbered item; a numbered list starts at
+  the first number given. A line indented by two spaces or a tab belongs to a
+  list under the line above.
+- `{customer}`, `{title}`, `{products}` (the products the architect picked,
+  as "A, B, and C"), and `{organization}` (the organization name in Settings)
+  are filled in from each estimate when the document is printed, in titles,
+  text, and table cells. Anything else in braces prints as typed, and
+  `catalog:check` warns about it.
+
+A table has one to eight `columns` (its headings) and up to 200 `rows`, and
+every row has one cell per column: extra cells are dropped and missing ones
+are empty. A table whose headings are all empty prints without a heading row.
+
+Adding a template to an estimate copies it: a later change is offered, never
+applied (a copy the architect edited is offered only a template that has
+since been locked), and a locked template's copy cannot be edited. An
+assistant building a catalog from product documentation should leave this
+section out: this wording usually comes from your own team, not from product
+documentation.
 
 A catalog from catalog format 2 may have `documentTemplates`, introduction and
 closing wording. They still import: each introduction and closing becomes a
@@ -233,7 +244,7 @@ context, this is its shape:
 ```json
 {
   "format": "scopewright-estimate",
-  "version": 2,
+  "version": 3,
   "writtenBy": "Scopewright 0.3.0",
   "exportedAt": "2026-09-19T12:00:00.000Z",
   "summary": { "customer": "...", "title": "...", "products": ["..."], "totalHours": 96, "pendingPrerequisites": 2 },
@@ -251,7 +262,7 @@ context, this is its shape:
     "customOutOfScope": "free text, one per line",
     "options": { "showHours": true },
     "sectionLayout": [{ "id": "goal", "hidden": false }, { "id": "<custom section id>", "hidden": false }],
-    "customSections": [{ "id": "<custom section id>", "title": "...", "blocks": [], "templateId": "<sectionTemplates id, or empty>", "templateName": "...", "edited": false, "locked": false }],
+    "customSections": [{ "id": "<custom section id>", "title": "...", "blocks": [{ "kind": "text", "text": "..." }], "templateId": "<sectionTemplates id, or empty>", "templateName": "...", "edited": false, "locked": false }],
     "updatedAt": 1789840000000
   }
 }
@@ -278,9 +289,15 @@ convenience for listings. Ids that no longer resolve are handled as follows:
 - A **task**, **prerequisite**, or **out-of-scope item** that no longer
   exists is left out.
 
-`customSections` holds the estimate's own copy of each custom section, and
-`sectionLayout` the order sections print in, with `hidden` for the ones left
-out. A custom section copied from a template is a copy, not a reference, so
+`customSections` holds the estimate's own copy of each custom section, with
+`blocks` as in [`sectionTemplates`](#sectiontemplates-optional).
+`sectionLayout` is the order sections print in, with `hidden` for the ones
+left out; each `id` is a custom section's id or one of the generated
+sections: `goal`, `products`, `installation`, `prerequisites`, `delivery`,
+`out-of-scope`, `effort`, `success`, `assumptions`. An empty list means the
+default order, in that sequence, with custom sections last. A generated
+section the list leaves out goes back in its default place, and a custom
+one goes last. A custom section copied from a template is a copy, not a reference, so
 it prints the same whatever later happens to the template.
 
 `outOfScope`, `customOutOfScope`, and `options` were added in 0.2.0, and
@@ -333,7 +350,7 @@ and tone. A minimal two-product excerpt:
 ```json
 {
   "format": "scopewright-catalog",
-  "version": 2,
+  "version": 3,
   "catalog": {
     "products": [
       { "id": "core", "name": "Solstice Core Platform", "short": "Core", "portfolio": "Platform", "mark": "SC", "hours": 0,
@@ -405,6 +422,8 @@ structure was invented instead of using the five sections.
 - Every question has at least one choice; every choice and task has a
   numeric `hours`.
 - Every task `phase` is one of the five phases, spelled exactly.
+- Every section template has a `title`, at least one block, and tables of one
+  to eight columns with one cell per column in every row.
 - ids are unique where the tables above say unique.
 - No customer data, hostnames, credentials, or prices.
 
