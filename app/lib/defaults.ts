@@ -3,7 +3,7 @@ import type { Branding, Catalog, ColorScheme, Estimate } from "./types.ts";
 /**
  * A fresh deployment starts with an empty catalog. Organizations import their
  * own catalog from Settings, or start from one of the packs under packs/
- * (packs/red-hat is a complete example).
+ * (packs/solstice is a complete example).
  */
 export const defaultCatalog: Catalog = { products: [], installation: {}, prerequisites: {}, groups: [], solutions: [], outOfScope: [], documentTemplates: [] };
 
