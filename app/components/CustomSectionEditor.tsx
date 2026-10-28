@@ -40,7 +40,7 @@ export function CustomSectionEditor({ catalog, section, onChange, onDelete, onCl
             <button type="button" className="link" onClick={() => replace(newer)}>Use the catalog version</button>
           </div>
         )}
-        {section.locked && <p className="modal-note framing-locked"><b>Locked.</b> This template is used exactly as written, so it cannot be edited here. To change it, delete it and add a blank section instead.</p>}
+        {section.locked && <p className="modal-note locked-note"><b>Locked.</b> This template is used exactly as written, so it cannot be edited here. To change it, delete it and add a blank section instead.</p>}
         <SectionFields value={section} readOnly={section.locked} titleRef={title} onChange={(value) => onChange({ ...section, ...value, edited: Boolean(section.templateId) })} />
         {section.edited && template && !newer && <p className="modal-note"><button type="button" className="link" onClick={() => replace(template)}>Restore the template version</button></p>}
         <div className="modal-actions">

@@ -21,9 +21,9 @@ export const WRITTEN_BY = `Scopewright ${APP_VERSION}`;
 export const CATALOG_FORMAT = "scopewright-catalog";
 export const ESTIMATE_FORMAT = "scopewright-estimate";
 
-/** 2: introduction and closing templates (documentTemplates). 3: custom section templates (sectionTemplates). */
+/** 2: introduction and closing templates (documentTemplates). 3: section templates (sectionTemplates) replace them; mergeCatalog converts any it finds. */
 export const CATALOG_VERSION = 3;
-/** 2: the estimate's own introduction and closing (framing). 3: the order of the scope document's sections (sectionLayout) and sections written for the estimate (customSections). */
+/** 2: the estimate's own introduction and closing (framing). 3: the order of the scope document's sections (sectionLayout) and sections written for the estimate (customSections), which replace the introduction and closing; mergeEstimate converts any it finds. */
 export const ESTIMATE_VERSION = 3;
 
 /** Older names of the estimate format; they still open. */

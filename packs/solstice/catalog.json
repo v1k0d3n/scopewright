@@ -1257,18 +1257,35 @@
         "label": "Formal end-user or administrator training"
       }
     ],
-    "documentTemplates": [
+    "sectionTemplates": [
       {
-        "id": "poc-purpose",
-        "name": "Proof of concept purpose",
-        "description": "Standard introduction and closing for a customer proof of concept.",
-        "introduction": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.",
-        "closing": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.",
+        "id": "purpose",
+        "title": "Purpose",
+        "category": "Proof of concept",
+        "description": "Why the proof of concept is being run, and what is in scope. Put it first.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing."
+          }
+        ],
         "enabled": true,
         "locked": false
-      }
-    ],
-    "sectionTemplates": [
+      },
+      {
+        "id": "agreement",
+        "title": "Agreement",
+        "category": "Proof of concept",
+        "description": "How the results are reviewed, and what signing means. Put it last.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document."
+          }
+        ],
+        "enabled": true,
+        "locked": false
+      },
       {
         "id": "contacts",
         "title": "Contacts",

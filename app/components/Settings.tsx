@@ -69,7 +69,7 @@ export function Settings({ branding, setBranding, catalog, setCatalog }: Props) 
   const stamp = () => new Date().toISOString().slice(0, 10);
   /** The catalog file format; docs/formats.md describes it. */
   const exportCatalog = () => { download(`scopewright-catalog-${stamp()}.json`, { format: CATALOG_FORMAT, version: CATALOG_VERSION, writtenBy: WRITTEN_BY, exportedAt: new Date().toISOString(), catalog }); flash("Catalog exported."); };
-  const catalogEmpty = !catalog.products.length && !catalog.groups.length && !catalog.solutions.length && !catalog.outOfScope.length && !catalog.documentTemplates.length;
+  const catalogEmpty = !catalog.products.length && !catalog.groups.length && !catalog.solutions.length && !catalog.outOfScope.length && !catalog.sectionTemplates.length;
   const resetTheme = () => { setBranding(defaultBranding); setResettingTheme(false); flash("Theme reset."); };
   const deleteCatalog = () => { setCatalog(defaultCatalog); setDeleting(false); flash("Catalog deleted."); };
   const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "theme";

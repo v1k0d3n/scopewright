@@ -10,7 +10,7 @@
  */
 import type { Catalog, CustomBlock, CustomSection, Estimate, PrerequisiteStatus, SectionPlacement } from "./types.ts";
 import type { EstimateBreakdown } from "./estimate.ts";
-import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, framedText, outOfScopeLines, paragraphs, placeholderValues, statusLabel } from "./estimate.ts";
+import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, outOfScopeLines, paragraphs, placeholderValues, statusLabel } from "./estimate.ts";
 
 /** A piece of inline content. Plain text prints as written; the others are styled on the page. */
 export type Span = string | { strong: string } | { note: string } | { hours: number } | { status: PrerequisiteStatus; label: string };
@@ -43,11 +43,7 @@ export type DocumentSection = {
 export type ScopeDocumentModel = {
   title: string;
   customer: string;
-  /** Printed after the title, before the numbered sections. */
-  introduction: string[];
   sections: DocumentSection[];
-  /** Printed after the last section. */
-  closing: string[];
 };
 
 type Context = { catalog: Catalog; estimate: Estimate; breakdown: EstimateBreakdown; showHours: boolean; fill: (value: string) => string };
@@ -300,22 +296,19 @@ function customText(block: CustomBlock, fill: (value: string) => string): string
 /** Everything the scope document prints, in order. */
 export function scopeDocument(catalog: Catalog, estimate: Estimate, orgName: string, breakdown = calculate(catalog, estimate)): ScopeDocumentModel {
   const context = contextFor(catalog, estimate, breakdown, orgName);
-  const framing = framedText(estimate, placeholderValues(estimate, breakdown, orgName));
   const sections = placed(estimate)
     .filter(({ item, section }) => !item.hidden && (section.include?.(context) ?? true))
     // Built-in titles are already capitals; a custom title is written as people type it.
     .map(({ section, custom }) => ({ id: section.id, title: context.fill(section.title).toUpperCase(), custom, blocks: section.blocks(context), text: section.text(context) }));
-  return { title: estimate.title || defaultTitle(breakdown), customer: estimate.customer, introduction: framing.introduction, sections, closing: framing.closing };
+  return { title: estimate.title || defaultTitle(breakdown), customer: estimate.customer, sections };
 }
 
 /** The scope document as plain text, for pasting into email or a ticket. */
 export function documentText(document: ScopeDocumentModel, orgName: string): string {
   const lines = [`${document.customer || "Customer"} — ${document.title}`, `Prepared by ${orgName}`, ""];
-  for (const paragraph of document.introduction) lines.push(paragraph, "");
   document.sections.forEach((section, index) => lines.push(`${index + 1}. ${section.title}`, ...section.text));
   // A section's text ends with a blank line, except where it prints nothing at all; the document never ends with one.
   while (lines.at(-1) === "") lines.pop();
-  if (document.closing.length) lines.push("", ...document.closing.flatMap((paragraph, index) => (index ? ["", paragraph] : [paragraph])));
   return lines.join("\n");
 }
 

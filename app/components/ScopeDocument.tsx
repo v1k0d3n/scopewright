@@ -48,7 +48,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
             <span>{breakdown.prerequisites.reduce((sum, item) => sum + item.items.length, 0)} prerequisites{breakdown.pendingPrerequisites ? ` (${breakdown.pendingPrerequisites} pending)` : ""}</span>
             <span>{breakdown.deliverables.reduce((sum, item) => sum + item.tasks.length, 0)} deliverables</span>
             <span>{excluded.length} out-of-scope item{excluded.length === 1 ? "" : "s"}</span>
-            <span>{estimate.framing.source === "none" ? "No introduction or closing" : estimate.framing.source === "custom" ? "Introduction and closing written for this estimate" : `Introduction and closing from “${estimate.framing.templateName}”${estimate.framing.edited ? " (edited)" : ""}`}</span>
+            <span>{estimate.customSections.length} custom section{estimate.customSections.length === 1 ? "" : "s"}</span>
             <button type="button" className="link" onClick={onEdit}>Edit the engagement in the Estimate Builder →</button>
           </div>
         </div>
@@ -62,9 +62,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
           <h2>{doc.title}</h2>
           <h4>Prepared for {estimate.customer || "Customer name"} by {branding.orgName}{branding.workspaceName && ` · ${branding.workspaceName}`}</h4>
           <hr />
-          {doc.introduction.length > 0 && <div className="doc-framing">{doc.introduction.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           {doc.sections.map((section, index) => <section key={section.id} className={section.custom ? "doc-custom" : undefined}><h5>{index + 1} / {section.title}</h5><Blocks blocks={section.blocks} /></section>)}
-          {doc.closing.length > 0 && <div className="doc-framing doc-closing">{doc.closing.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
           <div className="signatures">
             <div><span>Customer</span></div>
             <div><span>Account team</span></div>

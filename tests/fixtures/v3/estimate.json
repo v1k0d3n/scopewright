@@ -206,17 +206,11 @@
     "options": {
       "showHours": true
     },
-    "framing": {
-      "source": "template",
-      "templateId": "poc-purpose",
-      "templateName": "Proof of concept purpose",
-      "introduction": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.",
-      "closing": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.\n\nQuestions about this document go to the account team.",
-      "edited": true,
-      "locked": false
-    },
-    "updatedAt": 0,
     "sectionLayout": [
+      {
+        "id": "introduction",
+        "hidden": false
+      },
       {
         "id": "goal",
         "hidden": false
@@ -256,9 +250,27 @@
       {
         "id": "effort",
         "hidden": true
+      },
+      {
+        "id": "closing",
+        "hidden": false
       }
     ],
     "customSections": [
+      {
+        "id": "introduction",
+        "title": "Introduction",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing."
+          }
+        ],
+        "templateId": "poc-purpose-introduction",
+        "templateName": "Introduction",
+        "edited": true,
+        "locked": false
+      },
       {
         "id": "section-contacts",
         "title": "Contacts",
@@ -292,7 +304,22 @@
         "templateName": "Contacts",
         "edited": true,
         "locked": false
+      },
+      {
+        "id": "closing",
+        "title": "Closing",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.\n\nQuestions about this document go to the account team."
+          }
+        ],
+        "templateId": "poc-purpose-closing",
+        "templateName": "Closing",
+        "edited": true,
+        "locked": false
       }
-    ]
+    ],
+    "updatedAt": 0
   }
 }

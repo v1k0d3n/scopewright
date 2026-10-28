@@ -10,3 +10,10 @@ document someone already produced fails the build.
 
 When a format version is bumped (see `docs/formats.md`), add a new folder for
 it and leave the older ones as they are.
+
+**One recorded exception.** Estimate format 3 replaced the introduction and
+closing with custom sections, and an earlier introduction or closing now
+prints as a numbered "Introduction" section first and "Closing" section last,
+with the same wording. `v2/scope.txt` was updated once to match: the feature
+had not reached anyone's documents, and the diff only adds those two headings
+and renumbers the sections between them.

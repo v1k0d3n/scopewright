@@ -8,7 +8,6 @@ import { InstallationDetails } from "./components/InstallationDetails";
 import { Prerequisites } from "./components/Prerequisites";
 import { ProductChooser } from "./components/ProductChooser";
 import { FileMenu } from "./components/FileMenu";
-import { Framing } from "./components/Framing";
 import { Library } from "./components/Library";
 import { SaveAs } from "./components/SaveAs";
 import { EstimateCard, Review } from "./components/Review";
@@ -46,7 +45,7 @@ const steps = [
   { label: "Products", title: "What are we helping the customer prove?", copy: "Start with a solution pattern or build the engagement by product." },
   { label: "Installation Details", title: "Installation Details", copy: "Answer the installation questions for each product. Every answer carries hours." },
   { label: "Prerequisites", title: "Prerequisites", copy: "What the customer must provide before work starts. Catalog items are pre-filled for each product; add anything specific to this engagement." },
-  { label: "Deliverables", title: "Deliverables", copy: "Select the catalog deliverables included in this engagement, and the introduction and closing for the scope document." },
+  { label: "Deliverables", title: "Deliverables", copy: "Select the catalog deliverables included in this engagement." },
   { label: "Review", title: "Review the engagement", copy: "Confirm the scope and estimated effort before opening the scope document." },
 ];
 
@@ -306,7 +305,7 @@ export default function Home() {
                 {step === 2 && <ProductChooser products={catalog.products} selected={estimate.products} templates={catalog.solutions} onToggle={toggleProduct} onTemplate={(ids) => { update({ products: ids }); setStep(3); }} />}
                 {step === 3 && <InstallationDetails catalog={catalog} estimate={estimate} breakdown={breakdown.products} update={update} />}
                 {step === 4 && <Prerequisites estimate={estimate} breakdown={breakdown.prerequisites} update={update} />}
-                {step === 5 && <><Framing catalog={catalog} framing={estimate.framing} setFraming={(framing) => update({ framing })} /><Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} /></>}
+                {step === 5 && <Deliverables groups={groups} products={catalog.products} selected={estimate.selectedTasks} setSelected={(ids) => update({ selectedTasks: ids })} />}
                 {step === 6 && <Review estimate={estimate} breakdown={breakdown} dropped={dropped} onEditEngagement={() => setStep(1)} onEditInstallation={() => setStep(3)} />}
                 </div>
                 <div className="form-footer">

@@ -1,20 +1,21 @@
 Harbor & Vale Logistics — Connected Warehouse Vision Proof of Concept
 Prepared by Solstice Field Engineering
 
+1. INTRODUCTION
 This document describes a proof of concept for Harbor & Vale Logistics. Its purpose is to show, in its own environment, whether Solstice Core Platform, Outpost Edge Runtime, Outpost Fleet Manager, Nova Insight, Nova Vision, and Conductor Workflows can meet the goal below, so that Harbor & Vale Logistics has the evidence it needs to make a purchasing decision.
 
 The work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.
 
-1. GOAL
+2. GOAL
 Prove that Solstice can detect blocked dock doors and forklift near-misses across three distribution centers within two seconds of the event, route alerts to the operations team automatically, and give the analytics team a queryable history of every event, all managed as a single fleet from one console.
 
-2. SUCCESS CRITERIA
+3. SUCCESS CRITERIA
 - Blocked dock-door events are detected at all three sites within two seconds, with fewer than one false alert per site per day.
 - Forklift near-miss alerts reach the operations channel through Conductor with the camera clip attached.
 - Every event is queryable in Lakehouse dashboards within one minute of occurring.
 - A configuration change and an over-the-air update roll to all three sites from Fleet Manager with staged canary and rollback.
 
-3. PRODUCTS IN SCOPE
+4. PRODUCTS IN SCOPE
 - Solstice Core Platform: new deployment
 - Outpost Edge Runtime: new deployment
 - Outpost Fleet Manager: new deployment
@@ -24,7 +25,7 @@ Prove that Solstice can detect blocked dock doors and forklift near-misses acros
 - Nova Vision: new deployment
 - Conductor Workflows: new deployment
 
-4. INSTALLATION SCOPE
+5. INSTALLATION SCOPE
 Solstice Core Platform
 - Control plane footprint: Highly available (3 nodes) (6 hours)
 - Target platform: VMware vSphere (4 hours)
@@ -74,7 +75,7 @@ Conductor Workflows
 - Engine deployment: Shared engine on Core (1 hours)
 - Integrations: ITSM ticketing (3 hours)
 
-5. PREREQUISITES
+6. PREREQUISITES
 Solstice Core Platform
 - Control plane VIP: 10.42.0.10 [Provided]
 - Application ingress VIP: 10.42.0.11 [Provided]
@@ -116,7 +117,7 @@ Conductor Workflows
 - Integration service account (optional): — [Pending]
 - First three workflows to automate: Dock-door blocked alert, forklift near-miss report, nightly site health summary [Provided]
 
-6. CONTACTS
+7. CONTACTS
 Named contacts for Harbor & Vale Logistics and Solstice Field Engineering during the proof of concept.
 
 - Changes to this list are agreed in the weekly update.
@@ -125,7 +126,7 @@ Role | Name | Contact
 - Sponsor | Dana Ortiz | dana.ortiz@harborvale.example
 - Engineer |  |
 
-7. DELIVERY PLAN
+8. DELIVERY PLAN
 1. Engagement Planning
 - 1.1. Kickoff, access validation, and success criteria (3 hours, Planning)
 - 1.2. Target architecture and site plan (4 hours, Planning)
@@ -159,18 +160,19 @@ Role | Name | Contact
 - 10.3. Route alerts through Conductor to operations (3 hours, Configuration)
 - 10.4. Acceptance test against agreed detection targets (4 hours, Testing and Validation)
 
-8. ASSUMPTIONS
+9. ASSUMPTIONS
 - Harbor & Vale provides VMware capacity, network access, and camera credentials before kickoff.
 - The three pilot sites have a technician available for gateway installation.
 - Sample footage for custom training is delivered by the end of week one.
 - Estimate covers Solstice delivery effort only; calendar duration depends on site access and change windows.
 
-9. OUT OF SCOPE
+10. OUT OF SCOPE
 - Production hardening, performance tuning, and capacity planning
 - Migration of existing production data or workloads
 - Disaster recovery design and failover testing
 - Integration with the legacy Harbor & Vale data warehouse
 
+11. CLOSING
 At the end of the proof of concept, Solstice Field Engineering and Harbor & Vale Logistics will review the results against the success criteria above. The outcome informs, but does not commit Harbor & Vale Logistics to, a decision on Solstice Core Platform, Outpost Edge Runtime, Outpost Fleet Manager, Nova Insight, Nova Vision, and Conductor Workflows.
 
 By signing below, both parties agree to the scope, prerequisites, and assumptions in this document.

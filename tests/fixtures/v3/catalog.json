@@ -661,8 +661,8 @@
           "id": "api-vip",
           "label": "Control plane VIP",
           "placeholder": "10.20.0.10",
-          "required": true,
-          "help": "Virtual IP for the Core API on the node network."
+          "help": "Virtual IP for the Core API on the node network.",
+          "required": true
         },
         {
           "id": "app-vip",
@@ -680,8 +680,8 @@
           "id": "dns",
           "label": "DNS records",
           "placeholder": "core, *.apps",
-          "required": true,
-          "help": "Forward and reverse records for both VIPs."
+          "help": "Forward and reverse records for both VIPs.",
+          "required": true
         },
         {
           "id": "ntp",
@@ -705,8 +705,8 @@
           "id": "bmc",
           "label": "Out-of-band management",
           "placeholder": "Redfish or IPMI credentials",
-          "required": false,
-          "help": "Bare metal only."
+          "help": "Bare metal only.",
+          "required": false
         }
       ],
       "sentinel": [
@@ -1257,18 +1257,35 @@
         "label": "Formal end-user or administrator training"
       }
     ],
-    "documentTemplates": [
+    "sectionTemplates": [
       {
-        "id": "poc-purpose",
-        "name": "Proof of concept purpose",
+        "id": "poc-purpose-introduction",
+        "title": "Introduction",
+        "category": "Proof of concept purpose",
         "description": "Standard introduction and closing for a customer proof of concept.",
-        "introduction": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing.",
-        "closing": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "This document describes a proof of concept for {customer}. Its purpose is to show, in its own environment, whether {products} can meet the goal below, so that {customer} has the evidence it needs to make a purchasing decision.\n\nThe work is limited to the scope described here. Anything not listed is out of scope unless both parties agree to it in writing."
+          }
+        ],
         "enabled": true,
         "locked": false
-      }
-    ],
-    "sectionTemplates": [
+      },
+      {
+        "id": "poc-purpose-closing",
+        "title": "Closing",
+        "category": "Proof of concept purpose",
+        "description": "Standard introduction and closing for a customer proof of concept.",
+        "blocks": [
+          {
+            "kind": "text",
+            "text": "At the end of the proof of concept, {organization} and {customer} will review the results against the success criteria above. The outcome informs, but does not commit {customer} to, a decision on {products}.\n\nBy signing below, both parties agree to the scope, prerequisites, and assumptions in this document."
+          }
+        ],
+        "enabled": true,
+        "locked": false
+      },
       {
         "id": "contacts",
         "title": "Contacts",

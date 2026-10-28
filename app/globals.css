@@ -673,14 +673,5 @@ button.destructive-outline:hover:not(:disabled) { background: #fbeaea; }
 .template-fields .row-actions .destructive-outline { padding: 7px 12px; }
 .designer-list summary em.pending { color: #a35300; font-weight: 700; }
 .needs-answer { color: #a35300; font-weight: 600; font-size: 12px; margin: 0; }
-.framing { padding-bottom: 6px; }
-.framing select { height: 43px; padding: 0 12px; font-size: 13px; font-weight: 400; color: var(--ink); }
-.framing textarea { min-height: 150px; font-weight: 400; color: var(--ink); }
-.framing .notice .link { justify-self: start; align-self: start; padding: 4px 0; }
-.framing-source .link { padding: 0; font-size: 12px; }
-.doc-framing { margin: 0 0 8px; }
-.doc-framing p { margin: 0 0 12px; white-space: pre-line; }
-.doc-closing { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
 @media (max-width: 900px) { .template-fields label.span-2 { grid-column: 1 / -1; } }
-.framing textarea[readonly] { background: var(--paper); color: var(--muted); cursor: default; }
-.framing-locked b { color: var(--ink); }
+.locked-note b { color: var(--ink); }

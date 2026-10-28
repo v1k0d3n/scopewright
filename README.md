@@ -70,11 +70,11 @@ Settings (Manage): identity, logo, colors, fonts → the app and every document
   pre-populated per product and tracked with a value and status.
 - **Deliverables** are grouped tasks with a delivery phase and hours, offered
   only when their product is in the engagement.
-- **Introduction and closing templates** are longer wording, such as the
-  purpose of a proof of concept, kept with the deliverables in the catalog.
-  An architect picks one (or writes their own) in the Deliverables step; the
-  wording is copied into the estimate and printed before and after the
-  numbered sections.
+- **Section templates** are sections teams reuse, such as the purpose of a
+  proof of concept, contacts, or a schedule, made of text and tables and
+  grouped by category. An architect adds one (or writes their own) on the
+  Scope documents page; it is copied into the estimate, and the document's
+  sections can be reordered.
 - **Out of scope** items are things your team commonly excludes. They are
   offered as checkboxes in the Engagement step, next to free text for
   anything specific to the engagement.

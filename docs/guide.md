@@ -103,40 +103,6 @@ specific to this engagement.
 
 ![Deliverables step](img/004-estimate-deliverables.png)
 
-<!-- screenshot needed: img/004b-estimate-introduction.png (the Introduction and closing panel with a template chosen) -->
-
-**Introduction and closing** at the top of the step adds optional wording to
-the scope document: an introduction printed after the title, before the
-numbered sections, and a closing printed after the last section, before the
-signatures. Use it for text such as the purpose of the proof of concept.
-The **Wording** list offers:
-
-- **None**: the document starts straight at the goal. This is the default.
-- **Your team's templates**, maintained in the
-  [catalog](#introduction-and-closing-templates). Picking one copies its
-  wording into this estimate. You can then edit the copy for this engagement;
-  the panel says the wording is based on the template and edited, and
-  **Restore the template wording** undoes your edits. A template marked
-  **locked** in the catalog cannot be edited: its wording is used exactly as
-  written.
-- **Write my own**: write the introduction and closing yourself. Switching
-  from a template keeps its wording as a starting point, except from a
-  locked one, which starts empty.
-
-Either box may be left empty. Leave a blank line between paragraphs.
-`{customer}`, `{title}`, `{products}`, and `{organization}` are filled in from
-the estimate when the document is printed, so the wording follows later
-changes to the customer name or products. Anything else in braces prints as
-typed, and the panel points it out. Choosing other wording after editing asks
-before replacing your text.
-
-Because the wording is copied, a later change to the template does not change
-this estimate. If the catalog's template now reads differently, or has been
-locked or unlocked, the panel says so and offers **Use the new wording**; nothing changes until you choose
-it. Wording you edited is yours, so the only change offered for it is a
-template that has since been locked. An estimate keeps its wording even if the template is turned off or
-deleted.
-
 Deliverables are grouped by delivery phase (Planning, Prerequisites,
 Deployment, Configuration, Testing and Validation) and within a phase by
 catalog group. Only groups tied to a product in the engagement, or to no
@@ -153,8 +119,8 @@ engagement no longer needs it; once cleared, it is not offered again.
 
 ![Review step](img/005-estimate-review.png)
 
-A summary of the engagement details (including which introduction and
-closing the document uses) with a link back to step 1, and the
+A summary of the engagement details (including the document's custom
+sections) with a link back to step 1, and the
 scope table: one row per product with its chosen decisions and hours, one per
 deliverable group, and the total. A banner shows how many required
 prerequisites are still pending, and another lists any installation questions
@@ -176,10 +142,7 @@ sections, numbered as they appear: goal, products in scope, installation
 scope, prerequisites with values and status, delivery plan with numbered
 deliverables, out of scope, effort summary with the planning range, success
 criteria, and assumptions, followed by sign-off lines and the footer from
-Settings. When the estimate has an [introduction or
-closing](#5-deliverables), the introduction appears between the title and the
-first section and the closing after the last section; neither is numbered, so
-section numbers do not change.
+Settings. Custom sections, described below, add your own.
 
 **Sections** in the same panel lists the numbered sections in the order they
 print. **↑** and **↓** move a section, and turning off **Print** leaves it out
@@ -195,9 +158,10 @@ or who is responsible for what, either blank or from one of your team's
 and any mix of text and tables, and moves and prints like any other section.
 A template is copied into the estimate: when the catalog's version changes,
 the section's editor offers the new one, and a locked template's copy cannot
-be edited. Text follows the same
-rules as the introduction and closing: a blank line starts a new paragraph,
-`{customer}` and the other placeholders are filled in, lines starting
+be edited. In text, a blank line starts a new paragraph, `{customer}`,
+`{title}`, `{products}`, and `{organization}` are filled in from the estimate
+(anything else in braces prints as typed, and the editor points it out),
+lines starting
 with `- ` print as bullets, and lines starting with `1. ` print as a numbered
 list that starts at the number you type. Indent a line by two spaces to put
 it in a list under the line above. A table has up to eight columns; the first row of
@@ -276,9 +240,13 @@ If the only change is a kept deliverable, a short notice says so instead.
 The scope document always reflects the current catalog: an option that was
 renamed prints its new name, and changed hours print the new hours. The
 original wording of a removed option is not kept in the estimate, so the PDF
-printed at the time remains the record of what was agreed. The introduction
-and closing are the exception: they are copied into the estimate and print
-the same whatever happens to the template.
+printed at the time remains the record of what was agreed. Custom sections
+are the exception: they are copied into the estimate and print the same
+whatever happens to the template they came from.
+
+An estimate from before custom sections that has an introduction or closing
+opens with them as custom sections named "Introduction", printed first, and
+"Closing", printed last, with the same wording.
 
 ### Estimates from a newer Scopewright
 
@@ -411,37 +379,6 @@ engagement-specific ones there.
 
 ![Catalog: deliverables](img/014-catalog-deliverables.png)
 
-The Deliverables tab has two parts: introduction and closing templates, then
-deliverable groups.
-
-#### Introduction and closing templates
-
-<!-- screenshot needed: img/014b-catalog-templates.png (a template opened for editing) -->
-
-Longer wording for the scope document that your team wants used
-consistently, such as the purpose of a proof of concept. Each
-template has a **name**, an optional **When to use it** line shown to the
-person choosing, an **Introduction** printed after the title, and a
-**Closing** printed after the last section; either may be empty. Separate
-paragraphs with a blank line. `{customer}`, `{title}`, `{products}`, and
-`{organization}` are filled in from each estimate; anything else in braces is
-pointed out, because it would print as typed.
-
-**Offer in workflow** controls whether the template is listed in the
-[Deliverables step](#5-deliverables); the arrows set the order of the list.
-**Lock wording** is for wording that must be used exactly as written, for
-example a statement your organization has approved: estimates that pick a
-locked template cannot edit it (placeholders are still filled in). Without
-it, a template is a starting point that architects can adapt.
-Architects who pick a template get a copy of its wording, so editing,
-turning off, or deleting a template never changes an estimate that already
-uses it. After an edit, estimates whose copy is unedited offer the new
-wording; an estimate whose architect edited their copy is offered the
-template only once it is locked. Nothing changes unless the architect
-accepts it. **Delete template** asks for
-confirmation first.
-
-#### Deliverable groups
 
 Deliverable **groups** have a section number, a name, a category, and the
 product they belong to ("Any product" for engagement-wide work such as
@@ -464,11 +401,18 @@ Custom sections your teams use again and again: contacts, a responsibility
 matrix, an engagement schedule, or anything else made of text and tables.
 Each has a title, a **category** that groups it in the Add section list (for
 example the kind of engagement, or the team that uses it), and an optional
-note on when to use it. **Offer in workflow** and **Lock wording** work as
-they do for introduction and closing templates: a template that is not
-offered stays in the catalog, and a locked one is used exactly as written.
-Changing or deleting a template never changes an estimate that already uses
-it. The Solstice pack includes three to start from.
+note on when to use it. **Offer in workflow** controls whether it is listed
+when an architect adds a section; one that is not offered stays in the
+catalog. **Lock wording** is for wording that must be used exactly as
+written, for example a statement your organization has approved: an estimate
+that adds a locked template cannot edit its copy. Without it, a template is a
+starting point that architects adapt. Adding a template copies it, so
+editing, turning off, or deleting it never changes an estimate that already
+uses it; an unedited copy is offered the new version, and an edited one is
+offered it only once the template is locked. A catalog from before section
+templates that has introduction and closing templates imports them as
+section templates, grouped under each template's name. The Solstice pack
+includes five to start from.
 
 ### Deleting catalog items
 
