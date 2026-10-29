@@ -285,3 +285,7 @@ test("lettered lists: a. or a) counts a, b, c, nests like numbers, and starts at
   const upper = markdownSection("Options:\nC) Third\nD) Fourth").blocks.at(-1);
   assert.deepEqual([upper.start, upper.letters, upper.items], [3, "upper", [["Third"], ["Fourth"]]]);
 });
+
+test("a fence in a nested quote ends when that quote does", () => {
+  assert.deepEqual(markdownSection(">> ```\n>> code\n> **Intro:**").text, [">> ```", ">> code", "> Intro:", ""]);
+});

@@ -83,19 +83,21 @@ function blockLines(text: string): { token: Token; first: number; last: number }
  */
 function literalLines(text: string): Set<number> {
   const lines = new Set<number>();
-  let fence: { mark: string; length: number; quoted: boolean } | null = null;
+  let fence: { mark: string; length: number; depth: number } | null = null;
+  // How many quotes deep a line is: ">> x" is two.
+  const depth = (line: string) => /^(?:\s*>)*/.exec(line)![0].split(">").length - 1;
   text.split("\n").forEach((line, index) => {
     // A fence may sit in a quote ("> ```"), and the quote's marks come first.
     const marker = /^(?:\s*>)*\s*(`{3,}|~{3,})(.*)$/.exec(line);
     // A quoted fence ends with its quote, closed or not.
-    if (fence?.quoted && !/^\s*>/.test(line)) fence = null;
+    if (fence && depth(line) < fence.depth) fence = null;
     if (fence) {
       lines.add(index);
       // A fence closes only on the same mark, at least as long, with nothing after it.
-      if (marker && marker[1][0] === fence.mark && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
+      if (marker && marker[1][0] === fence.mark && marker[1].length >= fence.length && !marker[2].trim() && depth(line) === fence.depth) fence = null;
     } else if (marker && !(marker[1][0] === "`" && marker[2].includes("`"))) {
       lines.add(index);
-      fence = { mark: marker[1][0], length: marker[1].length, quoted: /^\s*>/.test(line) };
+      fence = { mark: marker[1][0], length: marker[1].length, depth: depth(line) };
     }
   });
   for (const { token, first, last } of blockLines(text)) {
