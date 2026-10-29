@@ -202,14 +202,20 @@ that engagement.
 | `locked` | boolean | no (default `false`) | `true` means estimates use it exactly as written. |
 
 Custom sections a team reuses, such as the purpose of a proof of concept,
-contacts, a responsibility matrix, or a schedule. Text follows these rules:
+contacts, a responsibility matrix, or a schedule. Text is Markdown, read
+with these rules:
 
 - A blank line (`\n\n` in JSON) separates paragraphs; a single line break
   stays inside its paragraph.
+- `## ` starts a subheading; `**bold**` and `*italic*` style words; a
+  Markdown table prints as a table. Raw HTML, code, and images print as the
+  text typed, and links as their text and address.
 - A line that starts with `- ` (or `* `, `• `) is a bullet, and one that
-  starts with `1. ` (or `1) `) is a numbered item; a numbered list starts at
-  the first number given. A line indented by two spaces or a tab belongs to a
-  list under the line above.
+  starts with `1. ` (or `1) `) is a numbered item, and one that starts with
+  `a. ` (or `a) `, `A. `) a lettered item; a list starts at the first number
+  or letter given. A line indented by two spaces or a tab belongs to a
+  list under the list item above; a list whose first line is indented, with
+  no list item above it, is printed indented.
 - `{customer}`, `{title}`, `{products}` (the products the architect picked,
   as "A, B, and C"), and `{organization}` (the organization name in Settings)
   are filled in from each estimate when the document is printed, in titles,

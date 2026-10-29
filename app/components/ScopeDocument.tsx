@@ -79,6 +79,7 @@ export function ScopeDocument({ catalog, estimate, breakdown, branding, update, 
 function SpanView({ span }: { span: Span }) {
   if (typeof span === "string") return <>{span}</>;
   if ("strong" in span) return <b>{span.strong}</b>;
+  if ("em" in span) return <i>{span.em}</i>;
   if ("note" in span) return <> <small>({span.note})</small></>;
   if ("hours" in span) return <> <span className="doc-hours">{span.hours}h</span></>;
   return <span className={`status-${span.status}`}>{span.label}</span>;
@@ -88,7 +89,8 @@ const Spans = ({ spans }: { spans: Span[] }) => <>{spans.map((span, index) => <S
 
 function ListView({ list }: { list: ListBlock }) {
   const items = list.items.map((item, line) => <li key={line}><Spans spans={item} />{list.nested?.[line] && <ListView list={list.nested[line]} />}</li>);
-  return list.ordered ? <ol start={list.start}>{items}</ol> : <ul>{items}</ul>;
+  const className = [list.indent && "doc-list-indent", list.letters && `doc-letters-${list.letters}`].filter(Boolean).join(" ") || undefined;
+  return list.ordered ? <ol className={className} start={list.start}>{items}</ol> : <ul className={className}>{items}</ul>;
 }
 
 function Blocks({ blocks }: { blocks: Block[] }) {
@@ -102,6 +104,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
           <tbody>{block.rows.map((row, line) => <tr key={line} className={row.total ? "doc-total" : undefined}>{row.cells.map((cell, column) => <td key={column}><Spans spans={cell} /></td>)}</tr>)}</tbody>
         </table>
       );
+      case "heading": return <h6 key={index} className="doc-subheading"><Spans spans={block.content} /></h6>;
       case "group": return <section key={index} className="scope-product"><b><Spans spans={block.title} /></b><Blocks blocks={block.blocks} /></section>;
     }
   })}</>;

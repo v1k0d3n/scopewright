@@ -82,8 +82,8 @@ Settings (Manage): identity, logo, colors, fonts → the app and every document
   anything specific to the engagement.
 - **The scope document** is generated from all of the above and prints to
   PDF. Its sections can be moved and left out, and custom sections of text
-  and tables (with bullets, numbered lists, and placeholders such as
-  `{customer}`) added alongside them. Its **Show hours** option removes every
+  and tables (written in Markdown: subheadings, bold, lists, and
+  placeholders such as `{customer}`) added alongside them. Its **Show hours** option removes every
   hour figure and the effort summary, for discussing scope and prerequisites
   without effort.
 - **Saved estimates** are files in a place the architect chooses. The

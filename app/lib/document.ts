@@ -10,15 +10,16 @@
  */
 import type { Catalog, CustomBlock, CustomSection, Estimate, PrerequisiteStatus, SectionPlacement } from "./types.ts";
 import type { EstimateBreakdown } from "./estimate.ts";
-import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, outOfScopeLines, paragraphs, placeholderValues, statusLabel } from "./estimate.ts";
+import { TO_BE_DECIDED, calculate, defaultTitle, fillPlaceholders, outOfScopeLines, placeholderValues, statusLabel } from "./estimate.ts";
+import { markdownBlocks, markdownText } from "./markdown.ts";
 
 /** A piece of inline content. Plain text prints as written; the others are styled on the page. */
-export type Span = string | { strong: string } | { note: string } | { hours: number } | { status: PrerequisiteStatus; label: string };
+export type Span = string | { strong: string } | { em: string } | { note: string } | { hours: number } | { status: PrerequisiteStatus; label: string };
 
 export type TableRow = { cells: Span[][]; total?: boolean };
 
-/** Bullets, or numbers from `start`. An item may hold one list of its own (`nested[i]` belongs to `items[i]`). */
-export type ListBlock = { kind: "list"; items: Span[][]; ordered?: boolean; start?: number; nested?: (ListBlock | undefined)[] };
+/** Bullets, or numbers from `start`. An item may hold one list of its own (`nested[i]` belongs to `items[i]`). An ordered list with `letters` counts a, b, c (or A, B, C) instead of 1, 2, 3; an `indent`ed list sits further in from the text around it. */
+export type ListBlock = { kind: "list"; items: Span[][]; ordered?: boolean; start?: number; letters?: "lower" | "upper"; nested?: (ListBlock | undefined)[]; indent?: boolean };
 
 export type Block =
   /** Placeholder copy stands in for something not written yet. */
@@ -27,7 +28,9 @@ export type Block =
   /** Columns may be empty for a table without a header. A numeric table's last column holds figures. */
   | { kind: "table"; columns: string[]; rows: TableRow[]; numeric?: boolean }
   /** A titled part of a section, such as one product. */
-  | { kind: "group"; title: Span[]; blocks: Block[] };
+  | { kind: "group"; title: Span[]; blocks: Block[] }
+  /** A heading inside a section, below its numbered title. */
+  | { kind: "heading"; content: Span[] };
 
 export type DocumentSection = {
   /** A built-in SectionId or a custom section's id. */
@@ -252,45 +255,18 @@ function customDefinition(section: CustomSection): SectionDefinition {
   };
 }
 
-/** A list line: its indent, then "-", "*", or "•" for a bullet, or "1." or "1)" for a number. */
-const LIST_ITEM = /^([ \t]*)(?:[-*•]|(\d{1,3})[.)])\s+(.*)$/;
-
-/**
- * Text as paragraphs and lists. A single line break stays inside its
- * paragraph; a run of list lines is a list, and a line indented by two spaces
- * or a tab belongs to a list under the item above it.
- */
+/** A custom section's content as blocks: text is read as Markdown, and placeholders are filled in. */
 function customBlocks(block: CustomBlock, fill: (value: string) => string): Block[] {
   if (block.kind === "table") {
     const columns = block.columns.map(fill);
     return [{ kind: "table", columns: columns.some((column) => column.trim()) ? columns : [], rows: block.rows.map((row) => ({ cells: row.map((cell) => [fill(cell)]) })) }];
   }
-  return paragraphs(fill(block.text)).flatMap((paragraph) => {
-    const out: Block[] = [];
-    for (const line of paragraph.split("\n")) {
-      const last = out.at(-1);
-      const match = LIST_ITEM.exec(line);
-      if (match) {
-        const [, indent, number, content] = match;
-        const ordered = number !== undefined;
-        const item = [content.trim()];
-        const fresh = (): ListBlock => (ordered ? { kind: "list", items: [item], ordered, start: Number(number) } : { kind: "list", items: [item] });
-        if (indent.replace(/\t/g, "  ").length >= 2 && last?.kind === "list") {
-          const at = last.items.length - 1;
-          const nested = (last.nested ??= []);
-          if (nested[at]) nested[at].items.push(item); else nested[at] = fresh();
-        } else if (last?.kind === "list" && Boolean(last.ordered) === ordered) last.items.push(item);
-        else out.push(fresh());
-      } else if (last?.kind === "paragraph") last.content.push(`\n${line}`);
-      else out.push({ kind: "paragraph", content: [line] });
-    }
-    return out;
-  });
+  return markdownBlocks(block.text, fill);
 }
 
 function customText(block: CustomBlock, fill: (value: string) => string): string[] {
   if (block.kind === "table") return [...(block.columns.some((column) => column.trim()) ? [block.columns.map(fill).join(" | ")] : []), ...block.rows.map((row) => `- ${row.map(fill).join(" | ")}`.trimEnd())];
-  return paragraphs(fill(block.text)).flatMap((paragraph, index) => (index ? ["", ...paragraph.split("\n")] : paragraph.split("\n")));
+  return markdownText(block.text, fill);
 }
 
 /** Everything the scope document prints, in order. */

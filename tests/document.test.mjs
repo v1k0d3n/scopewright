@@ -91,7 +91,7 @@ test("a custom section prints its title, text, and table, with placeholders fill
   assert.equal(section.custom, true);
   assert.equal(section.title, `${sample.customer} CONTACTS`.toUpperCase());
   assert.deepEqual(section.blocks.map((block) => block.kind), ["paragraph", "list", "table"]);
-  assert.deepEqual(section.blocks[0].content, ["Who to call during the engagement.", "\nAsk the account team first."]);
+  assert.deepEqual(section.blocks[0].content, ["Who to call during the engagement.\nAsk the account team first."], "a single line break stays inside its paragraph");
   assert.deepEqual(section.blocks[1].items, [["Weekdays only"], ["Escalate through Org"]]);
   assert.deepEqual(section.blocks[2].columns, ["Role", "Name", "Contact"]);
   const text = documentText(document, "Org");
@@ -184,4 +184,108 @@ test("files keep exactly what the section editors allow, so nothing typed is los
   const [template] = mergeCatalog({ ...emptyCatalog, sectionTemplates: [{ id: "t", title: "T", category: long(SECTION_LIMITS.category), description: long(SECTION_LIMITS.description), blocks: [] }] }, emptyCatalog).sectionTemplates;
   assert.equal(template.category.length, SECTION_LIMITS.category);
   assert.equal(template.description.length, SECTION_LIMITS.description);
+});
+
+const markdownSection = (text, customer = sample.customer) => {
+  const section = { id: "s", title: "T", blocks: [{ kind: "text", text }], templateId: "", templateName: "", edited: false, locked: false };
+  const document = scopeDocument(catalog, { ...sample, customer, customSections: [section] }, "Org");
+  return { blocks: document.sections.at(-1).blocks, text: document.sections.at(-1).text };
+};
+
+test("custom text reads Markdown: subheadings, bold, italic, and tables", () => {
+  const { blocks, text } = markdownSection("## Solstice Core Platform\nSome **bold** and *italic* words.\n\n| Role | Name |\n|------|------|\n| Sponsor | {customer} |");
+  assert.deepEqual(blocks[0], { kind: "heading", content: ["Solstice Core Platform"] });
+  assert.deepEqual(blocks[1], { kind: "paragraph", content: ["Some ", { strong: "bold" }, " and ", { em: "italic" }, " words."] });
+  assert.deepEqual(blocks[2], { kind: "table", columns: ["Role", "Name"], rows: [{ cells: [["Sponsor"], [sample.customer]] }] });
+  assert.deepEqual(text, ["Solstice Core Platform", "Some bold and italic words.", "", "Role | Name", "Sponsor | Harbor & Vale Logistics", ""], "the copied text keeps the words, not the marks");
+});
+
+test("raw HTML prints as the text that was typed, and placeholders are never read as Markdown", () => {
+  const html = markdownSection("<script>alert(1)</script>").blocks;
+  assert.deepEqual(html, [{ kind: "paragraph", content: ["<script>alert(1)</script>"] }]);
+  const filled = markdownSection("Hello {customer}", "**Acme**").blocks;
+  assert.deepEqual(filled, [{ kind: "paragraph", content: ["Hello **Acme**"] }], "a filled-in value prints as typed");
+});
+
+test("the list rules shipped before Markdown still hold", () => {
+  const { blocks } = markdownSection("1. Platform\n  - Operators\n  - Storage\n2. Ceph");
+  assert.equal(blocks[0].ordered, true);
+  assert.deepEqual(blocks[0].nested[0].items, [["Operators"], ["Storage"]], "two spaces nest under a numbered item");
+  const after = markdownSection("Steps:\n3. Prepare\n4. Execute").blocks;
+  assert.deepEqual(after.map((block) => block.kind), ["paragraph", "list"], "a list may start straight after a line of text");
+  assert.equal(after[1].start, 3);
+});
+
+test("a list typed indented with no list above it is indented, and its own nesting still works", () => {
+  const { blocks, text } = markdownSection("This document will provide:\n  1. A review\n    - of the goals\n  2. An overview\n\nPlain list:\n- not indented");
+  assert.deepEqual(blocks.map((block) => [block.kind, block.indent ?? false]), [["paragraph", false], ["list", true], ["paragraph", false], ["list", false]]);
+  assert.deepEqual(blocks[1].items, [["A review"], ["An overview"]]);
+  assert.deepEqual(blocks[1].nested[0].items, [["of the goals"]], "two more spaces still nest under the item above");
+  assert.ok(text.includes("  1. A review"), "the copied text keeps the indent as typed");
+  assert.equal(markdownSection("1. Platform\n  - Operators").blocks[0].indent, undefined, "spaces under a list item nest, they do not indent");
+});
+
+test("copied text drops Markdown's marks the way the page reads them, and never changes code, images, rules, or a filled-in value", () => {
+  const { text } = markdownSection("**Bold** `__init__` snake_case [Docs](https://docs.example) ![*alt*](i.png)\n\nOne | two |\n\n---\n\nHi {customer}", "**Acme**");
+  assert.deepEqual(text, ["Bold `__init__` snake_case Docs (https://docs.example) ![*alt*](i.png)", "", "One | two |", "", "---", "", "Hi **Acme**", ""]);
+});
+
+test("on the page, images, inline code, and rules print as typed", () => {
+  const { blocks } = markdownSection("See `npm run check` and ![logo](l.png)\n\n---");
+  assert.deepEqual(blocks[0].content, ["See ", "`npm run check`", " and ", "![logo](l.png)"]);
+  assert.deepEqual(blocks[1], { kind: "paragraph", content: ["---"] });
+});
+
+test("list lines inside fenced code or raw HTML are left exactly as typed", () => {
+  const fenced = markdownSection("```\n  1. not a list\n```").blocks;
+  assert.deepEqual(fenced, [{ kind: "paragraph", content: ["```\n  1. not a list\n```"] }]);
+  const html = markdownSection("<div>\n  - kept\n</div>").blocks;
+  assert.deepEqual(html, [{ kind: "paragraph", content: ["<div>\n  - kept\n</div>"] }]);
+});
+
+test("a list inside a quote never takes the indent of a later list", () => {
+  const { blocks } = markdownSection("> - quoted\n\nIntro:\n  1. indented\n\nPlain:\n- plain");
+  assert.deepEqual(blocks.filter((block) => block.kind === "list").map((block) => [block.items[0][0], block.indent ?? false]), [["quoted", false], ["indented", true], ["plain", false]]);
+});
+
+test("code and raw HTML blocks end where Markdown ends them, and lists after them work as usual", () => {
+  const fenced = markdownSection("```\n  - task\n``` trailing\n  3. literal\n```\nIntro:\n  1. after").blocks;
+  assert.equal(fenced[0].content[0], "```\n  - task\n``` trailing\n  3. literal\n```", "a fence with text after it does not close the block");
+  assert.deepEqual(fenced.at(-1), { kind: "list", items: [["after"]], ordered: true, start: 1, indent: true });
+  const html = markdownSection("<pre>raw</pre>\nIntro:\n  3. Step").blocks;
+  assert.deepEqual(html.map((block) => block.kind), ["paragraph", "paragraph", "list"]);
+  assert.equal(html[2].start, 3);
+});
+
+test("list rules win over indented code, and fenced code keeps its lines inside a list item and in copied text", () => {
+  const indented = markdownSection("Intro:\n    - four spaces\n\t- a tab").blocks;
+  assert.deepEqual(indented.at(-1), { kind: "list", items: [["four spaces"], ["a tab"]], indent: true }, "an indented list line is a list, not code");
+  const nested = markdownSection("- Parent\n  ```\n  - task\n  ```").blocks[0];
+  assert.equal(nested.items[0].join(""), "Parent\n```\n- task\n```", "the fence in the item keeps its lines");
+  const { text } = markdownSection("**Bold**\n\n```\nfirst\n\n**literal**\n```");
+  assert.deepEqual(text, ["Bold", "", "```", "first", "", "**literal**", "```", ""], "a blank line inside code does not split it in the copied text");
+});
+
+test("copied text: bold across lines loses its marks, and a fence inside a quote stays as typed", () => {
+  assert.deepEqual(markdownSection("**Bold that\nspans lines** done").text, ["Bold that", "spans lines done", ""]);
+  assert.deepEqual(markdownSection("> ```\n> **literal**\n> ```").text, ["> ```", "> **literal**", "> ```", ""]);
+});
+
+test("a quoted fence ends with its quote, so lines after it read as usual", () => {
+  const { blocks, text } = markdownSection("> ```\n> code\n\n**Intro:**\n  3. Step");
+  assert.equal(text[3], "Intro:", "bold after the quote loses its marks");
+  assert.deepEqual(blocks.at(-1), { kind: "list", items: [["Step"]], ordered: true, start: 3, indent: true });
+});
+
+test("lettered lists: a. or a) counts a, b, c, nests like numbers, and starts at the letter typed", () => {
+  const { blocks, text } = markdownSection("1. This is a number.\n   a. This is a letter.\n   b. Another letter.\n2. Next number.");
+  assert.deepEqual(blocks[0].items, [["This is a number."], ["Next number."]]);
+  assert.deepEqual(blocks[0].nested[0], { kind: "list", items: [["This is a letter."], ["Another letter."]], ordered: true, start: 1, letters: "lower" });
+  assert.ok(text.includes("   a. This is a letter."), "the copied text keeps the letters as typed");
+  const upper = markdownSection("Options:\nC) Third\nD) Fourth").blocks.at(-1);
+  assert.deepEqual([upper.start, upper.letters, upper.items], [3, "upper", [["Third"], ["Fourth"]]]);
+});
+
+test("a fence in a nested quote ends when that quote does", () => {
+  assert.deepEqual(markdownSection(">> ```\n>> code\n> **Intro:**").text, [">> ```", ">> code", "> Intro:", ""]);
 });

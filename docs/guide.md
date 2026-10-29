@@ -181,17 +181,23 @@ move it; **Remove** deletes it. Changes show in the preview as you type, and
 in the Sections list. **Delete section** removes it from the estimate after
 asking.
 
-In a text block:
+A text block is written in Markdown:
 
 | You type | It prints |
 |----------|-----------|
 | A blank line | A new paragraph. A single line break stays inside its paragraph. |
+| `## ` at the start of a line | A subheading inside the section (any number of `#` prints the same). |
+| `**words**` and `*words*` | **Bold** and *italic*. |
+| A Markdown table (`\| Role \| Name \|`, then `\|---\|---\|`, then rows) | A table, the same as a table block. |
 | `- ` at the start of a line (or `* `, `• `) | A bullet. |
 | `1. ` or `1) ` at the start of a line | A numbered list, starting at the number you type. |
-| Two spaces (or a tab) before `- ` or `1. ` | A list inside the item on the line above. |
+| `a. ` or `a) ` (or `A. `) at the start of a line | A lettered list, starting at the letter you type. Markdown itself has no lettered lists; Scopewright adds them for sub-items. |
+| Two spaces (or a tab) before `- ` or `1. ` | A list inside the item on the line above. On a list's first line, with no list above it, an indented list instead. |
 | `{customer}`, `{title}`, `{products}`, `{organization}` | The customer name, the engagement title, the products picked, and the organization name in Settings. They work in the title and in tables too, and follow later changes to the estimate. |
 
-Anything else in braces prints as typed, and the editor points it out.
+Anything else in braces prints as typed, and the editor points it out. Raw
+HTML, code, and images print as the text you typed; links print as their
+text followed by the address.
 
 A table has a heading row and up to eight columns. **+ Row** and
 **+ Column** add to it, and **×** removes a row or a column. A table whose
@@ -214,7 +220,7 @@ imported with it.
 **Print / Save PDF** uses a print stylesheet that drops the app chrome and
 keeps the logo. **Copy as text** puts a plain-text version on the clipboard
 for email or a ticket. In it, custom text prints as you typed it, with the
-placeholders filled in, and a
+placeholders filled in and without Markdown's marks (`##`, `**`, `*`), and a
 table prints its headings on one line (`Role | Name | Contact`) and each row
 as a line starting with `- `.
 
