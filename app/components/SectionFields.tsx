@@ -61,7 +61,7 @@ function TextBlock({ block, onChange }: { block: Extract<CustomBlock, { kind: "t
   return (
     <label className="section-text">Text
       <textarea rows={6} maxLength={SECTION_LIMITS.text} value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} />
-      <small>Markdown works: a blank line between paragraphs, “## ” for a subheading, **bold**, *italic*, “- ” for a bullet, “1. ” for a numbered list (two spaces before it nest it under the list item above, or indent a list that has none), and tables.</small>
+      <small>Markdown works: a blank line between paragraphs, “## ” for a subheading, **bold**, *italic*, “- ” for a bullet, “1. ” or “a. ” for a numbered or lettered list (two spaces before it nest it under the list item above, or indent a list that has none), and tables.</small>
     </label>
   );
 }

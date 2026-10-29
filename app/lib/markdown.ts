@@ -9,8 +9,15 @@ import { Lexer, lexer } from "marked";
 import type { Token, Tokens } from "marked";
 import type { Block, ListBlock, Span } from "./document.ts";
 
-/** A list line as people type it: an indent, then "-", "*", or "•", or "1." or "1)". */
-const LIST_ITEM = /^([ \t]*)([-*•]|\d{1,3}[.)])\s+(.*)$/;
+/** A list line as people type it: an indent, then "-", "*", or "•", "1." or "1)", or a letter, "a." or "a)" (or "A."). */
+const LIST_ITEM = /^([ \t]*)([-*•]|\d{1,3}[.)]|[a-zA-Z][.)])\s+(.*)$/;
+
+/**
+ * Markdown has no lettered lists, so a lettered line is handed to it as the
+ * matching number ("c." as "3.") with one of these invisible marks first;
+ * the list it ends up in is then drawn with letters, and the mark removed.
+ */
+const LETTERS = { lower: "\u2063", upper: "\u2064" } as const;
 
 /**
  * Text as Scopewright's rules read it, rewritten for Markdown. Two spaces or a
@@ -45,12 +52,14 @@ function normalize(text: string): { text: string; indented: boolean[] } {
     const indent = item[1].replace(/\t/g, "  ").length;
     if (!list) list = { base: indent, kind: "", indented: indent >= 2 };
     const level = Math.max(0, Math.floor((indent - list.base) / 2));
-    const marker = item[2] === "•" ? "-" : item[2];
+    const letter = /^[a-zA-Z]/.test(item[2]) ? item[2][0] : "";
+    const marker = item[2] === "•" ? "-" : letter ? `${letter.toLowerCase().charCodeAt(0) - 96}${item[2].slice(1)}` : item[2];
+    const content = letter ? `${letter === letter.toLowerCase() ? LETTERS.lower : LETTERS.upper}${item[3]}` : item[3];
     // Markdown starts a new list when the marker changes kind ("-" or "*", "1." or "1)").
     const kind = /\d/.test(marker) ? marker.slice(-1) : marker;
     if (level === 0 && kind !== list.kind) { indented.push(list.indented); list.kind = kind; }
     // Four spaces a level is deeper than any marker up to "99." needs, and not deep enough to be code.
-    out.push(`${"    ".repeat(level)}${marker} ${item[3]}`);
+    out.push(`${"    ".repeat(level)}${marker} ${content}`);
     previous = "list";
   });
   return { text: out.join("\n"), indented };
@@ -129,7 +138,11 @@ function list(token: Tokens.List, fill: Fill): ListBlock {
     // A loose list wraps each item's text in a paragraph; a tight one does not.
     return content.flatMap((child, at) => [...(at ? ["\n"] : []), ...("tokens" in child && child.tokens ? inline(child.tokens, fill) : [fill(child.raw.trim())])]);
   });
-  const ordered = token.ordered ? { ordered: true, start: typeof token.start === "number" ? token.start : 1 } : {};
+  // A lettered list's items begin with the mark normalize gave them; the first item decides how the list is drawn.
+  const first = items[0]?.[0];
+  const letters = typeof first === "string" && first[0] === LETTERS.lower ? "lower" : typeof first === "string" && first[0] === LETTERS.upper ? "upper" : null;
+  for (const item of items) if (typeof item[0] === "string" && (item[0][0] === LETTERS.lower || item[0][0] === LETTERS.upper)) item[0] = item[0].slice(1);
+  const ordered = token.ordered ? { ordered: true, start: typeof token.start === "number" ? token.start : 1, ...(letters ? { letters } : {}) } : {};
   return { kind: "list", items, ...ordered, ...(nested.length ? { nested } : {}) };
 }
 

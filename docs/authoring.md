@@ -211,8 +211,9 @@ with these rules:
   Markdown table prints as a table. Raw HTML, code, and images print as the
   text typed, and links as their text and address.
 - A line that starts with `- ` (or `* `, `• `) is a bullet, and one that
-  starts with `1. ` (or `1) `) is a numbered item; a numbered list starts at
-  the first number given. A line indented by two spaces or a tab belongs to a
+  starts with `1. ` (or `1) `) is a numbered item, and one that starts with
+  `a. ` (or `a) `, `A. `) a lettered item; a list starts at the first number
+  or letter given. A line indented by two spaces or a tab belongs to a
   list under the list item above; a list whose first line is indented, with
   no list item above it, is printed indented.
 - `{customer}`, `{title}`, `{products}` (the products the architect picked,

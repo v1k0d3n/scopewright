@@ -276,3 +276,12 @@ test("a quoted fence ends with its quote, so lines after it read as usual", () =
   assert.equal(text[3], "Intro:", "bold after the quote loses its marks");
   assert.deepEqual(blocks.at(-1), { kind: "list", items: [["Step"]], ordered: true, start: 3, indent: true });
 });
+
+test("lettered lists: a. or a) counts a, b, c, nests like numbers, and starts at the letter typed", () => {
+  const { blocks, text } = markdownSection("1. This is a number.\n   a. This is a letter.\n   b. Another letter.\n2. Next number.");
+  assert.deepEqual(blocks[0].items, [["This is a number."], ["Next number."]]);
+  assert.deepEqual(blocks[0].nested[0], { kind: "list", items: [["This is a letter."], ["Another letter."]], ordered: true, start: 1, letters: "lower" });
+  assert.ok(text.includes("   a. This is a letter."), "the copied text keeps the letters as typed");
+  const upper = markdownSection("Options:\nC) Third\nD) Fourth").blocks.at(-1);
+  assert.deepEqual([upper.start, upper.letters, upper.items], [3, "upper", [["Third"], ["Fourth"]]]);
+});

@@ -191,6 +191,7 @@ A text block is written in Markdown:
 | A Markdown table (`\| Role \| Name \|`, then `\|---\|---\|`, then rows) | A table, the same as a table block. |
 | `- ` at the start of a line (or `* `, `• `) | A bullet. |
 | `1. ` or `1) ` at the start of a line | A numbered list, starting at the number you type. |
+| `a. ` or `a) ` (or `A. `) at the start of a line | A lettered list, starting at the letter you type. Markdown itself has no lettered lists; Scopewright adds them for sub-items. |
 | Two spaces (or a tab) before `- ` or `1. ` | A list inside the item on the line above. On a list's first line, with no list above it, an indented list instead. |
 | `{customer}`, `{title}`, `{products}`, `{organization}` | The customer name, the engagement title, the products picked, and the organization name in Settings. They work in the title and in tables too, and follow later changes to the estimate. |
 
